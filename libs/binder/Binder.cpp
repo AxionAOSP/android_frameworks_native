@@ -283,7 +283,7 @@ public:
     int mPriority = 0;
 #endif
     bool mRequestingSid = false;
-    bool mInheritRt = false;
+    bool mInheritRt = true;
 
     // for below objects
     RpcMutex mLock;
@@ -593,7 +593,7 @@ int BBinder::getMinSchedulerPriority() {
 bool BBinder::isInheritRt() {
     Extras* e = mExtras.load(std::memory_order_acquire);
 
-    return e && e->mInheritRt;
+    return !e || e->mInheritRt;
 }
 
 void BBinder::setInheritRt(bool inheritRt) {
@@ -604,7 +604,7 @@ void BBinder::setInheritRt(bool inheritRt) {
     Extras* e = mExtras.load(std::memory_order_acquire);
 
     if (!e) {
-        if (!inheritRt) {
+        if (inheritRt) {
             return;
         }
 
