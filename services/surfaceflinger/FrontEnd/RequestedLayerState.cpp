@@ -226,9 +226,12 @@ void RequestedLayerState::merge(const ResolvedComposerState& resolvedComposerSta
                 TransactionTraceWriter::getInstance().invoke("out_of_order_buffers_",
                                                              /*overwrite=*/false);
             }
-
+            // If producerId changed, it means that the BBQ has recreated, so we need to
+            // reset the barrierFrameNumber as frameNumber.
+            barrierFrameNumber = barrierProducerId < bufferData->producerId
+                    ? bufferData->frameNumber
+                    : std::max(bufferData->frameNumber, barrierFrameNumber);
             barrierProducerId = std::max(bufferData->producerId, barrierProducerId);
-            barrierFrameNumber = std::max(bufferData->frameNumber, barrierFrameNumber);
         }
 
         const bool newBufferFormatOpaque = LayerSnapshot::isOpaqueFormat(
