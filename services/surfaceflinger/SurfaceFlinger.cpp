@@ -3100,12 +3100,12 @@ void SurfaceFlinger::onCompositionPresented(PhysicalDisplayId pacesetterId,
 
     const auto schedule = mScheduler->getVsyncSchedule();
     const TimePoint vsyncDeadline = schedule->vsyncDeadlineAfter(presentTime);
-    const Period vsyncPeriod = schedule->period();
+    const Fps renderRate = pacesetterDisplay->refreshRateSelector().getActiveMode().fps;
     const nsecs_t vsyncPhase =
             mScheduler->getVsyncConfiguration().getCurrentConfigs().late.sfOffset;
 
-    const CompositorTiming compositorTiming(vsyncDeadline.ns(), vsyncPeriod.ns(), vsyncPhase,
-                                            presentLatency.ns());
+    const CompositorTiming compositorTiming(vsyncDeadline.ns(), renderRate.getPeriodNsecs(),
+                                            vsyncPhase, presentLatency.ns());
 
     ui::DisplayMap<ui::LayerStack, const DisplayDevice*> layerStackToDisplay;
     {
