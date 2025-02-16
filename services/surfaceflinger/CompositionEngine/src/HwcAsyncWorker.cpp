@@ -53,7 +53,7 @@ std::future<bool> HwcAsyncWorker::send(std::function<bool()> task) {
 }
 
 void HwcAsyncWorker::run() {
-    set_sched_policy(0, SP_FOREGROUND);
+    set_sched_policy(0, SP_TOP_APP);
     struct sched_param param = {0};
     param.sched_priority = 2;
     sched_setscheduler(gettid(), SCHED_FIFO, &param);
