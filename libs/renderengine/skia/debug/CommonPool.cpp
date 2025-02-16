@@ -42,7 +42,7 @@ CommonPool::CommonPool() {
                 snprintf(name.data(), name.size(), "reTask%d", i);
                 auto self = pthread_self();
                 pthread_setname_np(self, name.data());
-                setpriority(PRIO_PROCESS, 0, ANDROID_PRIORITY_FOREGROUND);
+                setpriority(PRIO_PROCESS, 0, ANDROID_PRIORITY_URGENT_DISPLAY);
             }
             pool->workerLoop();
         });
