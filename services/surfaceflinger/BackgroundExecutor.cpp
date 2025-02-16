@@ -32,7 +32,7 @@ namespace android {
 namespace {
 
 void set_thread_priority(bool highPriority) {
-    set_sched_policy(0, highPriority ? SP_FOREGROUND : SP_BACKGROUND);
+    set_sched_policy(0, highPriority ? SP_TOP_APP : SP_BACKGROUND);
     struct sched_param param = {0};
     param.sched_priority = highPriority ? 2 : 0 /* must be 0 for non-RT */;
     sched_setscheduler(gettid(), highPriority ? SCHED_FIFO : SCHED_NORMAL, &param);
