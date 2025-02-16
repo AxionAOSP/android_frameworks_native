@@ -138,7 +138,7 @@ int main(int, char**) {
 
     setpriority(PRIO_PROCESS, 0, PRIORITY_URGENT_DISPLAY);
 
-    set_sched_policy(0, SP_FOREGROUND);
+    set_sched_policy(0, SP_TOP_APP);
 
     // initialize before clients can connect
     flinger->init();
