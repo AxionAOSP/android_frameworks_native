@@ -315,7 +315,7 @@ EventThread::EventThread(const char* name, std::shared_ptr<scheduler::VsyncSched
         ALOGE("Couldn't set SCHED_FIFO for EventThread");
     }
 
-    set_sched_policy(tid, SP_FOREGROUND);
+    set_sched_policy(tid, SP_TOP_APP);
 }
 
 EventThread::~EventThread() {
