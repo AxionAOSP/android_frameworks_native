@@ -78,6 +78,16 @@ status_t RenderEngineThreaded::setSchedFifo(bool enabled) {
 void RenderEngineThreaded::threadMain(CreateInstanceFactory factory) NO_THREAD_SAFETY_ANALYSIS {
     SFTRACE_CALL();
 
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    for (int i = 4; i <= 7; ++i) {
+        CPU_SET(i, &cpuset);
+    }
+
+    if (sched_setaffinity(0, sizeof(cpu_set_t), &cpuset) != 0) {
+        ALOGW("Failed to set render-engine CPU affinity to big cores!");
+    }
+
     if (!SetTaskProfiles(0, {"SFRenderEnginePolicy"})) {
         ALOGW("Failed to set render-engine task profile!");
     }
