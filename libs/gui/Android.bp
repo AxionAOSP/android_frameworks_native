@@ -361,6 +361,7 @@ cc_defaults {
 
     cflags: [
         "-Wthread-safety",
+        "-O3",
     ],
 }
 
