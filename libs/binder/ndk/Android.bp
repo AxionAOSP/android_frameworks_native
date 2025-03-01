@@ -87,6 +87,7 @@ cc_library {
 
     cflags: [
         "-DBINDER_WITH_KERNEL_IPC",
+        "-O3",
     ],
 
     srcs: [
