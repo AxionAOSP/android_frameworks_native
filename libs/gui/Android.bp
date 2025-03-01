@@ -352,6 +352,13 @@ cc_defaults {
         thin: true,
     },
 
+    target: {
+        android_arm64: {
+            cflags: ["-fsplit-machine-functions"],
+            ldflags: ["-fsplit-machine-functions"],
+        }
+    },
+
     cflags: [
         "-Wthread-safety",
     ],
