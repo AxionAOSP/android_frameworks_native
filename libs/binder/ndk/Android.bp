@@ -124,6 +124,10 @@ cc_library {
                 enabled: false,
             },
         },
+        android_arm64: {
+            cflags: ["-fsplit-machine-functions"],
+            ldflags: ["-fsplit-machine-functions"],
+        },
         linux: {
             version_script: "libbinder_ndk.map.txt",
         },
