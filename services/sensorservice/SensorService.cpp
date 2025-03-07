@@ -17,6 +17,7 @@
 
 #include <aidl/android/hardware/sensors/ISensors.h>
 #include <android-base/strings.h>
+#include <android-base/properties.h>
 #include <android/content/pm/IPackageManagerNative.h>
 #include <android/util/ProtoOutputStream.h>
 #include <binder/ActivityManager.h>
@@ -492,6 +493,37 @@ void SensorService::onFirstRef() {
 
             // priority can only be changed after run
             enableSchedFifoMode();
+
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);
+
+            std::vector<int32_t> small_cores;
+
+            auto parseCpusets = [](const std::string& cpuset_str, std::vector<int32_t>& cpus) {
+                std::istringstream ss(cpuset_str);
+                std::string token;
+                while (std::getline(ss, token, ',')) {
+                    char* endptr;
+                    long cpu = std::strtol(token.c_str(), &endptr, 10);
+                    if (*endptr == '\0' && cpu >= 0) {
+                        cpus.push_back(static_cast<int32_t>(cpu));
+                    } else {
+                        ALOGW("Invalid CPU core value: %s", token.c_str());
+                    }
+                }
+            };
+
+            parseCpusets(android::base::GetProperty("persist.sys.axion_cpu_small", "0,1,2,3"), small_cores);
+
+            for (int core : small_cores) {
+                CPU_SET(core, &cpuset);
+            }
+
+            if (sched_setaffinity(0, sizeof(cpu_set_t), &cpuset) != 0) {
+                ALOGW("Failed to set SensorService CPU affinity to small cores!");
+            } else {
+                ALOGI("Successfully set SensorService CPU affinity to small cores!");
+            }
 
             // Start watching UID changes to apply policy.
             mUidPolicy->registerSelf();
