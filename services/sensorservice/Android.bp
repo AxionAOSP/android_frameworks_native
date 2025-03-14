@@ -107,6 +107,11 @@ cc_library {
     ],
 
     target: {
+        android: {
+            lto: {
+                thin: true,
+            },
+        },
         android_arm64: {
              cflags: ["-fsplit-machine-functions"],
              ldflags: ["-fsplit-machine-functions"],
