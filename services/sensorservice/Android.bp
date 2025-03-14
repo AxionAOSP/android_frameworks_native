@@ -105,6 +105,13 @@ cc_library {
         "libpermission",
     ],
 
+    target: {
+        android_arm64: {
+             cflags: ["-fsplit-machine-functions"],
+             ldflags: ["-fsplit-machine-functions"],
+        },
+    },
+
     afdo: true,
 }
 
