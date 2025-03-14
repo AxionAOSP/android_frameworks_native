@@ -54,6 +54,7 @@ cc_library {
         "-Wextra",
         "-Wthread-safety",
         "-fvisibility=hidden",
+        "-O3",
     ],
 
     header_libs: [
