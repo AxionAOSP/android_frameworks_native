@@ -112,7 +112,8 @@ cc_library {
              ldflags: ["-fsplit-machine-functions"],
         },
     },
-
+    
+    lto_Instr100: true,
     afdo: true,
 }
 
