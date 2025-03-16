@@ -5222,6 +5222,11 @@ std::string InputDispatcher::DispatcherWindowInfo::dumpDisplayAndWindowInfo() co
     } else {
         dump += "Displays: <none>\n";
     }
+    dump += StringPrintf("mMaximumObscuringOpacityForTouch: %f\n",
+                         mMaximumObscuringOpacityForTouch);
+    dump += "DisplayTopologyGraph:\n";
+    dump += addLinePrefix(mTopology.dump(), INDENT);
+    dump += "\n";
     return dump;
 }
 
@@ -7044,11 +7049,6 @@ void InputDispatcher::onWindowInfosChanged(const gui::WindowInfosUpdate& update)
             setInputWindowsLocked(handles, displayId);
         }
 
-        if (update.vsyncId < mWindowInfosVsyncId) {
-            ALOGE("Received out of order window infos update. Last update vsync id: %" PRId64
-                  ", current update vsync id: %" PRId64,
-                  mWindowInfosVsyncId, update.vsyncId);
-        }
         mWindowInfosVsyncId = update.vsyncId;
     }
     // Wake up poll loop since it may need to make new input dispatching choices.

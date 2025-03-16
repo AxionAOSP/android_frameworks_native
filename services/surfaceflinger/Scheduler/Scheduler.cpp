@@ -554,8 +554,7 @@ void Scheduler::resyncAllToHardwareVsync(bool allowToEnable) {
     ftl::FakeGuard guard(kMainThreadContext);
 
     for (const auto& [id, display] : mDisplays) {
-        if (display.powerMode != hal::PowerMode::OFF ||
-            !FlagManager::getInstance().multithreaded_present()) {
+        if (display.powerMode != hal::PowerMode::OFF) {
             resyncToHardwareVsyncLocked(id, allowToEnable);
         }
     }

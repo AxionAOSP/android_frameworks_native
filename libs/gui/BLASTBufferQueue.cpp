@@ -937,15 +937,22 @@ public:
           : Surface(igbp, controlledByApp, scHandle), mBbq(bbq) {}
 
     void allocateBuffers() override {
+        ATRACE_CALL();
         uint32_t reqWidth = mReqWidth ? mReqWidth : mUserWidth;
         uint32_t reqHeight = mReqHeight ? mReqHeight : mUserHeight;
         auto gbp = getIGraphicBufferProducer();
-        std::thread ([reqWidth, reqHeight, gbp=getIGraphicBufferProducer(),
-                      reqFormat=mReqFormat, reqUsage=mReqUsage] () {
+        std::thread allocateThread([reqWidth, reqHeight, gbp = getIGraphicBufferProducer(),
+                                    reqFormat = mReqFormat, reqUsage = mReqUsage]() {
+            if (com_android_graphics_libgui_flags_allocate_buffer_priority()) {
+                androidSetThreadName("allocateBuffers");
+                pid_t tid = gettid();
+                androidSetThreadPriority(tid, ANDROID_PRIORITY_DISPLAY);
+            }
+
             gbp->allocateBuffers(reqWidth, reqHeight,
                                  reqFormat, reqUsage);
-
-        }).detach();
+        });
+        allocateThread.detach();
     }
 
     status_t setFrameRate(float frameRate, int8_t compatibility,

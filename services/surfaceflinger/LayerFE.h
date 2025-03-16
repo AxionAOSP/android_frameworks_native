@@ -18,6 +18,7 @@
 
 #include <android/gui/CachingHint.h>
 #include <gui/LayerMetadata.h>
+#include <ui/GraphicBuffer.h>
 #include <ui/LayerStack.h>
 #include <ui/PictureProfileHandle.h>
 
@@ -58,6 +59,7 @@ public:
     ftl::Future<FenceResult> createReleaseFenceFuture() override;
     void setReleaseFence(const FenceResult& releaseFence) override;
     LayerFE::ReleaseFencePromiseStatus getReleaseFencePromiseStatus() override;
+    void setReleasedBuffer(sp<GraphicBuffer> buffer) override;
     void onPictureProfileCommitted() override;
 
     // Used for debugging purposes, e.g. perfetto tracing, dumpsys.
@@ -95,6 +97,7 @@ private:
     std::promise<FenceResult> mReleaseFence;
     ReleaseFencePromiseStatus mReleaseFencePromiseStatus = ReleaseFencePromiseStatus::UNINITIALIZED;
     HwcLayerDebugState mLastHwcState;
+    wp<GraphicBuffer> mReleasedBuffer;
 };
 
 } // namespace android

@@ -347,6 +347,7 @@ void SkiaRenderEngine::useProtectedContext(bool useProtectedContext) {
     if (useProtectedContextImpl(
             useProtectedContext ? GrProtected::kYes : GrProtected::kNo)) {
         mInProtectedContext = useProtectedContext;
+        SFTRACE_INT("RE inProtectedContext", mInProtectedContext);
         // given that we are sharing the same thread between two contexts we need to
         // make sure that the thread state is reset when switching between the two.
         if (getActiveContext()) {
@@ -1235,6 +1236,16 @@ void SkiaRenderEngine::drawLayersInternal(
     LOG_ALWAYS_FATAL_IF(activeSurface != dstSurface);
     auto drawFence = sp<Fence>::make(flushAndSubmit(context, dstSurface));
     trace(drawFence);
+    FenceTimePtr fenceTime = FenceTime::makeValid(drawFence);
+    for (const auto& layer : layers) {
+        if (FlagManager::getInstance().monitor_buffer_fences()) {
+            if (layer.source.buffer.buffer) {
+                layer.source.buffer.buffer->getBuffer()
+                        ->getDependencyMonitor()
+                        .addAccessCompletion(fenceTime, "RE");
+            }
+        }
+    }
     resultPromise->set_value(std::move(drawFence));
 }
 

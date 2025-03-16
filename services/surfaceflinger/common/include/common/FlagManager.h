@@ -63,6 +63,7 @@ public:
     bool correct_virtual_display_power_state() const;
     bool graphite_renderengine_preview_rollout() const;
     bool increase_missed_frame_jank_threshold() const;
+    bool monitor_buffer_fences() const;
     bool refresh_rate_overlay_on_external_display() const;
     bool vsync_predictor_recovery() const;
 
@@ -99,7 +100,6 @@ public:
     bool local_tonemap_screenshots() const;
     bool luts_api() const;
     bool misc1() const;
-    bool multithreaded_present() const;
     bool no_vsyncs_on_screen_off() const;
     bool override_trusted_overlay() const;
     bool protected_if_client() const;

@@ -216,6 +216,13 @@ flag {
 } # local_tonemap_screenshots
 
 flag {
+  name: "monitor_buffer_fences"
+  namespace: "core_graphics"
+  description: "Monitors fences for each buffer"
+  bug: "360932099"
+} # monitor_buffer_fences
+
+flag {
   name: "no_vsyncs_on_screen_off"
   namespace: "core_graphics"
   description: "Stop vsync / Choreographer callbacks to apps when the screen is off"

@@ -410,6 +410,15 @@ void LayerFE::setReleaseFence(const FenceResult& releaseFence) {
     if (mReleaseFencePromiseStatus == ReleaseFencePromiseStatus::FULFILLED) {
         return;
     }
+
+    if (releaseFence.has_value()) {
+        if (FlagManager::getInstance().monitor_buffer_fences()) {
+            if (auto strongBuffer = mReleasedBuffer.promote()) {
+                strongBuffer->getDependencyMonitor()
+                        .addAccessCompletion(FenceTime::makeValid(releaseFence.value()), "HWC");
+            }
+        }
+    }
     mReleaseFence.set_value(releaseFence);
     mReleaseFencePromiseStatus = ReleaseFencePromiseStatus::FULFILLED;
 }
@@ -426,6 +435,10 @@ ftl::Future<FenceResult> LayerFE::createReleaseFenceFuture() {
 
 LayerFE::ReleaseFencePromiseStatus LayerFE::getReleaseFencePromiseStatus() {
     return mReleaseFencePromiseStatus;
+}
+
+void LayerFE::setReleasedBuffer(sp<GraphicBuffer> buffer) {
+    mReleasedBuffer = std::move(buffer);
 }
 
 void LayerFE::setLastHwcState(const LayerFE::HwcLayerDebugState &state) {

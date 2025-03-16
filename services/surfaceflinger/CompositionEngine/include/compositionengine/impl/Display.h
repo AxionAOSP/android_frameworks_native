@@ -46,6 +46,7 @@ public:
 
     // compositionengine::Output overrides
     ftl::Optional<DisplayId> getDisplayId() const override;
+    ftl::Optional<DisplayIdVariant> getDisplayIdVariant() const override;
     bool isValid() const override;
     void dump(std::string&) const override;
     using compositionengine::impl::Output::setReleasedLayers;
@@ -104,8 +105,11 @@ private:
             override;
     bool hasPictureProcessing() const override;
     int32_t getMaxLayerPictureProfiles() const override;
+    bool isGpuVirtualDisplay() const {
+        return std::holds_alternative<GpuVirtualDisplayId>(mIdVariant);
+    }
 
-    DisplayId mId;
+    DisplayIdVariant mIdVariant;
     bool mIsDisconnected = false;
     adpf::PowerAdvisor* mPowerAdvisor = nullptr;
     bool mHasPictureProcessing = false;

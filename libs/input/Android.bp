@@ -225,6 +225,7 @@ cc_library {
     srcs: [
         "AccelerationCurve.cpp",
         "CoordinateFilter.cpp",
+        "DisplayTopologyGraph.cpp",
         "Input.cpp",
         "InputConsumer.cpp",
         "InputConsumerNoResampling.cpp",
@@ -270,6 +271,7 @@ cc_library {
 
     shared_libs: [
         "android.companion.virtualdevice.flags-aconfig-cc",
+        "com.android.window.flags.window-aconfig_flags_c_lib",
         "libPlatformProperties",
         "libaconfig_storage_read_api_cc",
         "libbase",

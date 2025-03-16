@@ -52,6 +52,7 @@
 #include <gui/ITransactionCompletedListener.h>
 #include <gui/LayerState.h>
 #include <gui/SurfaceControl.h>
+#include <gui/TransactionState.h>
 #include <gui/WindowInfosListenerReporter.h>
 #include <math/vec3.h>
 
@@ -447,56 +448,11 @@ public:
         static sp<IBinder> sApplyToken;
         static std::mutex sApplyTokenMutex;
         void releaseBufferIfOverwriting(const layer_state_t& state);
-        static void mergeFrameTimelineInfo(FrameTimelineInfo& t, const FrameTimelineInfo& other);
         // Tracks registered callbacks
         sp<TransactionCompletedListener> mTransactionCompletedListener = nullptr;
-        // Prints debug logs when enabled.
-        bool mLogCallPoints = false;
 
-    protected:
-        Vector<ComposerState> mComposerStates;
-        Vector<DisplayState> mDisplayStates;
-        std::unordered_map<sp<ITransactionCompletedListener>, CallbackInfo, TCLHash>
-                mListenerCallbacks;
-        std::vector<client_cache_t> mUncacheBuffers;
+        TransactionState mState;
 
-        // We keep track of the last MAX_MERGE_HISTORY_LENGTH merged transaction ids.
-        // Ordered most recently merged to least recently merged.
-        static const size_t MAX_MERGE_HISTORY_LENGTH = 10u;
-        std::vector<uint64_t> mMergedTransactionIds;
-
-        uint64_t mId;
-        uint32_t mFlags = 0;
-
-        // Indicates that the Transaction may contain buffers that should be cached. The reason this
-        // is only a guess is that buffers can be removed before cache is called. This is only a
-        // hint that at some point a buffer was added to this transaction before apply was called.
-        bool mMayContainBuffer = false;
-
-        // mDesiredPresentTime is the time in nanoseconds that the client would like the transaction
-        // to be presented. When it is not possible to present at exactly that time, it will be
-        // presented after the time has passed.
-        //
-        // If the client didn't pass a desired presentation time, mDesiredPresentTime will be
-        // populated to the time setBuffer was called, and mIsAutoTimestamp will be set to true.
-        //
-        // Desired present times that are more than 1 second in the future may be ignored.
-        // When a desired present time has already passed, the transaction will be presented as soon
-        // as possible.
-        //
-        // Transactions from the same process are presented in the same order that they are applied.
-        // The desired present time does not affect this ordering.
-        int64_t mDesiredPresentTime = 0;
-        bool mIsAutoTimestamp = true;
-
-        // The vsync id provided by Choreographer.getVsyncId and the input event id
-        FrameTimelineInfo mFrameTimelineInfo;
-
-        // If not null, transactions will be queued up using this token otherwise a common token
-        // per process will be used.
-        sp<IBinder> mApplyToken = nullptr;
-
-        InputWindowCommands mInputWindowCommands;
         int mStatus = NO_ERROR;
 
         layer_state_t* getLayerState(const sp<SurfaceControl>& sc);
@@ -505,6 +461,11 @@ public:
         void cacheBuffers();
         void registerSurfaceControlForCallback(const sp<SurfaceControl>& sc);
         void setReleaseBufferCallback(BufferData*, ReleaseBufferCallback);
+
+    protected:
+        // Accessed in tests.
+        std::unordered_map<sp<ITransactionCompletedListener>, CallbackInfo, TCLHash>
+                mListenerCallbacks;
 
     public:
         Transaction();
@@ -522,7 +483,7 @@ public:
 
         // Returns the current id of the transaction.
         // The id is updated every time the transaction is applied.
-        uint64_t getId();
+        uint64_t getId() const;
 
         std::vector<uint64_t> getMergedTransactionIds();
 

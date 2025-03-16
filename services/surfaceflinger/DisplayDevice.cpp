@@ -26,7 +26,6 @@
 
 #include <common/trace.h>
 #include <compositionengine/CompositionEngine.h>
-#include <compositionengine/Display.h>
 #include <compositionengine/DisplayColorProfile.h>
 #include <compositionengine/DisplayColorProfileCreationArgs.h>
 #include <compositionengine/DisplayCreationArgs.h>
@@ -50,17 +49,6 @@
 namespace android {
 
 namespace hal = hardware::graphics::composer::hal;
-
-namespace gui {
-inline std::string_view to_string(ISurfaceComposer::OptimizationPolicy optimizationPolicy) {
-    switch (optimizationPolicy) {
-        case ISurfaceComposer::OptimizationPolicy::optimizeForPower:
-            return "optimizeForPower";
-        case ISurfaceComposer::OptimizationPolicy::optimizeForPerformance:
-            return "optimizeForPerformance";
-    }
-}
-} // namespace gui
 
 DisplayDeviceCreationArgs::DisplayDeviceCreationArgs(
         const sp<SurfaceFlinger>& flinger, HWComposer& hwComposer, const wp<IBinder>& displayToken,
@@ -306,6 +294,10 @@ bool DisplayDevice::hasRenderIntent(ui::RenderIntent intent) const {
 
 DisplayId DisplayDevice::getId() const {
     return mCompositionDisplay->getId();
+}
+
+bool DisplayDevice::isVirtual() const {
+    return mCompositionDisplay->isVirtual();
 }
 
 bool DisplayDevice::isSecure() const {

@@ -239,3 +239,13 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+flag {
+  name: "enable_display_topology_validation"
+  namespace: "input"
+  description: "Set to true to enable display topology validation"
+  bug: "401219231"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
