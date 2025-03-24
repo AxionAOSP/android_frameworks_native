@@ -828,11 +828,10 @@ SurfaceComposerClient::Transaction::Transaction() {
     mTransactionCompletedListener = TransactionCompletedListener::getInstance();
 }
 
-SurfaceComposerClient::Transaction::Transaction(const Transaction& other) {
-    mState = other.mState;
-    mListenerCallbacks = other.mListenerCallbacks;
-    mTransactionCompletedListener = TransactionCompletedListener::getInstance();
-}
+SurfaceComposerClient::Transaction::Transaction(Transaction&& other)
+      : mTransactionCompletedListener(TransactionCompletedListener::getInstance()),
+        mState(std::move(other.mState)),
+        mListenerCallbacks(std::move(other.mListenerCallbacks)) {}
 
 void SurfaceComposerClient::Transaction::sanitize(int pid, int uid) {
     uint32_t permissions = LayerStatePermissions::getTransactionPermissions(pid, uid);

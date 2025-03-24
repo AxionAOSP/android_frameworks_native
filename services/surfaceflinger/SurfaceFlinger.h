@@ -733,14 +733,19 @@ private:
     void setVirtualDisplayPowerMode(const sp<DisplayDevice>& display, hal::PowerMode mode)
             REQUIRES(mStateLock, kMainThreadContext);
 
-    // Adjusts thread scheduling according to the optimization policy
-    static void optimizeThreadScheduling(
-            const char* whence, gui::ISurfaceComposer::OptimizationPolicy optimizationPolicy);
+    // Returns whether to optimize globally for performance instead of power.
+    bool shouldOptimizeForPerformance() REQUIRES(mStateLock);
+
+    // Turns on power optimizations, for example when there are no displays to be optimized for
+    // performance.
+    static void enablePowerOptimizations(const char* whence);
+
+    // Turns off power optimizations.
+    static void disablePowerOptimizations(const char* whence);
 
     // Enables or disables power optimizations depending on whether there are displays that should
     // be optimized for performance.
-    void applyOptimizationPolicy(const char* whence) REQUIRES(kMainThreadContext)
-            REQUIRES(mStateLock);
+    void applyOptimizationPolicy(const char* whence) REQUIRES(mStateLock);
 
     // Returns the preferred mode for PhysicalDisplayId if the Scheduler has selected one for that
     // display. Falls back to the display's defaultModeId otherwise.
@@ -1334,8 +1339,6 @@ private:
         HWComposer::HotplugEvent event;
     };
 
-    bool mIsHdcpViaNegVsync = false;
-
     std::mutex mHotplugMutex;
     std::vector<HotplugEvent> mPendingHotplugEvents GUARDED_BY(mHotplugMutex);
 
@@ -1453,8 +1456,6 @@ private:
     // Flag used to set override desired display mode from backdoor
     bool mDebugDisplayModeSetByBackdoor = false;
 
-    // Tracks the number of maximum queued buffers by layer owner Uid.
-    using BufferStuffingMap = ftl::SmallMap<uid_t, uint32_t, 10>;
     BufferCountTracker mBufferCountTracker;
 
     std::unordered_map<DisplayId, sp<HdrLayerInfoReporter>> mHdrLayerInfoListeners

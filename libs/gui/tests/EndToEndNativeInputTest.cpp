@@ -398,7 +398,7 @@ public:
     InputSurfacesTest() { ProcessState::self()->startThreadPool(); }
 
     void SetUp() {
-        mComposerClient = new SurfaceComposerClient;
+        mComposerClient = sp<SurfaceComposerClient>::make();
         ASSERT_EQ(NO_ERROR, mComposerClient->initCheck());
         const auto ids = SurfaceComposerClient::getPhysicalDisplayIds();
         ASSERT_FALSE(ids.empty());

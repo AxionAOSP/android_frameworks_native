@@ -194,7 +194,7 @@ const std::string& SurfaceControl::getName() const {
     return mName;
 }
 
-std::shared_ptr<Choreographer> SurfaceControl::getChoreographer() {
+sp<Choreographer> SurfaceControl::getChoreographer() {
     if (mChoreographer) {
         return mChoreographer;
     }
@@ -203,7 +203,7 @@ std::shared_ptr<Choreographer> SurfaceControl::getChoreographer() {
         ALOGE("%s: No looper prepared for thread", __func__);
         return nullptr;
     }
-    mChoreographer = std::make_shared<Choreographer>(looper, getHandle());
+    mChoreographer = sp<Choreographer>::make(looper, getHandle());
     status_t result = mChoreographer->initialize();
     if (result != OK) {
         ALOGE("Failed to initialize choreographer");

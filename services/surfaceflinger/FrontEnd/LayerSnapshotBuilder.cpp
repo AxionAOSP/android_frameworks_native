@@ -447,15 +447,14 @@ void LayerSnapshotBuilder::updateSnapshots(const Args& args) {
     if (args.root.getLayer()) {
         // The hierarchy can have a root layer when used for screenshots otherwise, it will have
         // multiple children.
-        LayerHierarchy::ScopedAddToTraversalPath addChildToPath(root, args.root.getLayer()->id,
-                                                                LayerHierarchy::Variant::Attached);
-        updateSnapshotsInHierarchy(args, args.root, root, rootSnapshot, /*depth=*/0);
+        LayerHierarchy::TraversalPath childPath =
+                root.makeChild(args.root.getLayer()->id, LayerHierarchy::Variant::Attached);
+        updateSnapshotsInHierarchy(args, args.root, childPath, rootSnapshot, /*depth=*/0);
     } else {
         for (auto& [childHierarchy, variant] : args.root.mChildren) {
-            LayerHierarchy::ScopedAddToTraversalPath addChildToPath(root,
-                                                                    childHierarchy->getLayer()->id,
-                                                                    variant);
-            updateSnapshotsInHierarchy(args, *childHierarchy, root, rootSnapshot, /*depth=*/0);
+            LayerHierarchy::TraversalPath childPath =
+                    root.makeChild(childHierarchy->getLayer()->id, variant);
+            updateSnapshotsInHierarchy(args, *childHierarchy, childPath, rootSnapshot, /*depth=*/0);
         }
     }
 
@@ -520,7 +519,7 @@ void LayerSnapshotBuilder::update(const Args& args) {
 
 const LayerSnapshot& LayerSnapshotBuilder::updateSnapshotsInHierarchy(
         const Args& args, const LayerHierarchy& hierarchy,
-        LayerHierarchy::TraversalPath& traversalPath, const LayerSnapshot& parentSnapshot,
+        const LayerHierarchy::TraversalPath& traversalPath, const LayerSnapshot& parentSnapshot,
         int depth) {
     LLOG_ALWAYS_FATAL_WITH_TRACE_IF(depth > 50,
                                     "Cycle detected in LayerSnapshotBuilder. See "
@@ -549,12 +548,10 @@ const LayerSnapshot& LayerSnapshotBuilder::updateSnapshotsInHierarchy(
 
     bool childHasValidFrameRate = false;
     for (auto& [childHierarchy, variant] : hierarchy.mChildren) {
-        LayerHierarchy::ScopedAddToTraversalPath addChildToPath(traversalPath,
-                                                                childHierarchy->getLayer()->id,
-                                                                variant);
+        LayerHierarchy::TraversalPath childPath =
+                traversalPath.makeChild(childHierarchy->getLayer()->id, variant);
         const LayerSnapshot& childSnapshot =
-                updateSnapshotsInHierarchy(args, *childHierarchy, traversalPath, *snapshot,
-                                           depth + 1);
+                updateSnapshotsInHierarchy(args, *childHierarchy, childPath, *snapshot, depth + 1);
         updateFrameRateFromChildSnapshot(*snapshot, childSnapshot, *childHierarchy->getLayer(),
                                          args, &childHasValidFrameRate);
     }

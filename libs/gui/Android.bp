@@ -295,7 +295,6 @@ filegroup {
 cc_defaults {
     name: "libgui-defaults",
     defaults: ["libgui_bufferqueue-defaults"],
-    srcs: [":libgui-sources"],
     static_libs: [
         "libgui_aidl_static",
         "libgui_window_info_static",
@@ -317,6 +316,10 @@ cc_library_shared {
 
     defaults: [
         "libgui-defaults",
+    ],
+
+    srcs: [
+        ":libgui-sources",
     ],
 
     export_static_lib_headers: [

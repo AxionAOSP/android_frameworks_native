@@ -70,6 +70,14 @@ DisplayId Display::getId() const {
     return asDisplayId(mIdVariant);
 }
 
+bool Display::hasSecureLayers() const {
+    const auto layers = getOutputLayersOrderedByZ();
+    return std::any_of(layers.begin(), layers.end(), [](const auto& layer) {
+        const auto* state = layer->getLayerFE().getCompositionState();
+        return state && state->isSecure;
+    });
+}
+
 bool Display::isSecure() const {
     return getState().isSecure;
 }

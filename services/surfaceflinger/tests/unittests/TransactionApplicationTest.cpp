@@ -78,7 +78,7 @@ public:
         }
     };
 
-    void checkEqual(TransactionInfo info, QueuedTransactionState state) {
+    void checkEqual(const TransactionInfo& info, const QueuedTransactionState& state) {
         EXPECT_EQ(0u, info.mComposerStates.size());
         EXPECT_EQ(0u, state.states.size());
 
@@ -383,7 +383,7 @@ public:
         EXPECT_TRUE(mFlinger.getTransactionQueue().isEmpty());
         EXPECT_EQ(0u, mFlinger.getPendingTransactionQueue().size());
         std::unordered_set<uint32_t> createdLayers;
-        for (auto transaction : transactions) {
+        for (auto& transaction : transactions) {
             for (auto& state : transaction.mComposerStates) {
                 auto layerId = static_cast<uint32_t>(state.state.layerId);
                 if (createdLayers.find(layerId) == createdLayers.end()) {

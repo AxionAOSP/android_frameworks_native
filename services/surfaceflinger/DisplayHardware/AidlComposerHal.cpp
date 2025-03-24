@@ -328,9 +328,7 @@ std::string AidlComposer::dumpDebugInfo() {
     std::string str;
     // Use other thread to read pipe to prevent
     // pipe is full, making HWC be blocked in writing.
-    std::thread t([&]() {
-        base::ReadFdToString(pipefds[0], &str);
-    });
+    std::thread t([&]() { base::ReadFdToString(pipefds[0], &str); });
     const auto status = mAidlComposer->dump(pipefds[1], /*args*/ nullptr, /*numArgs*/ 0);
     // Close the write-end of the pipe to make sure that when reading from the
     // read-end we will get eof instead of blocking forever
@@ -1718,6 +1716,18 @@ Error AidlComposer::setLayerPictureProfileId(Display display, Layer layer, Pictu
     }
     mMutex.unlock_shared();
     return error;
+}
+
+Error AidlComposer::startHdcpNegotiation(Display display,
+                                         const aidl::android::hardware::drm::HdcpLevels& levels) {
+    const auto status =
+            mAidlComposerClient->startHdcpNegotiation(translate<int64_t>(display), levels);
+    if (!status.isOk()) {
+        ALOGE("startHdcpNegotiation failed %s", status.getDescription().c_str());
+        return static_cast<Error>(status.getServiceSpecificError());
+    }
+
+    return Error::NONE;
 }
 
 Error AidlComposer::getLuts(Display display, const std::vector<sp<GraphicBuffer>>& buffers,

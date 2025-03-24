@@ -512,14 +512,6 @@ void EventThread::onModeRejected(PhysicalDisplayId displayId, DisplayModeId mode
     mCondition.notify_all();
 }
 
-// Merge lists of buffer stuffed Uids
-void EventThread::addBufferStuffedUids(BufferStuffingMap bufferStuffedUids) {
-    std::lock_guard<std::mutex> lock(mMutex);
-    for (auto& [uid, count] : bufferStuffedUids) {
-        mBufferStuffedUids.emplace_or_replace(uid, count);
-    }
-}
-
 void EventThread::threadMain(std::unique_lock<std::mutex>& lock) {
     DisplayEventConsumers consumers;
 
@@ -761,10 +753,6 @@ void EventThread::generateFrameTimeline(VsyncEventData& outVsyncEventData, nsecs
 
 void EventThread::dispatchEvent(const DisplayEventReceiver::Event& event,
                                 const DisplayEventConsumers& consumers) {
-    // List of Uids that have been sent vsync data with queued buffer count.
-    // Used to keep track of which Uids can be removed from the map of
-    // buffer stuffed clients.
-    ftl::SmallVector<uid_t, 10> uidsPostedQueuedBuffers;
     for (const auto& consumer : consumers) {
         DisplayEventReceiver::Event copy = event;
         if (event.header.type == DisplayEventType::DISPLAY_EVENT_VSYNC) {
@@ -773,13 +761,6 @@ void EventThread::dispatchEvent(const DisplayEventReceiver::Event& event,
             generateFrameTimeline(copy.vsync.vsyncData, frameInterval.ns(), copy.header.timestamp,
                                   event.vsync.vsyncData.preferredExpectedPresentationTime(),
                                   event.vsync.vsyncData.preferredDeadlineTimestamp());
-        }
-        auto it = mBufferStuffedUids.find(consumer->mOwnerUid);
-        if (it != mBufferStuffedUids.end()) {
-            copy.vsync.vsyncData.numberQueuedBuffers = it->second;
-            uidsPostedQueuedBuffers.emplace_back(consumer->mOwnerUid);
-        } else {
-            copy.vsync.vsyncData.numberQueuedBuffers = 0;
         }
         switch (consumer->postEvent(copy)) {
             case NO_ERROR:
@@ -795,12 +776,6 @@ void EventThread::dispatchEvent(const DisplayEventReceiver::Event& event,
                 // Treat EPIPE and other errors as fatal.
                 removeDisplayEventConnectionLocked(consumer);
         }
-    }
-    // The clients that have already received the queued buffer count
-    // can be removed from the buffer stuffed Uid list to avoid
-    // being sent duplicate messages.
-    for (auto uid : uidsPostedQueuedBuffers) {
-        mBufferStuffedUids.erase(uid);
     }
     if (event.header.type == DisplayEventType::DISPLAY_EVENT_VSYNC &&
         FlagManager::getInstance().vrr_config()) {

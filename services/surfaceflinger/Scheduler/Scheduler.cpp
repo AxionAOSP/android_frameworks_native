@@ -124,7 +124,10 @@ void Scheduler::setPacesetterDisplay(PhysicalDisplayId pacesetterId) {
     // Cancel the pending refresh rate change, if any, before updating the phase configuration.
     mVsyncModulator->cancelRefreshRateChange();
 
-    mVsyncConfiguration->reset();
+    {
+        std::scoped_lock lock{mVsyncConfigLock};
+        mVsyncConfiguration->reset();
+    }
     updatePhaseConfiguration(pacesetterId, pacesetterSelectorPtr()->getActiveMode().fps);
 }
 
@@ -211,7 +214,7 @@ void Scheduler::onFrameSignal(ICompositor& compositor, VsyncId vsyncId,
              .vsyncId = vsyncId,
              .expectedVsyncTime = expectedVsyncTime,
              .sfWorkDuration = mVsyncModulator->getVsyncConfig().sfWorkDuration,
-             .hwcMinWorkDuration = mVsyncConfiguration->getCurrentConfigs().hwcMinWorkDuration,
+             .hwcMinWorkDuration = getCurrentVsyncConfigs().hwcMinWorkDuration,
              .debugPresentTimeDelay = debugPresentDelay};
 
     ftl::NonNull<const Display*> pacesetterPtr = pacesetterPtrLocked();
@@ -516,11 +519,25 @@ void Scheduler::updatePhaseConfiguration(PhysicalDisplayId displayId, Fps refres
     if (!isPacesetter) return;
 
     mRefreshRateStats->setRefreshRate(refreshRate);
-    mVsyncConfiguration->setRefreshRateFps(refreshRate);
-    setVsyncConfig(mVsyncModulator->setVsyncConfigSet(mVsyncConfiguration->getCurrentConfigs()),
-                   refreshRate.getPeriod());
+    const auto currentConfigs = [=, this] {
+        std::scoped_lock lock{mVsyncConfigLock};
+        mVsyncConfiguration->setRefreshRateFps(refreshRate);
+        return mVsyncConfiguration->getCurrentConfigs();
+    }();
+    setVsyncConfig(mVsyncModulator->setVsyncConfigSet(currentConfigs), refreshRate.getPeriod());
 }
 #pragma clang diagnostic pop
+
+void Scheduler::reloadPhaseConfiguration(Fps refreshRate, Duration minSfDuration,
+                                         Duration maxSfDuration, Duration appDuration) {
+    const auto currentConfigs = [=, this] {
+        std::scoped_lock lock{mVsyncConfigLock};
+        mVsyncConfiguration = std::make_unique<impl::WorkDuration>(refreshRate, minSfDuration,
+                                                                   maxSfDuration, appDuration);
+        return mVsyncConfiguration->getCurrentConfigs();
+    }();
+    setVsyncConfig(mVsyncModulator->setVsyncConfigSet(currentConfigs), refreshRate.getPeriod());
+}
 
 void Scheduler::setActiveDisplayPowerModeForRefreshRateStats(hal::PowerMode powerMode) {
     mRefreshRateStats->setPowerMode(powerMode);
@@ -896,8 +913,11 @@ void Scheduler::dump(utils::Dumper& dumper) const {
     mFrameRateOverrideMappings.dump(dumper);
     dumper.eol();
 
-    mVsyncConfiguration->dump(dumper.out());
-    dumper.eol();
+    {
+        std::scoped_lock lock{mVsyncConfigLock};
+        mVsyncConfiguration->dump(dumper.out());
+        dumper.eol();
+    }
 
     mRefreshRateStats->dump(dumper.out());
     dumper.eol();
@@ -958,11 +978,6 @@ bool Scheduler::updateFrameRateOverridesLocked(GlobalSignals consideredSignals,
     // Note that RefreshRateSelector::supportsFrameRateOverrideByContent is checked when querying
     // the FrameRateOverrideMappings rather than here.
     return mFrameRateOverrideMappings.updateFrameRateOverridesByContent(frameRateOverrides);
-}
-
-void Scheduler::addBufferStuffedUids(BufferStuffingMap bufferStuffedUids) {
-    if (!mRenderEventThread) return;
-    mRenderEventThread->addBufferStuffedUids(std::move(bufferStuffedUids));
 }
 
 void Scheduler::promotePacesetterDisplay(PhysicalDisplayId pacesetterId, PromotionParams params) {

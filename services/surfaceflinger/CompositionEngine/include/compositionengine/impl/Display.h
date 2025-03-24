@@ -68,7 +68,9 @@ public:
 
     // compositionengine::Display overrides
     DisplayId getId() const override;
+    bool hasSecureLayers() const override;
     bool isSecure() const override;
+    void setSecure(bool secure) override;
     bool isVirtual() const override;
     void disconnect() override;
     void createDisplayColorProfile(
@@ -76,7 +78,6 @@ public:
     void createRenderSurface(const compositionengine::RenderSurfaceCreationArgs&) override;
     void createClientCompositionCache(uint32_t cacheSize) override;
     void applyDisplayBrightness(bool applyImmediately) override;
-    void setSecure(bool secure) override;
 
     // Internal helpers used by chooseCompositionStrategy()
     using ChangedTypes = android::HWComposer::DeviceRequestedChanges::ChangedTypes;

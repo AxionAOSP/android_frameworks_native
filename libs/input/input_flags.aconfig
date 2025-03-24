@@ -113,6 +113,16 @@ flag {
 }
 
 flag {
+  name: "allow_transfer_of_entire_gesture"
+  namespace: "input"
+  description: "When calling 'transferTouchGesture', the entire gesture (including new POINTER_DOWN events from the same device) will be automatically transferred to the destination window"
+  bug: "397979572"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
   name: "enable_keyboard_classifier"
   namespace: "input"
   description: "Keyboard classifier that classifies all keyboards into alphabetic or non-alphabetic"

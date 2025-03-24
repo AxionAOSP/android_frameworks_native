@@ -443,7 +443,7 @@ public:
         virtual ~PresentationCallbackRAII();
     };
 
-    class Transaction : public Parcelable {
+    class Transaction {
     private:
         static sp<IBinder> sApplyToken;
         static std::mutex sApplyTokenMutex;
@@ -464,19 +464,20 @@ public:
 
     protected:
         // Accessed in tests.
+        explicit Transaction(Transaction const& other) = default;
         std::unordered_map<sp<ITransactionCompletedListener>, CallbackInfo, TCLHash>
                 mListenerCallbacks;
 
     public:
         Transaction();
-        virtual ~Transaction() = default;
-        Transaction(Transaction const& other);
+        Transaction(Transaction&& other);
+        Transaction& operator=(Transaction&& other) = default;
 
         // Factory method that creates a new Transaction instance from the parcel.
         static std::unique_ptr<Transaction> createFromParcel(const Parcel* parcel);
 
-        status_t writeToParcel(Parcel* parcel) const override;
-        status_t readFromParcel(const Parcel* parcel) override;
+        status_t writeToParcel(Parcel* parcel) const;
+        status_t readFromParcel(const Parcel* parcel);
 
         // Clears the contents of the transaction without applying it.
         void clear();

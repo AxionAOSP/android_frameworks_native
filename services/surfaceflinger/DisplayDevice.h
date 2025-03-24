@@ -67,17 +67,6 @@ namespace display {
 class DisplaySnapshot;
 } // namespace display
 
-namespace gui {
-inline const char* to_string(ISurfaceComposer::OptimizationPolicy optimizationPolicy) {
-    switch (optimizationPolicy) {
-        case ISurfaceComposer::OptimizationPolicy::optimizeForPower:
-            return "optimizeForPower";
-        case ISurfaceComposer::OptimizationPolicy::optimizeForPerformance:
-            return "optimizeForPerformance";
-    }
-}
-} // namespace gui
-
 class DisplayDevice : public RefBase {
 public:
     constexpr static float sDefaultMinLumiance = 0.0;

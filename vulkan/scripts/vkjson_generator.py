@@ -184,11 +184,21 @@ def generate_vk_core_struct_definition(f):
     vkJson_core_entries.append(f"{struct_name} {version.lower()}")
 
     f.write(f"struct {struct_name} {{\n")
+    f.write(f"  {struct_name}() {{\n") # Start of constructor
+    for item in items:
+      for struct_type, _ in item.items():
+        field_name = "properties" if "Properties" in struct_type else "features"
+        f.write(f" memset(&{field_name}, 0, sizeof({struct_type}));\n")
+    f.write("  }\n")  # End of constructor
 
     for item in items:
       for struct_type, _ in item.items():
         field_name = "properties" if "Properties" in struct_type else "features"
         f.write(f"  {struct_type} {field_name};\n")
+
+    if version == "Core14":
+      f.write(f"std::vector<VkImageLayout> copy_src_layouts;\n")
+      f.write(f"std::vector<VkImageLayout> copy_dst_layouts;\n")
 
     f.write("};\n\n")
 
@@ -211,11 +221,6 @@ def generate_memset_statements(f):
     variable_name = get_struct_name(class_name)
     f.write(f"memset(&{variable_name}, 0, sizeof({class_name}));\n")
     entries.append(f"{class_name} {variable_name}")
-
-  # Process vulkan core structs
-  for version in VK.VULKAN_CORES_AND_STRUCTS_MAPPING["versions"]:
-    struct_name = f"VkJson{version}"
-    f.write(f"memset(&{version.lower()}, 0, sizeof({struct_name}));\n")
 
   return entries
 
@@ -1757,6 +1762,21 @@ VkJsonDevice VkJsonGetDevice(VkPhysicalDevice physical_device) {
   if (device.properties.apiVersion >= VK_API_VERSION_1_4) {\n""")
     f.write(cc_code_properties_14)
     f.write(f"vkGetPhysicalDeviceProperties2(physical_device, &properties);\n\n")
+
+    f.write("""\
+if (device.core14.properties.copySrcLayoutCount > 0 || device.core14.properties.copyDstLayoutCount > 0 ) {
+  if (device.core14.properties.copySrcLayoutCount > 0) {
+    device.core14.copy_src_layouts.resize(device.core14.properties.copySrcLayoutCount);
+    device.core14.properties.pCopySrcLayouts = device.core14.copy_src_layouts.data();
+  }
+  if (device.core14.properties.copyDstLayoutCount > 0) {
+    device.core14.copy_dst_layouts.resize(device.core14.properties.copyDstLayoutCount);
+    device.core14.properties.pCopyDstLayouts = device.core14.copy_dst_layouts.data();
+  }
+  vkGetPhysicalDeviceProperties2(physical_device, &properties);
+}
+    \n""")
+
     f.write(cc_code_features_14)
     f.write(f"vkGetPhysicalDeviceFeatures2(physical_device, &features);\n\n")
     f.write("""\
