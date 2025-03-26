@@ -118,9 +118,9 @@ public:
 
                 // Possible race condition with destroying virtual displays, in which
                 // CompositionEngine::present may attempt to be called on the same
-                // display multiple times. The layerStack is set to invalid here so
+                // display multiple times. The layerStack is set as unassigned here so
                 // that the display is ignored if that scenario occurs.
-                t.setLayerStack(mirrorSc, ui::INVALID_LAYER_STACK);
+                t.setLayerStack(mirrorSc, ui::UNASSIGNED_LAYER_STACK);
                 t.apply(true);
                 SurfaceComposerClient::destroyVirtualDisplay(vDisplay);
                 return sc;

@@ -55,10 +55,10 @@ void LayerLifecycleManager::addLayers(std::vector<std::unique_ptr<RequestedLayer
         mChangedLayers.push_back(newLayer.get());
         layer.parentId = linkLayer(layer.parentId, layer.id);
         layer.relativeParentId = linkLayer(layer.relativeParentId, layer.id);
-        if (layer.layerStackToMirror != ui::INVALID_LAYER_STACK) {
+        if (layer.layerStackToMirror != ui::UNASSIGNED_LAYER_STACK) {
             // Set mirror layer's default layer stack to -1 so it doesn't end up rendered on a
             // display accidentally.
-            layer.layerStack = ui::INVALID_LAYER_STACK;
+            layer.layerStack = ui::UNASSIGNED_LAYER_STACK;
 
             // if this layer is mirroring a display, then walk though all the existing root layers
             // for the layer stack and add them as children to be mirrored.
@@ -124,7 +124,7 @@ void LayerLifecycleManager::onHandlesDestroyed(
 
         layer.parentId = unlinkLayer(layer.parentId, layer.id);
         layer.relativeParentId = unlinkLayer(layer.relativeParentId, layer.id);
-        if (layer.layerStackToMirror != ui::INVALID_LAYER_STACK) {
+        if (layer.layerStackToMirror != ui::UNASSIGNED_LAYER_STACK) {
             layer.mirrorIds = unlinkLayers(layer.mirrorIds, layer.id);
             swapErase(mDisplayMirroringLayers, layer.id);
         } else {

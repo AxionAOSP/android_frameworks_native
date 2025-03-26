@@ -781,7 +781,7 @@ void LayerSnapshotBuilder::updateSnapshot(LayerSnapshot& snapshot, const Args& a
         // Display mirrors are always placed in a VirtualDisplay so we never want to capture layers
         // marked as skip capture
         snapshot.handleSkipScreenshotFlag = parentSnapshot.handleSkipScreenshotFlag ||
-                (requested.layerStackToMirror != ui::INVALID_LAYER_STACK);
+                (requested.layerStackToMirror != ui::UNASSIGNED_LAYER_STACK);
     }
 
     if (forceUpdate || snapshot.clientChanges & layer_state_t::eAlphaChanged) {

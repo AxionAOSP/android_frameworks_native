@@ -73,7 +73,7 @@ RequestedLayerState::RequestedLayerState(const LayerCreationArgs& args)
     }
     if (layerIdToMirror != UNASSIGNED_LAYER_ID) {
         changes |= RequestedLayerState::Changes::Mirror;
-    } else if (args.layerStackToMirror != ui::INVALID_LAYER_STACK) {
+    } else if (args.layerStackToMirror != ui::UNASSIGNED_LAYER_STACK) {
         layerStackToMirror = args.layerStackToMirror;
         changes |= RequestedLayerState::Changes::Mirror;
     }

@@ -1899,84 +1899,7 @@ std::vector<RawEvent> EventHub::getEvents(int timeoutMillis) {
 
         handleSysfsNodeChangeNotificationsLocked();
 
-        // Use a do-while loop to ensure that we drain the closing and opening devices loop
-        // at least once, even if there are no devices to re-open.
-        do {
-            if (!mDeviceIdsToReopen.empty()) {
-                // If there are devices that need to be re-opened, ensure that we re-open them
-                // one at a time to send the DEVICE_REMOVED and DEVICE_ADDED notifications for
-                // each before moving on to the next. This is to avoid notifying all device
-                // removals and additions in one batch, which could cause additional unnecessary
-                // device added/removed notifications for merged InputDevices from InputReader.
-                const int32_t deviceId = mDeviceIdsToReopen.back();
-                mDeviceIdsToReopen.erase(mDeviceIdsToReopen.end() - 1);
-                if (auto it = mDevices.find(deviceId); it != mDevices.end()) {
-                    ALOGI("Reopening input device: id=%d, name=%s", it->second->id,
-                          it->second->identifier.name.c_str());
-                    const auto path = it->second->path;
-                    closeDeviceLocked(*it->second);
-                    openDeviceLocked(path);
-                }
-            }
-
-            // Report any devices that had last been added/removed.
-            for (auto it = mClosingDevices.begin(); it != mClosingDevices.end();) {
-                std::unique_ptr<Device> device = std::move(*it);
-                ALOGV("Reporting device closed: id=%d, name=%s\n", device->id,
-                      device->path.c_str());
-                const int32_t deviceId = (device->id == mBuiltInKeyboardId)
-                        ? ReservedInputDeviceId::BUILT_IN_KEYBOARD_ID
-                        : device->id;
-                events.push_back({
-                        .when = now,
-                        .deviceId = deviceId,
-                        .type = DEVICE_REMOVED,
-                });
-                it = mClosingDevices.erase(it);
-                if (events.size() == EVENT_BUFFER_SIZE) {
-                    break;
-                }
-            }
-
-            if (mNeedToScanDevices) {
-                mNeedToScanDevices = false;
-                scanDevicesLocked();
-            }
-
-            while (!mOpeningDevices.empty()) {
-                std::unique_ptr<Device> device = std::move(*mOpeningDevices.rbegin());
-                mOpeningDevices.pop_back();
-                ALOGV("Reporting device opened: id=%d, name=%s\n", device->id,
-                      device->path.c_str());
-                const int32_t deviceId = device->id == mBuiltInKeyboardId ? 0 : device->id;
-                events.push_back({
-                        .when = now,
-                        .deviceId = deviceId,
-                        .type = DEVICE_ADDED,
-                });
-
-                // Try to find a matching video device by comparing device names
-                for (auto it = mUnattachedVideoDevices.begin(); it != mUnattachedVideoDevices.end();
-                     it++) {
-                    std::unique_ptr<TouchVideoDevice>& videoDevice = *it;
-                    if (tryAddVideoDeviceLocked(*device, videoDevice)) {
-                        // videoDevice was transferred to 'device'
-                        it = mUnattachedVideoDevices.erase(it);
-                        break;
-                    }
-                }
-
-                auto [dev_it, inserted] = mDevices.insert_or_assign(device->id, std::move(device));
-                if (!inserted) {
-                    ALOGW("Device id %d exists, replaced.", device->id);
-                }
-                if (events.size() == EVENT_BUFFER_SIZE) {
-                    break;
-                }
-            }
-
-            // Perform this loop of re-opening devices so that we re-open one device at a time.
-        } while (!mDeviceIdsToReopen.empty());
+        handleDeviceChangesLocked(events, now);
 
         if (events.size() == EVENT_BUFFER_SIZE) {
             break;
@@ -2155,6 +2078,85 @@ std::vector<RawEvent> EventHub::getEvents(int timeoutMillis) {
 
     // All done, return the number of events we read.
     return events;
+}
+
+void EventHub::handleDeviceChangesLocked(std::vector<RawEvent>& events, nsecs_t now) {
+    // Use a do-while loop to ensure that we drain the closing and opening devices
+    // at least once, even if there are no devices to re-open.
+    do {
+        if (!mDeviceIdsToReopen.empty()) {
+            // If there are devices that need to be re-opened, ensure that we re-open them
+            // one at a time to send the DEVICE_REMOVED and DEVICE_ADDED notifications for
+            // each before moving on to the next. This is to avoid notifying all device
+            // removals and additions in one batch, which could cause additional unnecessary
+            // device added/removed notifications for merged InputDevices from InputReader.
+            const int32_t deviceId = mDeviceIdsToReopen.back();
+            mDeviceIdsToReopen.erase(mDeviceIdsToReopen.end() - 1);
+            if (auto it = mDevices.find(deviceId); it != mDevices.end()) {
+                ALOGI("Reopening input device: id=%d, name=%s", it->second->id,
+                      it->second->identifier.name.c_str());
+                const auto path = it->second->path;
+                closeDeviceLocked(*it->second);
+                openDeviceLocked(path);
+            }
+        }
+
+        // Report any devices that had last been added/removed.
+        for (auto it = mClosingDevices.begin(); it != mClosingDevices.end();) {
+            std::unique_ptr<Device> device = std::move(*it);
+            ALOGV("Reporting device closed: id=%d, name=%s\n", device->id, device->path.c_str());
+            const int32_t deviceId = (device->id == mBuiltInKeyboardId)
+                    ? ReservedInputDeviceId::BUILT_IN_KEYBOARD_ID
+                    : device->id;
+            events.push_back({
+                    .when = now,
+                    .deviceId = deviceId,
+                    .type = DEVICE_REMOVED,
+            });
+            it = mClosingDevices.erase(it);
+            if (events.size() == EVENT_BUFFER_SIZE) {
+                break;
+            }
+        }
+
+        if (mNeedToScanDevices) {
+            mNeedToScanDevices = false;
+            scanDevicesLocked();
+        }
+
+        while (!mOpeningDevices.empty()) {
+            std::unique_ptr<Device> device = std::move(*mOpeningDevices.rbegin());
+            mOpeningDevices.pop_back();
+            ALOGV("Reporting device opened: id=%d, name=%s\n", device->id, device->path.c_str());
+            const int32_t deviceId = device->id == mBuiltInKeyboardId ? 0 : device->id;
+            events.push_back({
+                    .when = now,
+                    .deviceId = deviceId,
+                    .type = DEVICE_ADDED,
+            });
+
+            // Try to find a matching video device by comparing device names
+            for (auto it = mUnattachedVideoDevices.begin(); it != mUnattachedVideoDevices.end();
+                 it++) {
+                std::unique_ptr<TouchVideoDevice>& videoDevice = *it;
+                if (tryAddVideoDeviceLocked(*device, videoDevice)) {
+                    // videoDevice was transferred to 'device'
+                    it = mUnattachedVideoDevices.erase(it);
+                    break;
+                }
+            }
+
+            auto [dev_it, inserted] = mDevices.insert_or_assign(device->id, std::move(device));
+            if (!inserted) {
+                ALOGW("Device id %d exists, replaced.", device->id);
+            }
+            if (events.size() == EVENT_BUFFER_SIZE) {
+                break;
+            }
+        }
+
+        // Perform this loop of re-opening devices so that we re-open one device at a time.
+    } while (!mDeviceIdsToReopen.empty());
 }
 
 std::vector<TouchVideoFrame> EventHub::getVideoFrames(int32_t deviceId) {

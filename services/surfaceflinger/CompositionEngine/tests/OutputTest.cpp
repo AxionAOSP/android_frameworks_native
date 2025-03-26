@@ -646,8 +646,8 @@ TEST_F(OutputTest, layerFiltering) {
     mOutput->setLayerFilter({layerStack1, true});
 
     // It excludes layers with no layer stack, internal-only or not.
-    EXPECT_FALSE(mOutput->includesLayer({ui::INVALID_LAYER_STACK, false}));
-    EXPECT_FALSE(mOutput->includesLayer({ui::INVALID_LAYER_STACK, true}));
+    EXPECT_FALSE(mOutput->includesLayer({ui::UNASSIGNED_LAYER_STACK, false}));
+    EXPECT_FALSE(mOutput->includesLayer({ui::UNASSIGNED_LAYER_STACK, true}));
 
     // It includes layers on layerStack1, internal-only or not.
     EXPECT_TRUE(mOutput->includesLayer({layerStack1, false}));
@@ -685,10 +685,10 @@ TEST_F(OutputTest, layerFilteringWithCompositionState) {
     mOutput->setLayerFilter({layerStack1, true});
 
     // It excludes layers with no layer stack, internal-only or not.
-    layer.layerFEState.outputFilter = {ui::INVALID_LAYER_STACK, false};
+    layer.layerFEState.outputFilter = {ui::UNASSIGNED_LAYER_STACK, false};
     EXPECT_FALSE(mOutput->includesLayer(layerFE));
 
-    layer.layerFEState.outputFilter = {ui::INVALID_LAYER_STACK, true};
+    layer.layerFEState.outputFilter = {ui::UNASSIGNED_LAYER_STACK, true};
     EXPECT_FALSE(mOutput->includesLayer(layerFE));
 
     // It includes layers on layerStack1, internal-only or not.
