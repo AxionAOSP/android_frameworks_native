@@ -95,6 +95,8 @@ public:
         struct ModeChange {
             int32_t modeId;
             nsecs_t vsyncPeriod __attribute__((aligned(8)));
+            nsecs_t appVsyncOffset __attribute__((aligned(8)));
+            nsecs_t presentationDeadline __attribute__((aligned(8)));
         };
 
         struct ModeRejection {

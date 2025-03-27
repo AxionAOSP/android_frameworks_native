@@ -69,11 +69,16 @@ struct AdbdPacketTlsDeviceDisconnected {
     std::string public_key;
 };
 
+struct AdbdPacketTlsServerPort {
+  uint16_t port;
+};
+
 using AdbdAuthPacket = std::variant<AdbdAuthPacketAuthenticated,
                                     AdbdAuthPacketDisconnected,
                                     AdbdAuthPacketRequestAuthorization,
                                     AdbdPacketTlsDeviceConnected,
-                                    AdbdPacketTlsDeviceDisconnected>;
+                                    AdbdPacketTlsDeviceDisconnected,
+                                    AdbdPacketTlsServerPort>;
 
 struct AdbdAuthContext {
     static constexpr uint64_t kEpollConstSocket = 0;
@@ -249,6 +254,7 @@ public:
         auto& packet = output_queue_.front();
         struct iovec iovs[3];
         int iovcnt = 2;
+
         if (auto* p = std::get_if<AdbdAuthPacketAuthenticated>(&packet)) {
             iovs[0].iov_base = const_cast<char*>("CK");
             iovs[0].iov_len = 2;
@@ -280,9 +286,17 @@ public:
             iovs[1].iov_len = 1;
             iovs[2].iov_base = p->public_key.data();
             iovs[2].iov_len = p->public_key.size();
+        } else if (auto* p = std::get_if<AdbdPacketTlsServerPort>(&packet)) {
+            iovcnt = 2;
+            iovs[0].iov_base = const_cast<char*>("TP");
+            iovs[0].iov_len = 2;
+            iovs[1].iov_base = &p->port;
+            iovs[1].iov_len = 2;
         } else {
             LOG(FATAL) << "adbd_auth: unhandled packet type?";
         }
+
+        LOG(INFO) << "adbd_auth: sending packet: " << std::string((const char*)iovs[0].iov_base, 2);
 
         ssize_t rc = writev(framework_fd_.get(), iovs, iovcnt);
         output_queue_.pop_front();
@@ -469,6 +483,14 @@ public:
         Interrupt();
     }
 
+    void SendTLSServerPort(uint16_t port) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        output_queue_.emplace_back(AdbdPacketTlsServerPort{
+          .port = port
+        });
+        Interrupt();
+    }
+
     // Interrupt the worker thread to do some work.
     void Interrupt() {
         uint64_t value = 1;
@@ -587,4 +609,8 @@ uint32_t adbd_auth_get_max_version() {
 bool adbd_auth_supports_feature(AdbdAuthFeature f) {
     UNUSED(f);
     return false;
+}
+
+void adbd_auth_send_tls_server_port(AdbdAuthContext* ctx, uint16_t port) {
+  ctx->SendTLSServerPort(port);
 }

@@ -461,7 +461,8 @@ bool Scheduler::onDisplayModeChanged(PhysicalDisplayId displayId, const FrameRat
     }
 
     if (hasEventThreads()) {
-        eventThreadFor(Cycle::Render).onModeChanged(mode);
+        const auto vsyncConfigSet = getVsyncConfigsForRefreshRate(mode.fps);
+        eventThreadFor(Cycle::Render).onModeChanged(mode, vsyncConfigSet);
     }
 
     return isPacesetter;
@@ -495,7 +496,8 @@ void Scheduler::emitModeChangeIfNeeded() {
     mPolicy.emittedModeOpt = mode;
 
     if (hasEventThreads()) {
-        eventThreadFor(Cycle::Render).onModeChanged(mode);
+        const auto vsyncConfigSet = getVsyncConfigsForRefreshRate(mode.fps);
+        eventThreadFor(Cycle::Render).onModeChanged(mode, vsyncConfigSet);
     }
 }
 
@@ -528,15 +530,19 @@ void Scheduler::updatePhaseConfiguration(PhysicalDisplayId displayId, Fps refres
 }
 #pragma clang diagnostic pop
 
-void Scheduler::reloadPhaseConfiguration(Fps refreshRate, Duration minSfDuration,
+void Scheduler::reloadPhaseConfiguration(const FrameRateMode& mode, Duration minSfDuration,
                                          Duration maxSfDuration, Duration appDuration) {
     const auto currentConfigs = [=, this] {
         std::scoped_lock lock{mVsyncConfigLock};
-        mVsyncConfiguration = std::make_unique<impl::WorkDuration>(refreshRate, minSfDuration,
+        mVsyncConfiguration = std::make_unique<impl::WorkDuration>(mode.fps, minSfDuration,
                                                                    maxSfDuration, appDuration);
         return mVsyncConfiguration->getCurrentConfigs();
     }();
-    setVsyncConfig(mVsyncModulator->setVsyncConfigSet(currentConfigs), refreshRate.getPeriod());
+    setVsyncConfig(mVsyncModulator->setVsyncConfigSet(currentConfigs), mode.fps.getPeriod());
+    if (hasEventThreads()) {
+        const auto vsyncConfigSet = getVsyncConfigsForRefreshRate(mode.fps);
+        eventThreadFor(Cycle::Render).onModeChanged(mode, vsyncConfigSet);
+    }
 }
 
 void Scheduler::setActiveDisplayPowerModeForRefreshRateStats(hal::PowerMode powerMode) {

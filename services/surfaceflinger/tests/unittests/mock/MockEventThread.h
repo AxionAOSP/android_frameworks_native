@@ -33,7 +33,8 @@ public:
     MOCK_METHOD(void, omitVsyncDispatching, (bool), (override));
     MOCK_METHOD(void, onHotplugReceived, (PhysicalDisplayId, bool), (override));
     MOCK_METHOD(void, onHotplugConnectionError, (int32_t), (override));
-    MOCK_METHOD(void, onModeChanged, (const scheduler::FrameRateMode&), (override));
+    MOCK_METHOD(void, onModeChanged, (const scheduler::FrameRateMode&, scheduler::VsyncConfigSet),
+                (override));
     MOCK_METHOD(void, onModeRejected, (PhysicalDisplayId displayId, DisplayModeId modeId),
                 (override));
     MOCK_METHOD(void, onFrameRateOverridesChanged,

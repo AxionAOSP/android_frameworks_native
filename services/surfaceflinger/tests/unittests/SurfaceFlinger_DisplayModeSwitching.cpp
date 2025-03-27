@@ -234,7 +234,7 @@ TEST_F(DisplayModeSwitchingTest, changeRefreshRateWithRefreshRequired) {
     // a onModeChanged event to the framework.
 
     EXPECT_CALL(*mAppEventThread,
-                onModeChanged(scheduler::FrameRateMode{90_Hz, ftl::as_non_null(kMode90)}));
+                onModeChanged(scheduler::FrameRateMode{90_Hz, ftl::as_non_null(kMode90)}, _));
 
     mFlinger.commit();
     Mock::VerifyAndClearExpectations(mAppEventThread);
@@ -259,7 +259,7 @@ TEST_F(DisplayModeSwitchingTest, changeRefreshRateWithoutRefreshRequired) {
     EXPECT_SET_ACTIVE_CONFIG(kInnerDisplayHwcId, kModeId90);
 
     EXPECT_CALL(*mAppEventThread,
-                onModeChanged(scheduler::FrameRateMode{90_Hz, ftl::as_non_null(kMode90)}));
+                onModeChanged(scheduler::FrameRateMode{90_Hz, ftl::as_non_null(kMode90)}, _));
 
     mFlinger.commit();
 
@@ -290,7 +290,7 @@ TEST_F(DisplayModeSwitchingTest, changeRefreshRateOnTwoDisplaysWithoutRefreshReq
     EXPECT_SET_ACTIVE_CONFIG(kInnerDisplayHwcId, kModeId90);
     EXPECT_SET_ACTIVE_CONFIG(kOuterDisplayHwcId, kModeId60);
 
-    EXPECT_CALL(*mAppEventThread, onModeChanged(_)).Times(2);
+    EXPECT_CALL(*mAppEventThread, onModeChanged(_, _)).Times(2);
 
     mFlinger.commit();
 

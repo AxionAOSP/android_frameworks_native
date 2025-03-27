@@ -26,6 +26,13 @@ flag {
 } # bq_consumer_attach_callback
 
 flag {
+  name: "cursor_plane_compatibility"
+  namespace: "desktop_display"
+  description: "configure cursor surface to meet cursor plane buffer requirements"
+  bug: "352067404"
+} # cursor_plane_compatibility
+
+flag {
   name: "frametimestamps_previousrelease"
   namespace: "core_graphics"
   description: "Controls a fence fixup for timestamp apis"

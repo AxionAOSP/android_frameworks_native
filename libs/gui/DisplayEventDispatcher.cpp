@@ -194,7 +194,9 @@ bool DisplayEventDispatcher::processPendingEvents(nsecs_t* outTimestamp,
                     break;
                 case DisplayEventType::DISPLAY_EVENT_MODE_CHANGE:
                     dispatchModeChanged(ev.header.timestamp, ev.header.displayId,
-                                        ev.modeChange.modeId, ev.modeChange.vsyncPeriod);
+                                        ev.modeChange.modeId, ev.modeChange.vsyncPeriod,
+                                        ev.modeChange.appVsyncOffset,
+                                        ev.modeChange.presentationDeadline);
                     break;
                 case DisplayEventType::DISPLAY_EVENT_NULL:
                     dispatchNullEvent(ev.header.timestamp, ev.header.displayId);

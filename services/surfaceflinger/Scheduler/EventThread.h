@@ -25,6 +25,7 @@
 #include <utils/Errors.h>
 
 #include <scheduler/FrameRateMode.h>
+#include <scheduler/VsyncConfig.h>
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
@@ -113,8 +114,9 @@ public:
 
     virtual void onHotplugConnectionError(int32_t connectionError) = 0;
 
-    // called when SF changes the active mode and apps needs to be notified about the change
-    virtual void onModeChanged(const scheduler::FrameRateMode&) = 0;
+    // called when SF changes the active mode or updates the WorkDuration
+    // and apps needs to be notified about the change
+    virtual void onModeChanged(const scheduler::FrameRateMode&, scheduler::VsyncConfigSet) = 0;
 
     // called when SF rejects the mode change request
     virtual void onModeRejected(PhysicalDisplayId displayId, DisplayModeId modeId) = 0;
@@ -177,7 +179,7 @@ public:
 
     void onHotplugConnectionError(int32_t connectionError) override;
 
-    void onModeChanged(const scheduler::FrameRateMode&) override;
+    void onModeChanged(const scheduler::FrameRateMode&, scheduler::VsyncConfigSet) override;
 
     void onModeRejected(PhysicalDisplayId displayId, DisplayModeId modeId) override;
 
@@ -225,6 +227,7 @@ private:
             std::shared_ptr<scheduler::VsyncSchedule>) EXCLUDES(mMutex);
 
     const char* const mThreadName;
+    std::string mEventThreadStateName;
     TracedOrdinal<int> mVsyncTracer;
     TracedOrdinal<std::chrono::nanoseconds> mWorkDuration GUARDED_BY(mMutex);
     std::chrono::nanoseconds mReadyDuration GUARDED_BY(mMutex);
@@ -268,6 +271,8 @@ private:
     };
 
     State mState GUARDED_BY(mMutex) = State::Idle;
+
+    void updateState(State state) REQUIRES(mMutex);
 
     static const char* toCString(State);
 };

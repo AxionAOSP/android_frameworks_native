@@ -62,8 +62,34 @@ constexpr int HDCP_V2 = 3;
 
 class EventThreadTest : public testing::Test, public IEventThreadCallback {
 protected:
-    static constexpr std::chrono::nanoseconds kWorkDuration = 0ms;
-    static constexpr std::chrono::nanoseconds kReadyDuration = 3ms;
+    using nanos = std::chrono::nanoseconds;
+    static constexpr nanos kWorkDuration = 0ms;
+    static constexpr nanos kReadyDuration = 3ms;
+    enum {
+        SF_OFFSET_LATE,
+        APP_OFFSET_LATE,
+        SF_DURATION_LATE,
+        APP_DURATION_LATE,
+        SF_OFFSET_EARLY,
+        APP_OFFSET_EARLY,
+        SF_DURATION_EARLY,
+        APP_DURATION_EARLY,
+        SF_OFFSET_EARLY_GPU,
+        APP_OFFSET_EARLY_GPU,
+        SF_DURATION_EARLY_GPU,
+        APP_DURATION_EARLY_GPU,
+        HWC_MIN_WORK_DURATION,
+    };
+
+    const scheduler::VsyncConfig kEarly{SF_OFFSET_EARLY, APP_OFFSET_EARLY, nanos(SF_DURATION_LATE),
+                                        nanos(APP_DURATION_LATE)};
+    const scheduler::VsyncConfig kEarlyGpu{SF_OFFSET_EARLY_GPU, APP_OFFSET_EARLY_GPU,
+                                           nanos(SF_DURATION_EARLY), nanos(APP_DURATION_EARLY)};
+    const scheduler::VsyncConfig kLate{SF_OFFSET_LATE, APP_OFFSET_LATE,
+                                       nanos(SF_DURATION_EARLY_GPU), nanos(APP_DURATION_EARLY_GPU)};
+
+    const scheduler::VsyncConfigSet mOffsets = {kEarly, kEarlyGpu, kLate,
+                                                nanos(HWC_MIN_WORK_DURATION)};
 
     class MockEventThreadConnection : public EventThreadConnection {
     public:
@@ -93,8 +119,7 @@ protected:
                                                    uid_t ownerUid = mConnectionUid);
 
     void expectVSyncCallbackScheduleReceived(bool expectState);
-    void expectVSyncSetDurationCallReceived(std::chrono::nanoseconds expectedDuration,
-                                            std::chrono::nanoseconds expectedReadyDuration);
+    void expectVSyncSetDurationCallReceived(nanos expectedDuration, nanos expectedReadyDuration);
     void expectVsyncEventReceivedByConnection(const char* name,
                                               ConnectionEventRecorder& connectionEventRecorder,
                                               nsecs_t expectedTimestamp, unsigned expectedCount);
@@ -106,7 +131,9 @@ protected:
                                                 bool expectedConnected);
     void expectConfigChangedEventReceivedByConnection(PhysicalDisplayId expectedDisplayId,
                                                       int32_t expectedConfigId,
-                                                      nsecs_t expectedVsyncPeriod);
+                                                      nsecs_t expectedVsyncPeriod,
+                                                      nsecs_t expectedAppOffset,
+                                                      nsecs_t expectedPresentationDeadline);
     void expectThrottleVsyncReceived(nsecs_t expectedTimestamp, uid_t);
     void expectOnExpectedPresentTimePosted(nsecs_t expectedPresentTime);
     void expectUidFrameRateMappingEventReceivedByConnection(PhysicalDisplayId expectedDisplayId,
@@ -145,7 +172,7 @@ protected:
     sp<MockEventThreadConnection> mThrottledConnection;
     std::unique_ptr<frametimeline::impl::TokenManager> mTokenManager;
 
-    std::chrono::nanoseconds mVsyncPeriod;
+    nanos mVsyncPeriod;
 
     static constexpr uid_t mConnectionUid = 443;
     static constexpr uid_t mThrottledConnectionUid = 177;
@@ -238,8 +265,8 @@ void EventThreadTest::expectVSyncCallbackScheduleReceived(bool expectState) {
     }
 }
 
-void EventThreadTest::expectVSyncSetDurationCallReceived(
-        std::chrono::nanoseconds expectedDuration, std::chrono::nanoseconds expectedReadyDuration) {
+void EventThreadTest::expectVSyncSetDurationCallReceived(nanos expectedDuration,
+                                                         nanos expectedReadyDuration) {
     auto args = mVSyncCallbackUpdateRecorder.waitForCall();
     ASSERT_TRUE(args.has_value());
     EXPECT_EQ(expectedDuration.count(), std::get<1>(args.value()).workDuration);
@@ -346,8 +373,8 @@ void EventThreadTest::expectHotplugEventReceivedByConnection(PhysicalDisplayId e
 }
 
 void EventThreadTest::expectConfigChangedEventReceivedByConnection(
-        PhysicalDisplayId expectedDisplayId, int32_t expectedConfigId,
-        nsecs_t expectedVsyncPeriod) {
+        PhysicalDisplayId expectedDisplayId, int32_t expectedConfigId, nsecs_t expectedVsyncPeriod,
+        nsecs_t expectedAppOffset, nsecs_t expectedPresentationDeadline) {
     auto args = mConnectionEventCallRecorder.waitForCall();
     ASSERT_TRUE(args.has_value());
     const auto& event = std::get<0>(args.value());
@@ -355,6 +382,8 @@ void EventThreadTest::expectConfigChangedEventReceivedByConnection(
     EXPECT_EQ(expectedDisplayId, event.header.displayId);
     EXPECT_EQ(expectedConfigId, event.modeChange.modeId);
     EXPECT_EQ(expectedVsyncPeriod, event.modeChange.vsyncPeriod);
+    EXPECT_EQ(expectedAppOffset, event.modeChange.appVsyncOffset);
+    EXPECT_EQ(expectedPresentationDeadline, event.modeChange.presentationDeadline);
 }
 
 void EventThreadTest::expectUidFrameRateMappingEventReceivedByConnection(
@@ -737,8 +766,10 @@ TEST_F(EventThreadTest, postConfigChangedPrimary) {
                               .build();
     const Fps fps = mode->getPeakFps() / 2;
 
-    mThread->onModeChanged({fps, ftl::as_non_null(mode)});
-    expectConfigChangedEventReceivedByConnection(INTERNAL_DISPLAY_ID, 7, fps.getPeriodNsecs());
+    mThread->onModeChanged({fps, ftl::as_non_null(mode)}, mOffsets);
+    expectConfigChangedEventReceivedByConnection(INTERNAL_DISPLAY_ID, 7, fps.getPeriodNsecs(),
+                                                 APP_OFFSET_LATE,
+                                                 /*presentationDeadline*/ 34333332);
 }
 
 TEST_F(EventThreadTest, postConfigChangedExternal) {
@@ -751,8 +782,10 @@ TEST_F(EventThreadTest, postConfigChangedExternal) {
                               .build();
     const Fps fps = mode->getPeakFps() / 2;
 
-    mThread->onModeChanged({fps, ftl::as_non_null(mode)});
-    expectConfigChangedEventReceivedByConnection(EXTERNAL_DISPLAY_ID, 5, fps.getPeriodNsecs());
+    mThread->onModeChanged({fps, ftl::as_non_null(mode)}, mOffsets);
+    expectConfigChangedEventReceivedByConnection(EXTERNAL_DISPLAY_ID, 5, fps.getPeriodNsecs(),
+                                                 APP_OFFSET_LATE,
+                                                 /*presentationDeadline*/ 34333332);
 }
 
 TEST_F(EventThreadTest, postConfigChangedPrimary64bit) {
@@ -764,8 +797,10 @@ TEST_F(EventThreadTest, postConfigChangedPrimary64bit) {
                               .setVsyncPeriod(16666666)
                               .build();
     const Fps fps = mode->getPeakFps() / 2;
-    mThread->onModeChanged({fps, ftl::as_non_null(mode)});
-    expectConfigChangedEventReceivedByConnection(DISPLAY_ID_64BIT, 7, fps.getPeriodNsecs());
+    mThread->onModeChanged({fps, ftl::as_non_null(mode)}, mOffsets);
+    expectConfigChangedEventReceivedByConnection(DISPLAY_ID_64BIT, 7, fps.getPeriodNsecs(),
+                                                 APP_OFFSET_LATE,
+                                                 /*presentationDeadline*/ 34333332);
 }
 
 TEST_F(EventThreadTest, suppressConfigChanged) {
@@ -782,8 +817,10 @@ TEST_F(EventThreadTest, suppressConfigChanged) {
                               .build();
     const Fps fps = mode->getPeakFps() / 2;
 
-    mThread->onModeChanged({fps, ftl::as_non_null(mode)});
-    expectConfigChangedEventReceivedByConnection(INTERNAL_DISPLAY_ID, 9, fps.getPeriodNsecs());
+    mThread->onModeChanged({fps, ftl::as_non_null(mode)}, mOffsets);
+    expectConfigChangedEventReceivedByConnection(INTERNAL_DISPLAY_ID, 9, fps.getPeriodNsecs(),
+                                                 APP_OFFSET_LATE,
+                                                 /*presentationDeadline*/ 34333332);
 
     auto args = suppressConnectionEventRecorder.waitForCall();
     ASSERT_FALSE(args.has_value());

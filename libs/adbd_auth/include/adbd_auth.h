@@ -185,4 +185,12 @@ enum AdbdAuthFeature : int32_t {
  */
 bool adbd_auth_supports_feature(AdbdAuthFeature feature);
 
+/**
+ * Advertise the port number the TLS server is running on. 0 = not running.
+ *
+ * @param ctx the AdbdAuthContext
+ * @param port the port number the TLS server is running on.
+ */
+void adbd_auth_send_tls_server_port(AdbdAuthContext* ctx, uint16_t port) __INTRODUCED_IN(37);
+
 __END_DECLS

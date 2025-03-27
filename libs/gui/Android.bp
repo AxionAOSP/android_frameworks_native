@@ -350,6 +350,10 @@ cc_library_shared {
         "libsurfaceflingerflags",
     ],
 
+    shared_libs: [
+       "libaconfig_storage_read_api_cc",
+    ],
+
     afdo: true,
 
     lto: {

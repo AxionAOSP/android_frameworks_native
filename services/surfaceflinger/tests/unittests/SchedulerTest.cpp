@@ -227,7 +227,7 @@ TEST_F(SchedulerTest, emitModeChangeEvent) {
     mScheduler->setContentRequirements({kLayer});
 
     // No event is emitted in response to idle.
-    EXPECT_CALL(*mEventThread, onModeChanged(_)).Times(0);
+    EXPECT_CALL(*mEventThread, onModeChanged(_, _)).Times(0);
 
     using TimerState = TestableScheduler::TimerState;
 
@@ -240,17 +240,30 @@ TEST_F(SchedulerTest, emitModeChangeEvent) {
     mScheduler->setContentRequirements({layer});
 
     // An event is emitted implicitly despite choosing the same mode as when idle.
-    EXPECT_CALL(*mEventThread, onModeChanged(kDisplay1Mode60_60)).Times(1);
+    EXPECT_CALL(*mEventThread, onModeChanged(kDisplay1Mode60_60, _)).Times(1);
 
     mScheduler->idleTimerCallback(TimerState::Reset);
 
     mScheduler->setContentRequirements({kLayer});
 
     // An event is emitted explicitly for the mode change.
-    EXPECT_CALL(*mEventThread, onModeChanged(kDisplay1Mode120_120)).Times(1);
+    EXPECT_CALL(*mEventThread, onModeChanged(kDisplay1Mode120_120, _)).Times(1);
 
     mScheduler->touchTimerCallback(TimerState::Reset);
     mScheduler->onDisplayModeChanged(kDisplayId1, kDisplay1Mode120_120, true);
+}
+
+TEST_F(SchedulerTest, emitModeChangeEventOnReloadPhaseConfiguration) {
+    const auto selectorPtr =
+            std::make_shared<RefreshRateSelector>(kDisplay1Modes, kDisplay1Mode120->getId());
+    mScheduler->registerDisplay(kDisplayId1, selectorPtr);
+    constexpr auto kMinSfDuration = Duration::fromNs(1000000);
+    constexpr auto kMaxSfDuration = Duration::fromNs(2000000);
+    constexpr auto kAppDuration = Duration::fromNs(1500000);
+
+    EXPECT_CALL(*mEventThread, onModeChanged(kDisplay1Mode120_120, _)).Times(1);
+    mScheduler->reloadPhaseConfiguration(kDisplay1Mode120_120, kMinSfDuration, kMaxSfDuration,
+                                         kAppDuration);
 }
 
 TEST_F(SchedulerTest, calculateMaxAcquiredBufferCount) {

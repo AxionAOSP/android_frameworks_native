@@ -16,6 +16,7 @@
 
 #include "../Macros.h"
 
+#include <android-base/logging.h>
 #include <android/sysprop/InputProperties.sysprop.h>
 #include "MultiTouchInputMapper.h"
 
@@ -187,14 +188,11 @@ std::list<NotifyArgs> MultiTouchInputMapper::reconfigure(nsecs_t when,
 void MultiTouchInputMapper::configureRawPointerAxes() {
     TouchInputMapper::configureRawPointerAxes();
 
-    // TODO(b/351870641): Investigate why we are sometime not getting valid axis infos for the x/y
-    //   axes, even though those axes are required to be supported.
-    if (const auto xInfo = getAbsoluteAxisInfo(ABS_MT_POSITION_X); xInfo.has_value()) {
-        mRawPointerAxes.x = *xInfo;
-    }
-    if (const auto yInfo = getAbsoluteAxisInfo(ABS_MT_POSITION_Y); yInfo.has_value()) {
-        mRawPointerAxes.y = *yInfo;
-    }
+    const auto xInfo = getAbsoluteAxisInfo(ABS_MT_POSITION_X);
+    const auto yInfo = getAbsoluteAxisInfo(ABS_MT_POSITION_Y);
+    LOG_IF(FATAL, !xInfo || !yInfo) << "X/Y axes not found for multi-touch device";
+    mRawPointerAxes.x = *xInfo;
+    mRawPointerAxes.y = *yInfo;
     mRawPointerAxes.touchMajor = getAbsoluteAxisInfo(ABS_MT_TOUCH_MAJOR);
     mRawPointerAxes.touchMinor = getAbsoluteAxisInfo(ABS_MT_TOUCH_MINOR);
     mRawPointerAxes.toolMajor = getAbsoluteAxisInfo(ABS_MT_WIDTH_MAJOR);
