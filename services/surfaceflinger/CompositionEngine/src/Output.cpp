@@ -617,7 +617,7 @@ void Output::ensureOutputLayerIfVisible(sp<compositionengine::LayerFE>& layerFE,
     Region transparentRegion;
 
     /*
-     * shadowRegion: Region cast by the layer's shadow.
+     * shadowRegion: Region cast by the layer's shadow or border.
      */
     Region shadowRegion;
 
@@ -631,18 +631,9 @@ void Output::ensureOutputLayerIfVisible(sp<compositionengine::LayerFE>& layerFE,
     // Get the visible region
     // TODO(b/121291683): Is it worth creating helper methods on LayerFEState
     // for computations like this?
-    const Rect visibleRect(tr.transform(layerFEState->geomLayerBounds));
-    visibleRegion.set(visibleRect);
-
-    if (layerFEState->shadowSettings.length > 0.0f) {
-        // if the layer casts a shadow, offset the layers visible region and
-        // calculate the shadow region.
-        const auto inset = static_cast<int32_t>(ceilf(layerFEState->shadowSettings.length) * -1.0f);
-        Rect visibleRectWithShadows(visibleRect);
-        visibleRectWithShadows.inset(inset, inset, inset, inset);
-        visibleRegion.set(visibleRectWithShadows);
-        shadowRegion = visibleRegion.subtract(visibleRect);
-    }
+    const Rect geomRect(tr.transform(layerFEState->geomLayerBounds));
+    visibleRegion.set(Rect(layerFEState->outsetRectForShadow(geomRect.toFloatRect())));
+    shadowRegion = visibleRegion.subtract(geomRect);
 
     if (visibleRegion.isEmpty()) {
         return;
@@ -689,7 +680,7 @@ void Output::ensureOutputLayerIfVisible(sp<compositionengine::LayerFE>& layerFE,
         // Otherwise we don't try and compute the opaque region since there may
         // be errors at the edges, and we treat the entire layer as
         // translucent.
-        opaqueRegion.set(visibleRect);
+        opaqueRegion.set(geomRect);
     }
 
     // Clip the covered region to the visible region

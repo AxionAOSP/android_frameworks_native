@@ -179,12 +179,17 @@ bool LayerSnapshot::hasBlur() const {
     return backgroundBlurRadius > 0 || blurRegions.size() > 0;
 }
 
-bool LayerSnapshot::hasOutline() const {
+bool LayerSnapshot::hasBorderSettings() const {
     return borderSettings.strokeWidth > 0;
 }
 
+bool LayerSnapshot::hasBoxShadowSettings() const {
+    return !boxShadowSettings.boxShadows.empty();
+}
+
 bool LayerSnapshot::hasEffect() const {
-    return fillsColor() || drawShadows() || hasBlur() || hasOutline();
+    return fillsColor() || drawShadows() || hasBlur() || hasBorderSettings() ||
+            hasBoxShadowSettings();
 }
 
 bool LayerSnapshot::hasSomethingToDraw() const {
@@ -257,7 +262,9 @@ std::string LayerSnapshot::getIsVisibleReason() const {
         reason << " buffer=" << externalTexture->getId() << " frame=" << frameNumber;
     if (fillsColor() || color.a > 0.0f) reason << " color{" << color << "}";
     if (drawShadows()) reason << " shadowSettings.length=" << shadowSettings.length;
-    if (hasOutline()) reason << "borderSettings=" << borderSettings.toString();
+    if (hasBoxShadowSettings())
+        reason << " boxShadowSettings.length=" << boxShadowSettings.toString();
+    if (hasBorderSettings()) reason << "borderSettings=" << borderSettings.toString();
     if (backgroundBlurRadius > 0) reason << " backgroundBlurRadius=" << backgroundBlurRadius;
     if (blurRegions.size() > 0) reason << " blurRegions.size()=" << blurRegions.size();
     if (contentDirty) reason << " contentDirty";
@@ -418,6 +425,9 @@ void LayerSnapshot::merge(const RequestedLayerState& requested, bool forceUpdate
     if (forceUpdate || requested.what & layer_state_t::eBorderSettingsChanged) {
         borderSettings = requested.borderSettings;
     }
+    if (forceUpdate || requested.what & layer_state_t::eBoxShadowSettingsChanged) {
+        boxShadowSettings = requested.boxShadowSettings;
+    }
     if (forceUpdate || requested.what & layer_state_t::eFrameRateSelectionPriority) {
         frameRateSelectionPriority = requested.frameRateSelectionPriority;
     }
@@ -517,7 +527,8 @@ void LayerSnapshot::merge(const RequestedLayerState& requested, bool forceUpdate
                  layer_state_t::eBlurRegionsChanged | layer_state_t::eStretchChanged |
                  layer_state_t::eEdgeExtensionChanged | layer_state_t::eBorderSettingsChanged)) {
         forceClientComposition = shadowSettings.length > 0 || stretchEffect.hasEffect() ||
-                edgeExtensionEffect.hasEffect() || borderSettings.strokeWidth > 0;
+                edgeExtensionEffect.hasEffect() || borderSettings.strokeWidth > 0 ||
+                !boxShadowSettings.boxShadows.empty();
     }
 
     if (forceUpdate ||

@@ -21,6 +21,7 @@
 #include "SkiaRenderEngine.h"
 
 #include <SkBlendMode.h>
+#include <SkBlurTypes.h>
 #include <SkCanvas.h>
 #include <SkColor.h>
 #include <SkColorFilter.h>
@@ -32,6 +33,7 @@
 #include <SkImageFilters.h>
 #include <SkImageInfo.h>
 #include <SkM44.h>
+#include <SkMaskFilter.h>
 #include <SkMatrix.h>
 #include <SkPaint.h>
 #include <SkPath.h>
@@ -986,20 +988,19 @@ void SkiaRenderEngine::drawLayersInternal(
             drawShadow(canvas, rrect, layer.shadow);
         }
 
+        // TODO(b/367464660): Move this code above and
+        // update elevation shadow rendering to use these bounds since they should be
+        // identical.
+        SkRRect originalBounds, originalClip;
+        std::tie(originalBounds, originalClip) =
+                getBoundsAndClip(layer.geometry.originalBounds, layer.geometry.roundedCornersCrop,
+                                 layer.geometry.roundedCornersRadius);
+        const SkRRect& preferredOriginalBounds =
+                originalBounds.isRect() && !originalClip.isEmpty() ? originalClip : originalBounds;
+
         // Similar to shadows, do the rendering before the clip is applied because even when the
         // layer is occluded it should have an outline.
         if (layer.borderSettings.strokeWidth > 0) {
-            // TODO(b/367464660): Move this code to the parent scope and
-            // update shadow rendering above to use these bounds since they should be
-            // identical.
-            SkRRect originalBounds, originalClip;
-            std::tie(originalBounds, originalClip) =
-                    getBoundsAndClip(layer.geometry.boundaries, layer.geometry.roundedCornersCrop,
-                                     layer.geometry.roundedCornersRadius);
-            const SkRRect& preferredOriginalBounds =
-                    originalBounds.isRect() && !originalClip.isEmpty() ? originalClip
-                                                                       : originalBounds;
-
             SkRRect outlineRect = preferredOriginalBounds;
             outlineRect.outset(layer.borderSettings.strokeWidth, layer.borderSettings.strokeWidth);
 
@@ -1008,6 +1009,21 @@ void SkiaRenderEngine::drawLayersInternal(
             paint.setColor(layer.borderSettings.color);
             paint.setStyle(SkPaint::kFill_Style);
             canvas->drawDRRect(outlineRect, preferredOriginalBounds, paint);
+        }
+
+        if (!layer.boxShadowSettings.boxShadows.empty()) {
+            for (const gui::BoxShadowSettings::BoxShadowParams& box :
+                 layer.boxShadowSettings.boxShadows) {
+                SkRRect boxRect = preferredOriginalBounds;
+                boxRect.outset(box.spreadRadius, box.spreadRadius);
+                boxRect.offset(box.offsetX, box.offsetY);
+                float sigma = convertBlurUserRadiusToSigma(box.blurRadius);
+                SkPaint blur;
+                blur.setAntiAlias(true);
+                blur.setColor(box.color);
+                blur.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, sigma, false));
+                canvas->drawRRect(boxRect, blur);
+            }
         }
 
         const float layerDimmingRatio = layer.whitePointNits <= 0.f

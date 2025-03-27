@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "ui/DisplayIdentification.h"
 #undef LOG_TAG
 #define LOG_TAG "LibSurfaceFlingerUnittests"
 
@@ -225,7 +226,7 @@ void DisplayTransactionCommitTest::processesHotplugDisconnectCommon() {
     // --------------------------------------------------------------------
     // Call Expectations
 
-    EXPECT_CALL(*mComposer, getDisplayIdentificationData(Case::Display::HWC_DISPLAY_ID, _, _))
+    EXPECT_CALL(*mComposer, getDisplayIdentificationData(Case::Display::HWC_DISPLAY_ID, _, _, _))
             .Times(0);
 
     setupCommonCallExpectationsForDisconnectProcessing<Case>();
@@ -275,9 +276,10 @@ TEST_F(DisplayTransactionCommitTest, ignoresHotplugConnectIfPrimaryAndExternalAl
 
     // TODO: This is an unnecessary call.
     EXPECT_CALL(*mComposer,
-                getDisplayIdentificationData(TertiaryDisplayVariant::HWC_DISPLAY_ID, _, _))
+                getDisplayIdentificationData(TertiaryDisplayVariant::HWC_DISPLAY_ID, _, _, _))
             .WillOnce(DoAll(SetArgPointee<1>(TertiaryDisplay<kSecure>::PORT),
                             SetArgPointee<2>(TertiaryDisplay<kSecure>::GET_IDENTIFICATION_DATA()),
+                            SetArgPointee<3>(android::ScreenPartStatus::UNSUPPORTED),
                             Return(Error::NONE)));
 
     ignoresHotplugConnectCommon<SimpleTertiaryDisplayCase>();
@@ -291,9 +293,10 @@ TEST_F(DisplayTransactionCommitTest,
 
     // TODO: This is an unnecessary call.
     EXPECT_CALL(*mComposer,
-                getDisplayIdentificationData(TertiaryDisplayVariant::HWC_DISPLAY_ID, _, _))
+                getDisplayIdentificationData(TertiaryDisplayVariant::HWC_DISPLAY_ID, _, _, _))
             .WillOnce(DoAll(SetArgPointee<1>(TertiaryDisplay<kSecure>::PORT),
                             SetArgPointee<2>(TertiaryDisplay<kSecure>::GET_IDENTIFICATION_DATA()),
+                            SetArgPointee<3>(android::ScreenPartStatus::UNSUPPORTED),
                             Return(Error::NONE)));
 
     ignoresHotplugConnectCommon<SimpleTertiaryDisplayNonSecureCase>();

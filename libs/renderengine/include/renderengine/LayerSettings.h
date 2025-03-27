@@ -17,6 +17,7 @@
 #pragma once
 
 #include <android/gui/BorderSettings.h>
+#include <android/gui/BoxShadowSettings.h>
 #include <gui/DisplayLuts.h>
 #include <math/mat4.h>
 #include <math/vec3.h>
@@ -133,6 +134,8 @@ struct LayerSettings {
     ShadowSettings shadow;
 
     gui::BorderSettings borderSettings;
+
+    gui::BoxShadowSettings boxShadowSettings;
 
     int backgroundBlurRadius = 0;
 

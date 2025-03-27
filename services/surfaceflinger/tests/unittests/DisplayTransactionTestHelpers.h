@@ -17,6 +17,7 @@
 #pragma once
 
 // TODO(b/129481165): remove the #pragma below and fix conversion issues
+#include "ui/DisplayIdentification.h"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wconversion"
 #pragma clang diagnostic ignored "-Wextra"
@@ -189,10 +190,9 @@ struct DisplayIdGetter<PhysicalDisplayIdType<PhysicalDisplay>> {
                                                        ? LEGACY_DISPLAY_TYPE_PRIMARY
                                                        : LEGACY_DISPLAY_TYPE_EXTERNAL);
         }
-
-        const auto info =
-                parseDisplayIdentificationData(PhysicalDisplay::PORT,
-                                               PhysicalDisplay::GET_IDENTIFICATION_DATA());
+        const auto info = parseDisplayIdentificationData(PhysicalDisplay::PORT,
+                                                         PhysicalDisplay::GET_IDENTIFICATION_DATA(),
+                                                         android::ScreenPartStatus::UNSUPPORTED);
         return info ? info->id : PhysicalDisplayId::fromPort(PhysicalDisplay::PORT);
     }
 };
@@ -491,12 +491,12 @@ struct HwcDisplayVariant {
         setupHwcGetConfigsCallExpectations(test);
 
         if (PhysicalDisplay::HAS_IDENTIFICATION_DATA) {
-            EXPECT_CALL(*test->mComposer, getDisplayIdentificationData(HWC_DISPLAY_ID, _, _))
+            EXPECT_CALL(*test->mComposer, getDisplayIdentificationData(HWC_DISPLAY_ID, _, _, _))
                     .WillOnce(DoAll(SetArgPointee<1>(PhysicalDisplay::PORT),
                                     SetArgPointee<2>(PhysicalDisplay::GET_IDENTIFICATION_DATA()),
                                     Return(Error::NONE)));
         } else {
-            EXPECT_CALL(*test->mComposer, getDisplayIdentificationData(HWC_DISPLAY_ID, _, _))
+            EXPECT_CALL(*test->mComposer, getDisplayIdentificationData(HWC_DISPLAY_ID, _, _, _))
                     .WillOnce(Return(Error::UNSUPPORTED));
         }
     }

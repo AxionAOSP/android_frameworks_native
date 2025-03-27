@@ -21,7 +21,6 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 // TODO(b/129481165): remove the #pragma below and fix conversion issues
@@ -33,6 +32,7 @@
 #include <gui/BufferQueue.h>
 #include <gui/HdrMetadata.h>
 #include <math/mat4.h>
+#include <ui/DisplayIdentification.h>
 #include <ui/DisplayedFrameStats.h>
 #include <ui/GraphicBuffer.h>
 #include <utils/StrongPointer.h>
@@ -288,7 +288,8 @@ public:
 
     // Composer HAL 2.3
     Error getDisplayIdentificationData(Display display, uint8_t* outPort,
-                                       std::vector<uint8_t>* outData) override;
+                                       std::vector<uint8_t>* outData,
+                                       android::ScreenPartStatus* outScreenPartStatus) override;
     Error setLayerColorTransform(Display display, Layer layer, const float* matrix) override;
     Error getDisplayedContentSamplingAttributes(Display display, PixelFormat* outFormat,
                                                 Dataspace* outDataspace,

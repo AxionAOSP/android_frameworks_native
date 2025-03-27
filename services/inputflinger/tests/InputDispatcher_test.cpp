@@ -5696,6 +5696,33 @@ TEST_F(InputDispatcherTest, InterceptKeyIfKeyUp) {
 }
 
 /**
+ * Keys are sent to policy with correct displayId
+ */
+TEST_F(InputDispatcherTest, InterceptKeyBeforeDispatchingPolicy_getsCorrectDisplayId) {
+    std::shared_ptr<FakeApplicationHandle> application = std::make_shared<FakeApplicationHandle>();
+    sp<FakeWindowHandle> window =
+            sp<FakeWindowHandle>::make(application, mDispatcher, "Fake Window",
+                                       ui::LogicalDisplayId(2));
+    window->setFocusable(true);
+
+    mDispatcher->onWindowInfosChanged({{*window->getInfo()}, {}, 0, 0});
+    mDispatcher->setFocusedDisplay(ui::LogicalDisplayId(2));
+    setFocusedWindow(window);
+
+    window->consumeFocusEvent(true);
+
+    mFakePolicy->setInterceptKeyBeforeDispatchingResult(
+            inputdispatcher::KeyEntry::InterceptKeyResult::SKIP);
+
+    mDispatcher->notifyKey(KeyArgsBuilder(ACTION_DOWN, AINPUT_SOURCE_KEYBOARD)
+                                   .keyCode(AKEYCODE_A)
+                                   .displayId(ui::LogicalDisplayId::INVALID)
+                                   .build());
+    mFakePolicy->assertKeyConsumedByPolicy(
+            AllOf(WithKeyCode(AKEYCODE_A), WithDisplayId(ui::LogicalDisplayId(2))));
+}
+
+/**
  * Two windows. First is a regular window. Second does not overlap with the first, and has
  * WATCH_OUTSIDE_TOUCH.
  * Both windows are owned by the same UID.

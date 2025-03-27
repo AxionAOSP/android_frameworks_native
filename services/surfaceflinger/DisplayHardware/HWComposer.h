@@ -130,8 +130,9 @@ public:
 
     virtual void setCallback(HWC2::ComposerCallback&) = 0;
 
-    virtual bool getDisplayIdentificationData(hal::HWDisplayId, uint8_t* outPort,
-                                              DisplayIdentificationData* outData) const = 0;
+    virtual bool getDisplayIdentificationData(
+            hal::HWDisplayId, uint8_t* outPort, DisplayIdentificationData* outData,
+            android::ScreenPartStatus* outScreenPartStatus) const = 0;
 
     virtual bool hasCapability(aidl::android::hardware::graphics::composer3::Capability) const = 0;
     virtual bool hasDisplayCapability(
@@ -351,8 +352,9 @@ public:
 
     void setCallback(HWC2::ComposerCallback&) override;
 
-    bool getDisplayIdentificationData(hal::HWDisplayId, uint8_t* outPort,
-                                      DisplayIdentificationData* outData) const override;
+    bool getDisplayIdentificationData(
+            hal::HWDisplayId, uint8_t* outPort, DisplayIdentificationData* outData,
+            android::ScreenPartStatus* outScreenPartStatus) const override;
 
     bool hasCapability(aidl::android::hardware::graphics::composer3::Capability) const override;
     bool hasDisplayCapability(

@@ -94,6 +94,7 @@ filegroup {
         "android/**/TouchOcclusionMode.aidl",
         "android/gui/TrustedOverlay.aidl",
         "android/gui/BorderSettings.aidl",
+        "android/gui/BoxShadowSettings.aidl",
     ],
 }
 

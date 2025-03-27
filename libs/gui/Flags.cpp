@@ -76,6 +76,14 @@ sp<SurfaceType> convertParcelableSurfaceTypeToSurface(const ParcelableSurfaceTyp
     return surface;
 #endif
 }
-
 } // namespace flagtools
+namespace mediaflagtools {
+sp<MediaSurfaceType> igbpToSurfaceType(const sp<IGraphicBufferProducer>& igbp) {
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_MEDIA_MIGRATION)
+    return new Surface(igbp);
+#else
+    return igbp;
+#endif
+}
+} // namespace mediaflagtools
 } // namespace android

@@ -515,6 +515,17 @@ public:
         mLifecycleManager.applyTransactions(transactions);
     }
 
+    void setBoxShadowSettings(uint32_t id, gui::BoxShadowSettings settings) {
+        std::vector<QueuedTransactionState> transactions;
+        transactions.emplace_back();
+        transactions.back().states.push_back({});
+
+        transactions.back().states.front().state.what = layer_state_t::eBoxShadowSettingsChanged;
+        transactions.back().states.front().layerId = id;
+        transactions.back().states.front().state.boxShadowSettings = settings;
+        mLifecycleManager.applyTransactions(transactions);
+    }
+
     void setTrustedOverlay(uint32_t id, gui::TrustedOverlay trustedOverlay) {
         std::vector<QueuedTransactionState> transactions;
         transactions.emplace_back();

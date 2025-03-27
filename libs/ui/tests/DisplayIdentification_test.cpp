@@ -361,13 +361,18 @@ TEST(DisplayIdentificationTest, getPnpId) {
 }
 
 TEST(DisplayIdentificationTest, parseDisplayIdentificationData) {
-    const auto primaryInfo = parseDisplayIdentificationData(0, getInternalEdid());
+    const auto primaryInfo = parseDisplayIdentificationData(0, getInternalEdid(),
+                                                            android::ScreenPartStatus::UNSUPPORTED);
     ASSERT_TRUE(primaryInfo);
 
-    const auto secondaryInfo = parseDisplayIdentificationData(1, getExternalEdid());
+    const auto secondaryInfo =
+            parseDisplayIdentificationData(1, getExternalEdid(),
+                                           android::ScreenPartStatus::UNSUPPORTED);
     ASSERT_TRUE(secondaryInfo);
 
-    const auto tertiaryInfo = parseDisplayIdentificationData(2, getExternalEedid());
+    const auto tertiaryInfo =
+            parseDisplayIdentificationData(2, getExternalEedid(),
+                                           android::ScreenPartStatus::UNSUPPORTED);
     ASSERT_TRUE(tertiaryInfo);
 
     // Display IDs should be unique.
@@ -398,7 +403,9 @@ TEST(DisplayIdentificationTest, deviceProductInfo) {
     using ModelYear = DeviceProductInfo::ModelYear;
 
     {
-        const auto displayIdInfo = parseDisplayIdentificationData(0, getInternalEdid());
+        const auto displayIdInfo =
+                parseDisplayIdentificationData(0, getInternalEdid(),
+                                               android::ScreenPartStatus::UNSUPPORTED);
         ASSERT_TRUE(displayIdInfo);
         ASSERT_TRUE(displayIdInfo->deviceProductInfo);
         const auto& info = *displayIdInfo->deviceProductInfo;
@@ -410,7 +417,9 @@ TEST(DisplayIdentificationTest, deviceProductInfo) {
         EXPECT_TRUE(info.relativeAddress.empty());
     }
     {
-        const auto displayIdInfo = parseDisplayIdentificationData(0, getExternalEdid());
+        const auto displayIdInfo =
+                parseDisplayIdentificationData(0, getExternalEdid(),
+                                               android::ScreenPartStatus::UNSUPPORTED);
         ASSERT_TRUE(displayIdInfo);
         ASSERT_TRUE(displayIdInfo->deviceProductInfo);
         const auto& info = *displayIdInfo->deviceProductInfo;
@@ -424,7 +433,9 @@ TEST(DisplayIdentificationTest, deviceProductInfo) {
         EXPECT_TRUE(info.relativeAddress.empty());
     }
     {
-        const auto displayIdInfo = parseDisplayIdentificationData(0, getExternalEedid());
+        const auto displayIdInfo =
+                parseDisplayIdentificationData(0, getExternalEedid(),
+                                               android::ScreenPartStatus::UNSUPPORTED);
         ASSERT_TRUE(displayIdInfo);
         ASSERT_TRUE(displayIdInfo->deviceProductInfo);
         const auto& info = *displayIdInfo->deviceProductInfo;
@@ -438,7 +449,9 @@ TEST(DisplayIdentificationTest, deviceProductInfo) {
         EXPECT_THAT(info.relativeAddress, ElementsAre(2, 0, 0, 0));
     }
     {
-        const auto displayIdInfo = parseDisplayIdentificationData(0, getPanasonicTvEdid());
+        const auto displayIdInfo =
+                parseDisplayIdentificationData(0, getPanasonicTvEdid(),
+                                               android::ScreenPartStatus::UNSUPPORTED);
         ASSERT_TRUE(displayIdInfo);
         ASSERT_TRUE(displayIdInfo->deviceProductInfo);
         const auto& info = *displayIdInfo->deviceProductInfo;
@@ -451,7 +464,9 @@ TEST(DisplayIdentificationTest, deviceProductInfo) {
         EXPECT_THAT(info.relativeAddress, ElementsAre(2, 0, 0, 0));
     }
     {
-        const auto displayIdInfo = parseDisplayIdentificationData(0, getHisenseTvEdid());
+        const auto displayIdInfo =
+                parseDisplayIdentificationData(0, getHisenseTvEdid(),
+                                               android::ScreenPartStatus::UNSUPPORTED);
         ASSERT_TRUE(displayIdInfo);
         ASSERT_TRUE(displayIdInfo->deviceProductInfo);
         const auto& info = *displayIdInfo->deviceProductInfo;
@@ -465,7 +480,9 @@ TEST(DisplayIdentificationTest, deviceProductInfo) {
         EXPECT_THAT(info.relativeAddress, ElementsAre(1, 2, 3, 4));
     }
     {
-        const auto displayIdInfo = parseDisplayIdentificationData(0, getCtlDisplayEdid());
+        const auto displayIdInfo =
+                parseDisplayIdentificationData(0, getCtlDisplayEdid(),
+                                               android::ScreenPartStatus::UNSUPPORTED);
         ASSERT_TRUE(displayIdInfo);
         ASSERT_TRUE(displayIdInfo->deviceProductInfo);
         const auto& info = *displayIdInfo->deviceProductInfo;

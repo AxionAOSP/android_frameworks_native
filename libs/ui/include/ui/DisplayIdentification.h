@@ -105,7 +105,7 @@ std::optional<Edid> parseEdid(const DisplayIdentificationData&);
 std::optional<PnpId> getPnpId(uint16_t manufacturerId);
 
 std::optional<DisplayIdentificationInfo> parseDisplayIdentificationData(
-        uint8_t port, const DisplayIdentificationData&);
+        uint8_t port, const DisplayIdentificationData&, android::ScreenPartStatus screenPartStatus);
 
 PhysicalDisplayId getVirtualDisplayId(uint32_t id);
 

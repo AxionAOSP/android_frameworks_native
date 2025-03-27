@@ -114,6 +114,7 @@ std::optional<compositionengine::LayerFE::LayerSettings> LayerFE::prepareClientC
     prepareShadowClientComposition(*layerSettings, targetSettings.viewport);
 
     layerSettings->borderSettings = mSnapshot->borderSettings;
+    layerSettings->boxShadowSettings = mSnapshot->boxShadowSettings;
 
     return layerSettings;
 }
@@ -208,7 +209,7 @@ void LayerFE::prepareEffectsClientComposition(
     if (targetSettings.realContentIsVisible && fillsColor()) {
         // Set color for color fill settings.
         layerSettings.source.solidColor = mSnapshot->color.rgb;
-    } else if (hasBlur() || drawShadows() || hasOutline()) {
+    } else if (hasBlur() || drawShadows() || hasBorderSettings() || hasBoxShadowSettings()) {
         layerSettings.skipContentDraw = true;
     }
 }
@@ -395,8 +396,12 @@ bool LayerFE::hasBlur() const {
     return mSnapshot->backgroundBlurRadius > 0 || mSnapshot->blurRegions.size() > 0;
 }
 
-bool LayerFE::hasOutline() const {
-    return mSnapshot->borderSettings.strokeWidth > 0;
+bool LayerFE::hasBorderSettings() const {
+    return mSnapshot->hasBorderSettings();
+}
+
+bool LayerFE::hasBoxShadowSettings() const {
+    return mSnapshot->hasBoxShadowSettings();
 }
 
 bool LayerFE::drawShadows() const {

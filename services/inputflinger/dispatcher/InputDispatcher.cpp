@@ -1896,14 +1896,14 @@ bool InputDispatcher::dispatchKeyLocked(nsecs_t currentTime, std::shared_ptr<con
         entry->interceptKeyWakeupTime = 0;
     }
 
+    const ui::LogicalDisplayId displayId = getTargetDisplayId(*entry);
     // Give the policy a chance to intercept the key.
     if (entry->interceptKeyResult == KeyEntry::InterceptKeyResult::UNKNOWN) {
         if (entry->policyFlags & POLICY_FLAG_PASS_TO_USER) {
-            sp<IBinder> focusedWindowToken =
-                    mFocusResolver.getFocusedWindowToken(getTargetDisplayId(*entry));
+            sp<IBinder> focusedWindowToken = mFocusResolver.getFocusedWindowToken(displayId);
 
-            auto command = [this, focusedWindowToken, entry]() REQUIRES(mLock) {
-                doInterceptKeyBeforeDispatchingCommand(focusedWindowToken, *entry);
+            auto command = [this, focusedWindowToken, displayId, entry]() REQUIRES(mLock) {
+                doInterceptKeyBeforeDispatchingCommand(focusedWindowToken, displayId, *entry);
             };
             postCommandLocked(std::move(command));
             return false; // wait for the command to run
@@ -1952,7 +1952,7 @@ bool InputDispatcher::dispatchKeyLocked(nsecs_t currentTime, std::shared_ptr<con
                           InputTarget::Flags::FOREGROUND, getDownTime(*entry), inputTargets);
 
     // Add monitor channels from event's or focused display.
-    addGlobalMonitoringTargetsLocked(inputTargets, getTargetDisplayId(*entry));
+    addGlobalMonitoringTargetsLocked(inputTargets, displayId);
 
     if (mTracer) {
         ensureEventTraced(*entry);
@@ -6632,8 +6632,10 @@ void InputDispatcher::updateLastAnrStateLocked(const std::string& windowLabel,
 }
 
 void InputDispatcher::doInterceptKeyBeforeDispatchingCommand(const sp<IBinder>& focusedWindowToken,
+                                                             const ui::LogicalDisplayId displayId,
                                                              const KeyEntry& entry) {
-    const KeyEvent event = createKeyEvent(entry);
+    KeyEvent event = createKeyEvent(entry);
+    event.setDisplayId(displayId);
     std::variant<nsecs_t, KeyEntry::InterceptKeyResult> interceptResult;
     nsecs_t delay = 0;
     { // release lock

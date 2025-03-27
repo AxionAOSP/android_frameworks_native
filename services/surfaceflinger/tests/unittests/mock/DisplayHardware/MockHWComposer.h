@@ -18,6 +18,8 @@
 
 #include <gmock/gmock.h>
 
+#include <ui/DisplayIdentification.h>
+
 #include "DisplayHardware/HWComposer.h"
 
 namespace android::mock {
@@ -32,7 +34,8 @@ public:
 
     MOCK_METHOD(void, setCallback, (HWC2::ComposerCallback&), (override));
     MOCK_METHOD(bool, getDisplayIdentificationData,
-                (HWDisplayId, uint8_t*, DisplayIdentificationData*), (const, override));
+                (HWDisplayId, uint8_t*, DisplayIdentificationData*, android::ScreenPartStatus*),
+                (const, override));
     MOCK_METHOD(bool, hasCapability, (aidl::android::hardware::graphics::composer3::Capability),
                 (const, override));
     MOCK_METHOD(bool, hasDisplayCapability,

@@ -27,6 +27,7 @@
 #include <gui/BufferQueue.h>
 #include <gui/HdrMetadata.h>
 #include <math/mat4.h>
+#include <ui/DisplayIdentification.h>
 #include <ui/DisplayedFrameStats.h>
 #include <ui/GraphicBuffer.h>
 #include <ui/PictureProfileHandle.h>
@@ -93,6 +94,7 @@ using PerFrameMetadataBlob = IComposerClient::PerFrameMetadataBlob;
 using AidlTransform = ::aidl::android::hardware::graphics::common::Transform;
 using DisplayConfiguration = V3_0::DisplayConfiguration;
 using aidl::android::hardware::graphics::common::Hdr;
+using android::ScreenPartStatus;
 
 class Composer {
 public:
@@ -234,7 +236,8 @@ public:
 
     // Composer HAL 2.3
     virtual Error getDisplayIdentificationData(Display display, uint8_t* outPort,
-                                               std::vector<uint8_t>* outData) = 0;
+                                               std::vector<uint8_t>* outData,
+                                               android::ScreenPartStatus* outScreenPartStatus) = 0;
     virtual Error setLayerColorTransform(Display display, Layer layer, const float* matrix) = 0;
     virtual Error getDisplayedContentSamplingAttributes(Display display, PixelFormat* outFormat,
                                                         Dataspace* outDataspace,

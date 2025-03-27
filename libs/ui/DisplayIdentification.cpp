@@ -394,7 +394,8 @@ std::optional<PnpId> getPnpId(uint16_t manufacturerId) {
 }
 
 std::optional<DisplayIdentificationInfo> parseDisplayIdentificationData(
-        uint8_t port, const DisplayIdentificationData& data) {
+        uint8_t port, const DisplayIdentificationData& data,
+        android::ScreenPartStatus screenPartStatus) {
     if (data.empty()) {
         ALOGI("Display identification data is empty.");
         return {};
@@ -417,6 +418,7 @@ std::optional<DisplayIdentificationInfo> parseDisplayIdentificationData(
             .port = port,
             .deviceProductInfo = buildDeviceProductInfo(*edid),
             .preferredDetailedTimingDescriptor = edid->preferredDetailedTimingDescriptor,
+            .screenPartStatus = screenPartStatus,
     };
 }
 

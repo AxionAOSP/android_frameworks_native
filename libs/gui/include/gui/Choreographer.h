@@ -79,6 +79,9 @@ public:
     };
     static Context gChoreographers;
 
+    explicit Choreographer(const sp<Looper>& looper, const sp<IBinder>& layerHandle = nullptr)
+            EXCLUDES(gChoreographers.lock);
+
     void postFrameCallbackDelayed(AChoreographer_frameCallback cb,
                                   AChoreographer_frameCallback64 cb64,
                                   AChoreographer_vsyncCallback vsyncCallback, void* data,
@@ -111,10 +114,6 @@ public:
 
 private:
     Choreographer(const Choreographer&) = delete;
-    explicit Choreographer(const sp<Looper>& looper, const sp<IBinder>& layerHandle = nullptr)
-            EXCLUDES(gChoreographers.lock);
-    friend class sp<Choreographer>;
-    friend AChoreographer* AChoreographer_create();
 
     void dispatchVsync(nsecs_t timestamp, PhysicalDisplayId displayId, uint32_t count,
                        VsyncEventData vsyncEventData) override;

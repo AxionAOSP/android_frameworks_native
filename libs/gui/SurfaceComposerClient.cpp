@@ -2038,6 +2038,19 @@ SurfaceComposerClient::Transaction& SurfaceComposerClient::Transaction::setBorde
     return *this;
 }
 
+SurfaceComposerClient::Transaction& SurfaceComposerClient::Transaction::setBoxShadowSettings(
+        const sp<SurfaceControl>& sc, gui::BoxShadowSettings settings) {
+    layer_state_t* s = getLayerState(sc);
+    if (!s) {
+        mStatus = BAD_INDEX;
+        return *this;
+    }
+
+    s->what |= layer_state_t::eBoxShadowSettingsChanged;
+    s->boxShadowSettings = settings;
+    return *this;
+}
+
 SurfaceComposerClient::Transaction& SurfaceComposerClient::Transaction::setFrameRate(
         const sp<SurfaceControl>& sc, float frameRate, int8_t compatibility,
         int8_t changeFrameRateStrategy) {

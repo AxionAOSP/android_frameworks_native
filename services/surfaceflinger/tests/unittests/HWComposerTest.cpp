@@ -76,9 +76,9 @@ struct HWComposerTest : testing::Test {
 
     void expectHotplugConnect(hal::HWDisplayId hwcDisplayId) {
         constexpr uint8_t kPort = 255;
-        EXPECT_CALL(*mHal, getDisplayIdentificationData(hwcDisplayId, _, _))
-                .WillOnce(DoAll(SetArgPointee<1>(kPort),
-                                SetArgPointee<2>(getExternalEdid()), Return(HalError::NONE)));
+        EXPECT_CALL(*mHal, getDisplayIdentificationData(hwcDisplayId, _, _, _))
+                .WillOnce(DoAll(SetArgPointee<1>(kPort), SetArgPointee<2>(getExternalEdid()),
+                                Return(HalError::NONE)));
 
         EXPECT_CALL(*mHal, setClientTargetSlotCount(_));
         EXPECT_CALL(*mHal, setVsyncEnabled(hwcDisplayId, Hwc2::IComposerClient::Vsync::DISABLE));

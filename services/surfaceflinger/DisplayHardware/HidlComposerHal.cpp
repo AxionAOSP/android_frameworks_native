@@ -34,6 +34,7 @@
 #include <hidl/HidlTransportSupport.h>
 #include <hidl/HidlTransportUtils.h>
 #include <log/log.h>
+#include <ui/DisplayIdentification.h>
 
 #include "HWC2.h"
 #include "Hal.h"
@@ -1091,7 +1092,8 @@ Error HidlComposer::getDataspaceSaturationMatrix(Dataspace dataspace, mat4* outM
 // Composer HAL 2.3
 
 Error HidlComposer::getDisplayIdentificationData(Display display, uint8_t* outPort,
-                                                 std::vector<uint8_t>* outData) {
+                                                 std::vector<uint8_t>* outData,
+                                                 android::ScreenPartStatus*) {
     if (!mClient_2_3) {
         return Error::UNSUPPORTED;
     }

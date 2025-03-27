@@ -1882,8 +1882,8 @@ TEST_F(OutputEnsureOutputLayerIfVisibleTest, coverageAccumulatesWithShadowsTest)
 
     mCoverageState.dirtyRegion = Region(Rect(0, 0, 500, 500));
     // half of the layer including the casting shadow is covered and opaque
-    mCoverageState.aboveCoveredLayers = Region(Rect(40, 40, 100, 260));
-    mCoverageState.aboveOpaqueLayers = Region(Rect(40, 40, 100, 260));
+    mCoverageState.aboveCoveredLayers = Region(Rect(30, 30, 100, 270));
+    mCoverageState.aboveOpaqueLayers = Region(Rect(30, 30, 100, 270));
 
     EXPECT_CALL(mOutput, ensureOutputLayer(Eq(0u), Eq(mLayer.layerFE)))
             .WillOnce(Return(&mLayer.outputLayer));
@@ -1891,16 +1891,16 @@ TEST_F(OutputEnsureOutputLayerIfVisibleTest, coverageAccumulatesWithShadowsTest)
     ensureOutputLayerIfVisible();
 
     const Region kExpectedDirtyRegion = Region(Rect(0, 0, 500, 500));
-    const Region kExpectedAboveCoveredRegion = Region(Rect(40, 40, 160, 260));
+    const Region kExpectedAboveCoveredRegion = Region(Rect(30, 30, 170, 270));
     // add starting opaque region to the opaque half of the casting layer bounds
     const Region kExpectedAboveOpaqueRegion =
-            Region(Rect(40, 40, 100, 260)).orSelf(Rect(100, 50, 150, 250));
-    const Region kExpectedLayerVisibleRegion = Region(Rect(100, 40, 160, 260));
+            Region(Rect(30, 30, 100, 270)).orSelf(Rect(100, 50, 150, 250));
+    const Region kExpectedLayerVisibleRegion = Region(Rect(100, 30, 170, 270));
     const Region kExpectedoutputSpaceLayerVisibleRegion = Region(Rect(100, 50, 150, 250));
-    const Region kExpectedLayerCoveredRegion = Region(Rect(40, 40, 100, 260));
-    const Region kExpectedLayerVisibleNonTransparentRegion = Region(Rect(100, 40, 160, 260));
+    const Region kExpectedLayerCoveredRegion = Region(Rect(30, 30, 100, 270));
+    const Region kExpectedLayerVisibleNonTransparentRegion = Region(Rect(100, 30, 170, 270));
     const Region kExpectedLayerShadowRegion =
-            Region(Rect(40, 40, 160, 260)).subtractSelf(Rect(50, 50, 150, 250));
+            Region(Rect(30, 30, 170, 270)).subtractSelf(Rect(50, 50, 150, 250));
 
     EXPECT_THAT(mCoverageState.dirtyRegion, RegionEq(kExpectedDirtyRegion));
     EXPECT_THAT(mCoverageState.aboveCoveredLayers, RegionEq(kExpectedAboveCoveredRegion));
@@ -1923,18 +1923,24 @@ TEST_F(OutputEnsureOutputLayerIfVisibleTest, shadowRegionOnlyTest) {
     mLayer.layerFEState.shadowSettings.length = 10.0f;
 
     mCoverageState.dirtyRegion = Region(Rect(0, 0, 500, 500));
-    // Casting layer is covered by an opaque region leaving only part of its shadow to be drawn
-    mCoverageState.aboveCoveredLayers = Region(Rect(40, 40, 150, 260));
-    mCoverageState.aboveOpaqueLayers = Region(Rect(40, 40, 150, 260));
+
+    // Casting layer is covered by an opaque region leaving only
+    // right part (x > 150) of its shadow to be drawn.
+    mCoverageState.aboveCoveredLayers = Region(Rect(30, 30, 150, 270));
+    mCoverageState.aboveOpaqueLayers = Region(Rect(30, 30, 150, 270));
 
     EXPECT_CALL(mOutput, ensureOutputLayer(Eq(0u), Eq(mLayer.layerFE)))
             .WillOnce(Return(&mLayer.outputLayer));
 
     ensureOutputLayerIfVisible();
 
-    const Region kExpectedLayerVisibleRegion = Region(Rect(150, 40, 160, 260));
+    // Bottom part of the layer + shadow.
+    // original layer : 50,  50, 150, 250
+    // layer + shadow : 30,  30, 170, 270
+    // visible portion: 150, 30, 170, 270
+    const Region kExpectedLayerVisibleRegion = Region(Rect(150, 30, 170, 270));
     const Region kExpectedLayerShadowRegion =
-            Region(Rect(40, 40, 160, 260)).subtractSelf(Rect(50, 50, 150, 250));
+            Region(Rect(30, 30, 170, 270)).subtractSelf(Rect(50, 50, 150, 250));
 
     EXPECT_THAT(mLayer.outputLayerState.visibleRegion, RegionEq(kExpectedLayerVisibleRegion));
     EXPECT_THAT(mLayer.outputLayerState.shadowRegion, RegionEq(kExpectedLayerShadowRegion));
@@ -1949,8 +1955,8 @@ TEST_F(OutputEnsureOutputLayerIfVisibleTest, takesNotSoEarlyOutifLayerWithShadow
 
     mCoverageState.dirtyRegion = Region(Rect(0, 0, 500, 500));
     // Casting layer and its shadows are covered by an opaque region
-    mCoverageState.aboveCoveredLayers = Region(Rect(40, 40, 160, 260));
-    mCoverageState.aboveOpaqueLayers = Region(Rect(40, 40, 160, 260));
+    mCoverageState.aboveCoveredLayers = Region(Rect(30, 30, 170, 270));
+    mCoverageState.aboveOpaqueLayers = Region(Rect(30, 30, 170, 270));
 
     ensureOutputLayerIfVisible();
 }

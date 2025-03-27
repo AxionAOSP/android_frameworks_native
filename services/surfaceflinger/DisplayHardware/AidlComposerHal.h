@@ -19,6 +19,7 @@
 #include "ComposerHal.h"
 
 #include <ftl/shared_mutex.h>
+#include <ui/DisplayIdentification.h>
 #include <ui/DisplayMap.h>
 
 #include <functional>
@@ -180,7 +181,8 @@ public:
 
     // Composer HAL 2.3
     Error getDisplayIdentificationData(Display display, uint8_t* outPort,
-                                       std::vector<uint8_t>* outData) override;
+                                       std::vector<uint8_t>* outData,
+                                       android::ScreenPartStatus* outScreenPartStatus) override;
     Error setLayerColorTransform(Display display, Layer layer, const float* matrix) override;
     Error getDisplayedContentSamplingAttributes(Display display, PixelFormat* outFormat,
                                                 Dataspace* outDataspace,

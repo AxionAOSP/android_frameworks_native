@@ -28,6 +28,7 @@
 #include <common/trace.h>
 #include <fmt/core.h>
 #include <log/log.h>
+#include <ui/DisplayIdentification.h>
 
 #include <aidl/android/hardware/graphics/composer3/BnComposerCallback.h>
 
@@ -1271,7 +1272,8 @@ Error AidlComposer::getDataspaceSaturationMatrix(Dataspace dataspace, mat4* outM
 }
 
 Error AidlComposer::getDisplayIdentificationData(Display display, uint8_t* outPort,
-                                                 std::vector<uint8_t>* outData) {
+                                                 std::vector<uint8_t>* outData,
+                                                 android::ScreenPartStatus* outScreenPartStatus) {
     AidlDisplayIdentification displayIdentification;
     const auto status =
             mAidlComposerClient->getDisplayIdentificationData(translate<int64_t>(display),
@@ -1283,6 +1285,8 @@ Error AidlComposer::getDisplayIdentificationData(Display display, uint8_t* outPo
 
     *outPort = static_cast<uint8_t>(displayIdentification.port);
     *outData = displayIdentification.data;
+    *outScreenPartStatus =
+            static_cast<android::ScreenPartStatus>(displayIdentification.screenPartStatus);
 
     return Error::NONE;
 }

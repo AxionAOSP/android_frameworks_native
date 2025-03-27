@@ -681,6 +681,9 @@ public:
 
         Transaction& setBorderSettings(const sp<SurfaceControl>& sc, gui::BorderSettings settings);
 
+        Transaction& setBoxShadowSettings(const sp<SurfaceControl>& sc,
+                                          gui::BoxShadowSettings settings);
+
         Transaction& setFrameRate(const sp<SurfaceControl>& sc, float frameRate,
                                   int8_t compatibility, int8_t changeFrameRateStrategy);
 

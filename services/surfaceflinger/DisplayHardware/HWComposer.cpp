@@ -36,6 +36,7 @@
 #include <ftl/concat.h>
 #include <log/log.h>
 #include <ui/DebugUtils.h>
+#include <ui/DisplayIdentification.h>
 #include <ui/GraphicBuffer.h>
 #include <utils/Errors.h>
 
@@ -115,10 +116,12 @@ void HWComposer::setCallback(HWC2::ComposerCallback& callback) {
     mComposer->registerCallback(callback);
 }
 
-bool HWComposer::getDisplayIdentificationData(hal::HWDisplayId hwcDisplayId, uint8_t* outPort,
-                                              DisplayIdentificationData* outData) const {
+bool HWComposer::getDisplayIdentificationData(
+        hal::HWDisplayId hwcDisplayId, uint8_t* outPort, DisplayIdentificationData* outData,
+        android::ScreenPartStatus* outScreenPartStatus) const {
     const auto error = static_cast<hal::Error>(
-            mComposer->getDisplayIdentificationData(hwcDisplayId, outPort, outData));
+            mComposer->getDisplayIdentificationData(hwcDisplayId, outPort, outData,
+                                                    outScreenPartStatus));
     if (error != hal::Error::NONE) {
         if (error != hal::Error::UNSUPPORTED) {
             LOG_HWC_DISPLAY_ERROR(hwcDisplayId, to_string(error).c_str());
@@ -1174,8 +1177,9 @@ std::optional<DisplayIdentificationInfo> HWComposer::onHotplugConnect(
         if (mUpdateDeviceProductInfoOnHotplugReconnect) {
             uint8_t port;
             DisplayIdentificationData data;
-            getDisplayIdentificationData(hwcDisplayId, &port, &data);
-            if (auto newInfo = parseDisplayIdentificationData(port, data)) {
+            android::ScreenPartStatus screenPartStatus;
+            getDisplayIdentificationData(hwcDisplayId, &port, &data, &screenPartStatus);
+            if (auto newInfo = parseDisplayIdentificationData(port, data, screenPartStatus)) {
                 info->deviceProductInfo = std::move(newInfo->deviceProductInfo);
                 info->preferredDetailedTimingDescriptor =
                         std::move(newInfo->preferredDetailedTimingDescriptor);
@@ -1186,8 +1190,9 @@ std::optional<DisplayIdentificationInfo> HWComposer::onHotplugConnect(
     } else {
         uint8_t port;
         DisplayIdentificationData data;
+        android::ScreenPartStatus screenPartStatus;
         const bool hasDisplayIdentificationData =
-                getDisplayIdentificationData(hwcDisplayId, &port, &data);
+                getDisplayIdentificationData(hwcDisplayId, &port, &data, &screenPartStatus);
         if (mPhysicalDisplayIdMap.empty()) {
             mHasMultiDisplaySupport = hasDisplayIdentificationData;
             ALOGI("Switching to %s multi-display mode",
@@ -1198,10 +1203,11 @@ std::optional<DisplayIdentificationInfo> HWComposer::onHotplugConnect(
             return {};
         }
 
-        info = [this, hwcDisplayId, &port, &data, hasDisplayIdentificationData] {
+        info = [this, hwcDisplayId, &port, &data, &screenPartStatus, hasDisplayIdentificationData] {
             const bool isPrimary = !mPrimaryHwcDisplayId;
             if (mHasMultiDisplaySupport) {
-                if (const auto info = parseDisplayIdentificationData(port, data)) {
+                if (const auto info =
+                            parseDisplayIdentificationData(port, data, screenPartStatus)) {
                     return *info;
                 }
                 ALOGE("Failed to parse identification data for display %" PRIu64, hwcDisplayId);
@@ -1211,11 +1217,13 @@ std::optional<DisplayIdentificationInfo> HWComposer::onHotplugConnect(
                 port = isPrimary ? LEGACY_DISPLAY_TYPE_PRIMARY : LEGACY_DISPLAY_TYPE_EXTERNAL;
             }
 
-            return DisplayIdentificationInfo{.id = PhysicalDisplayId::fromPort(port),
-                                             .name = isPrimary ? "Primary display"
-                                                               : "Secondary display",
-                                             .port = port,
-                                             .deviceProductInfo = std::nullopt};
+            return DisplayIdentificationInfo{
+                    .id = PhysicalDisplayId::fromPort(port),
+                    .name = isPrimary ? "Primary display" : "Secondary display",
+                    .port = port,
+                    .deviceProductInfo = std::nullopt,
+                    .screenPartStatus = screenPartStatus,
+            };
         }();
 
         mComposer->onHotplugConnect(hwcDisplayId);

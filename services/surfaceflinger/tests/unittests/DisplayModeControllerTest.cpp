@@ -58,7 +58,7 @@ public:
                 });
 
         constexpr uint8_t kPort = 111;
-        EXPECT_CALL(*mComposerHal, getDisplayIdentificationData(kHwcDisplayId, _, _))
+        EXPECT_CALL(*mComposerHal, getDisplayIdentificationData(kHwcDisplayId, _, _, _))
                 .WillOnce(DoAll(SetArgPointee<1>(kPort), SetArgPointee<2>(getInternalEdid()),
                                 Return(hal::Error::NONE)));
 

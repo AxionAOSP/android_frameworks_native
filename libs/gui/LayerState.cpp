@@ -181,6 +181,7 @@ status_t layer_state_t::write(Parcel& output) const
     }
     SAFE_PARCEL(output.writeFloat, shadowRadius);
     SAFE_PARCEL(output.writeParcelable, borderSettings);
+    SAFE_PARCEL(output.writeParcelable, boxShadowSettings);
     SAFE_PARCEL(output.writeInt32, frameRateSelectionPriority);
     SAFE_PARCEL(output.writeFloat, frameRate);
     SAFE_PARCEL(output.writeByte, frameRateCompatibility);
@@ -330,6 +331,7 @@ status_t layer_state_t::read(const Parcel& input)
     }
     SAFE_PARCEL(input.readFloat, &shadowRadius);
     SAFE_PARCEL(input.readParcelable, &borderSettings);
+    SAFE_PARCEL(input.readParcelable, &boxShadowSettings);
 
     SAFE_PARCEL(input.readInt32, &frameRateSelectionPriority);
     SAFE_PARCEL(input.readFloat, &frameRate);
@@ -734,6 +736,10 @@ void layer_state_t::merge(const layer_state_t& other) {
         what |= eBorderSettingsChanged;
         borderSettings = other.borderSettings;
     }
+    if (other.what & eBoxShadowSettingsChanged) {
+        what |= eBoxShadowSettingsChanged;
+        boxShadowSettings = other.boxShadowSettings;
+    }
     if (other.what & eLutsChanged) {
         what |= eLutsChanged;
         luts = other.luts;
@@ -889,6 +895,7 @@ uint64_t layer_state_t::diff(const layer_state_t& other) const {
     if (other.what & eMetadataChanged) diff |= eMetadataChanged;
     CHECK_DIFF(diff, eShadowRadiusChanged, other, shadowRadius);
     CHECK_DIFF(diff, eBorderSettingsChanged, other, borderSettings);
+    CHECK_DIFF(diff, eBoxShadowSettingsChanged, other, boxShadowSettings);
     CHECK_DIFF(diff, eDefaultFrameRateCompatibilityChanged, other, defaultFrameRateCompatibility);
     CHECK_DIFF(diff, eFrameRateSelectionPriority, other, frameRateSelectionPriority);
     CHECK_DIFF3(diff, eFrameRateChanged, other, frameRate, frameRateCompatibility,

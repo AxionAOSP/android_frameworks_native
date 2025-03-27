@@ -898,6 +898,7 @@ private:
                                         const std::shared_ptr<Connection>& connection, uint32_t seq,
                                         bool handled, nsecs_t consumeTime) REQUIRES(mLock);
     void doInterceptKeyBeforeDispatchingCommand(const sp<IBinder>& focusedWindowToken,
+                                                const ui::LogicalDisplayId displayId,
                                                 const KeyEntry& entry) REQUIRES(mLock);
     void onFocusChangedLocked(const FocusResolver::FocusChanges& changes,
                               const std::unique_ptr<trace::EventTrackerInterface>& traceTracker,

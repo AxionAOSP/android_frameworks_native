@@ -6105,7 +6105,9 @@ void SurfaceFlinger::dumpDisplayIdentificationData(std::string& result) const {
 
         uint8_t port;
         DisplayIdentificationData data;
-        if (!getHwComposer().getDisplayIdentificationData(*hwcDisplayId, &port, &data)) {
+        android::ScreenPartStatus screenPartStatus;
+        if (!getHwComposer().getDisplayIdentificationData(*hwcDisplayId, &port, &data,
+                                                          &screenPartStatus)) {
             result.append("no display identification data\n");
             continue;
         }
@@ -6150,9 +6152,11 @@ void SurfaceFlinger::dumpRawDisplayIdentificationData(const DumpArgs& args,
     hal::HWDisplayId hwcDisplayId;
     uint8_t port;
     DisplayIdentificationData data;
+    android::ScreenPartStatus screenPartStatus;
 
     if (args.size() > 1 && base::ParseUint(String8(args[1]), &hwcDisplayId) &&
-        getHwComposer().getDisplayIdentificationData(hwcDisplayId, &port, &data)) {
+        getHwComposer().getDisplayIdentificationData(hwcDisplayId, &port, &data,
+                                                     &screenPartStatus)) {
         result.append(reinterpret_cast<const char*>(data.data()), data.size());
     }
 }

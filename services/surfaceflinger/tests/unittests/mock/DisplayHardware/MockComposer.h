@@ -21,6 +21,7 @@
 #include "DisplayHardware/ComposerHal.h"
 #include "DisplayHardware/HWC2.h"
 #include "DisplayHardware/Hal.h"
+#include "ui/DisplayIdentification.h"
 
 namespace android {
 
@@ -83,7 +84,8 @@ public:
     MOCK_METHOD1(getPerFrameMetadataKeys,
                  std::vector<IComposerClient::PerFrameMetadataKey>(Display));
     MOCK_METHOD2(getDataspaceSaturationMatrix, Error(Dataspace, mat4*));
-    MOCK_METHOD3(getDisplayIdentificationData, Error(Display, uint8_t*, std::vector<uint8_t>*));
+    MOCK_METHOD4(getDisplayIdentificationData,
+                 Error(Display, uint8_t*, std::vector<uint8_t>*, android::ScreenPartStatus*));
     MOCK_METHOD3(getReleaseFences, Error(Display, std::vector<Layer>*, std::vector<int>*));
     MOCK_METHOD2(presentDisplay, Error(Display, int*));
     MOCK_METHOD2(setActiveConfig, Error(Display, Config));

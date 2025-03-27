@@ -36,6 +36,7 @@ class Surface;
     (WB_CAMERA3_AND_PROCESSORS_WITH_DEPENDENCIES && \
      COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_LIBCAMERASERVICE))
 
+// Camera
 #if WB_LIBCAMERASERVICE_WITH_DEPENDENCIES
 typedef android::Surface SurfaceType;
 typedef android::view::Surface ParcelableSurfaceType;
@@ -54,4 +55,16 @@ ParcelableSurfaceType convertSurfaceTypeToParcelable(sp<SurfaceType> surface);
 sp<SurfaceType> convertParcelableSurfaceTypeToSurface(const ParcelableSurfaceType& surface);
 } // namespace flagtools
 
+// Media
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_MEDIA_MIGRATION)
+typedef android::Surface MediaSurfaceType;
+typedef android::view::Surface MediaParcelableSurfaceType;
+#else
+typedef android::IGraphicBufferProducer MediaSurfaceType;
+typedef android::sp<android::IGraphicBufferProducer> MediaParcelableSurfaceType;
+#endif
+
+namespace mediaflagtools {
+sp<MediaSurfaceType> igbpToSurfaceType(const sp<IGraphicBufferProducer>& igbp);
+} // namespace mediaflagtools
 } // namespace android
