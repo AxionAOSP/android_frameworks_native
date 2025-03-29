@@ -841,10 +841,10 @@ private:
     [[nodiscard]] NotifyMotionArgs dispatchMotion(
             nsecs_t when, nsecs_t readTime, uint32_t policyFlags, uint32_t source,
             ui::LogicalDisplayId displayId, int32_t action, int32_t actionButton, int32_t flags,
-            int32_t metaState, int32_t buttonState, int32_t edgeFlags,
-            const PropertiesArray& properties, const CoordsArray& coords,
-            const IdToIndexArray& idToIndex, BitSet32 idBits, int32_t changedId, float xPrecision,
-            float yPrecision, nsecs_t downTime, MotionClassification classification) const;
+            int32_t metaState, int32_t buttonState, const PropertiesArray& properties,
+            const CoordsArray& coords, const IdToIndexArray& idToIndex, BitSet32 idBits,
+            int32_t changedId, float xPrecision, float yPrecision, nsecs_t downTime,
+            MotionClassification classification) const;
 
     // Returns if this touch device is a touch screen with an associated display.
     bool isTouchScreen();

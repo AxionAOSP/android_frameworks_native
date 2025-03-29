@@ -36,6 +36,11 @@ cc_test {
         "test_framework/fake_hwc3/Hwc3Composer.cpp",
         "test_framework/fake_hwc3/Hwc3Controller.cpp",
         "test_framework/surfaceflinger/SFController.cpp",
+
+        // Internal tests
+        "tests/internal/AsyncFunction_test.cpp",
+
+        // SurfaceFlinger tests
         "tests/Placeholder_test.cpp",
     ],
     tidy: true,

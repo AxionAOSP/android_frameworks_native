@@ -91,8 +91,7 @@ static NotifyMotionArgs generateMotionArgs() {
                           DEVICE_ID, AINPUT_SOURCE_TOUCHSCREEN, ui::LogicalDisplayId::DEFAULT,
                           POLICY_FLAG_PASS_TO_USER, AMOTION_EVENT_ACTION_DOWN,
                           /* actionButton */ 0, /* flags */ 0, AMETA_NONE, /* buttonState */ 0,
-                          MotionClassification::NONE, AMOTION_EVENT_EDGE_FLAG_NONE, 1,
-                          pointerProperties, pointerCoords,
+                          MotionClassification::NONE, 1, pointerProperties, pointerCoords,
                           /* xPrecision */ 0, /* yPrecision */ 0,
                           AMOTION_EVENT_INVALID_CURSOR_POSITION,
                           AMOTION_EVENT_INVALID_CURSOR_POSITION, currentTime, /* videoFrames */ {});

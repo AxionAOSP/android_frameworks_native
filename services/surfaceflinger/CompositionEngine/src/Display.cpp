@@ -308,7 +308,7 @@ bool Display::getSkipColorTransform() const {
                                         DisplayCapability::SKIP_CLIENT_COLOR_TRANSFORM);
     }
 
-    return hwc.hasCapability(Capability::SKIP_CLIENT_COLOR_TRANSFORM);
+    return Output::getSkipColorTransform();
 }
 
 bool Display::allLayersRequireClientComposition() const {

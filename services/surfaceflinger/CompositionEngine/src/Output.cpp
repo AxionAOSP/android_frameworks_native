@@ -1705,6 +1705,9 @@ void Output::resetCompositionStrategy() {
 }
 
 bool Output::getSkipColorTransform() const {
+    // TODO: This needs to be true because the color transform is a global across all displays, but
+    // use-cases like screen recording don't want the color transform. Please make color transforms
+    // actually a per-display concept :(
     return true;
 }
 

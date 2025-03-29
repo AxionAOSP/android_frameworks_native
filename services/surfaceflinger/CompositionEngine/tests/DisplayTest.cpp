@@ -689,8 +689,6 @@ using DisplayGetSkipColorTransformTest = DisplayWithLayersTestCommon;
 using aidl::android::hardware::graphics::composer3::DisplayCapability;
 
 TEST_F(DisplayGetSkipColorTransformTest, checksCapabilityIfGpuDisplay) {
-    EXPECT_CALL(mHwComposer, hasCapability(Capability::SKIP_CLIENT_COLOR_TRANSFORM))
-            .WillOnce(Return(true));
     auto args = getDisplayCreationArgsForGpuVirtualDisplay();
     auto gpuDisplay{impl::createDisplay(mCompositionEngine, args)};
     EXPECT_TRUE(gpuDisplay->getSkipColorTransform());

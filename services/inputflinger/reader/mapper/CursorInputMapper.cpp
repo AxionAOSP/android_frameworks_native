@@ -340,19 +340,17 @@ std::list<NotifyArgs> CursorInputMapper::sync(nsecs_t when, nsecs_t readTime) {
                                                getDeviceId(), mSource, *mDisplayId, policyFlags,
                                                AMOTION_EVENT_ACTION_BUTTON_RELEASE, actionButton, 0,
                                                metaState, buttonState, MotionClassification::NONE,
-                                               AMOTION_EVENT_EDGE_FLAG_NONE, 1, &pointerProperties,
-                                               &pointerCoords, mXPrecision, mYPrecision,
-                                               xCursorPosition, yCursorPosition, downTime,
-                                               /*videoFrames=*/{}));
+                                               1, &pointerProperties, &pointerCoords, mXPrecision,
+                                               mYPrecision, xCursorPosition, yCursorPosition,
+                                               downTime, /*videoFrames=*/{}));
             }
         }
 
         out.push_back(NotifyMotionArgs(getContext()->getNextId(), when, readTime, getDeviceId(),
                                        mSource, *mDisplayId, policyFlags, motionEventAction, 0, 0,
-                                       metaState, currentButtonState, MotionClassification::NONE,
-                                       AMOTION_EVENT_EDGE_FLAG_NONE, 1, &pointerProperties,
-                                       &pointerCoords, mXPrecision, mYPrecision, xCursorPosition,
-                                       yCursorPosition, downTime,
+                                       metaState, currentButtonState, MotionClassification::NONE, 1,
+                                       &pointerProperties, &pointerCoords, mXPrecision, mYPrecision,
+                                       xCursorPosition, yCursorPosition, downTime,
                                        /*videoFrames=*/{}));
 
         if (buttonsPressed) {
@@ -364,10 +362,9 @@ std::list<NotifyArgs> CursorInputMapper::sync(nsecs_t when, nsecs_t readTime) {
                                                getDeviceId(), mSource, *mDisplayId, policyFlags,
                                                AMOTION_EVENT_ACTION_BUTTON_PRESS, actionButton, 0,
                                                metaState, buttonState, MotionClassification::NONE,
-                                               AMOTION_EVENT_EDGE_FLAG_NONE, 1, &pointerProperties,
-                                               &pointerCoords, mXPrecision, mYPrecision,
-                                               xCursorPosition, yCursorPosition, downTime,
-                                               /*videoFrames=*/{}));
+                                               1, &pointerProperties, &pointerCoords, mXPrecision,
+                                               mYPrecision, xCursorPosition, yCursorPosition,
+                                               downTime, /*videoFrames=*/{}));
             }
         }
 
@@ -378,10 +375,9 @@ std::list<NotifyArgs> CursorInputMapper::sync(nsecs_t when, nsecs_t readTime) {
             out.push_back(NotifyMotionArgs(getContext()->getNextId(), when, readTime, getDeviceId(),
                                            mSource, *mDisplayId, policyFlags,
                                            AMOTION_EVENT_ACTION_HOVER_MOVE, 0, 0, metaState,
-                                           currentButtonState, MotionClassification::NONE,
-                                           AMOTION_EVENT_EDGE_FLAG_NONE, 1, &pointerProperties,
-                                           &pointerCoords, mXPrecision, mYPrecision,
-                                           xCursorPosition, yCursorPosition, downTime,
+                                           currentButtonState, MotionClassification::NONE, 1,
+                                           &pointerProperties, &pointerCoords, mXPrecision,
+                                           mYPrecision, xCursorPosition, yCursorPosition, downTime,
                                            /*videoFrames=*/{}));
         }
 
@@ -393,10 +389,9 @@ std::list<NotifyArgs> CursorInputMapper::sync(nsecs_t when, nsecs_t readTime) {
             out.push_back(NotifyMotionArgs(getContext()->getNextId(), when, readTime, getDeviceId(),
                                            mSource, *mDisplayId, policyFlags,
                                            AMOTION_EVENT_ACTION_SCROLL, 0, 0, metaState,
-                                           currentButtonState, MotionClassification::NONE,
-                                           AMOTION_EVENT_EDGE_FLAG_NONE, 1, &pointerProperties,
-                                           &pointerCoords, mXPrecision, mYPrecision,
-                                           xCursorPosition, yCursorPosition, downTime,
+                                           currentButtonState, MotionClassification::NONE, 1,
+                                           &pointerProperties, &pointerCoords, mXPrecision,
+                                           mYPrecision, xCursorPosition, yCursorPosition, downTime,
                                            /*videoFrames=*/{}));
         }
     }

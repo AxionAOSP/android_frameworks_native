@@ -711,7 +711,6 @@ NotifyMotionArgs GestureConverter::makeMotionArgs(nsecs_t when, nsecs_t readTime
             mReaderContext.getGlobalMetaState(),
             buttonState,
             mCurrentClassification,
-            AMOTION_EVENT_EDGE_FLAG_NONE,
             pointerCount,
             mFingerProps.data(),
             pointerCoords,
