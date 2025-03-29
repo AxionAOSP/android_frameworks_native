@@ -121,9 +121,7 @@ public:
         return compositionengine::impl::createCompositionEngine();
     }
 
-    sp<Layer> createBufferStateLayer(const LayerCreationArgs&) override { return nullptr; }
-
-    sp<Layer> createEffectLayer(const LayerCreationArgs&) override { return nullptr; }
+    sp<Layer> createLayer(const LayerCreationArgs&) override { return nullptr; }
 
     sp<LayerFE> createLayerFE(const std::string& layerName, const Layer* /* owner */) override {
         return sp<LayerFE>::make(layerName);

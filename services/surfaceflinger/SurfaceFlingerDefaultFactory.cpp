@@ -77,11 +77,7 @@ std::unique_ptr<compositionengine::CompositionEngine> DefaultFactory::createComp
     return compositionengine::impl::createCompositionEngine();
 }
 
-sp<Layer> DefaultFactory::createBufferStateLayer(const LayerCreationArgs& args) {
-    return sp<Layer>::make(args);
-}
-
-sp<Layer> DefaultFactory::createEffectLayer(const LayerCreationArgs& args) {
+sp<Layer> DefaultFactory::createLayer(const LayerCreationArgs& args) {
     return sp<Layer>::make(args);
 }
 

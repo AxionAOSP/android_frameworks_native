@@ -842,11 +842,8 @@ private:
      */
     status_t createLayer(LayerCreationArgs& args, gui::CreateSurfaceResult& outResult);
 
-    status_t createBufferStateLayer(LayerCreationArgs& args, sp<IBinder>* outHandle,
-                                    sp<Layer>* outLayer);
-
-    status_t createEffectLayer(const LayerCreationArgs& args, sp<IBinder>* outHandle,
-                               sp<Layer>* outLayer);
+    status_t createLayer(const LayerCreationArgs& args, sp<IBinder>* outHandle,
+                         sp<Layer>* outLayer);
 
     // Checks if there are layer leaks before creating layer
     status_t checkLayerLeaks();

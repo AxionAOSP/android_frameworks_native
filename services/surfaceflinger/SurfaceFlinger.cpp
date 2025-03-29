@@ -2610,7 +2610,7 @@ bool SurfaceFlinger::updateLayerSnapshots(VsyncId vsyncId, nsecs_t frameTimeNs,
     for (auto& layer : mLayerLifecycleManager.getLayers()) {
         if (layer->changes.test(frontend::RequestedLayerState::Changes::Created) &&
             layer->bgColorLayer) {
-            sp<Layer> bgColorLayer = getFactory().createEffectLayer(
+            sp<Layer> bgColorLayer = getFactory().createLayer(
                     LayerCreationArgs(this, nullptr, layer->name,
                                       ISurfaceComposerClient::eFXSurfaceEffect, LayerMetadata(),
                                       std::make_optional(layer->id), true));
@@ -5429,7 +5429,7 @@ status_t SurfaceFlinger::mirrorLayer(const LayerCreationArgs& args,
         mirrorArgs.flags |= ISurfaceComposerClient::eNoColorFill;
         mirrorArgs.mirrorLayerHandle = mirrorFromHandle;
         mirrorArgs.addToRoot = false;
-        status_t result = createEffectLayer(mirrorArgs, &outResult.handle, &mirrorLayer);
+        status_t result = createLayer(mirrorArgs, &outResult.handle, &mirrorLayer);
         if (result != NO_ERROR) {
             return result;
         }
@@ -5467,7 +5467,7 @@ status_t SurfaceFlinger::mirrorDisplay(DisplayId displayId, const LayerCreationA
         mirrorArgs.flags |= ISurfaceComposerClient::eNoColorFill;
         mirrorArgs.addToRoot = true;
         mirrorArgs.layerStackToMirror = layerStack;
-        result = createEffectLayer(mirrorArgs, &outResult.handle, &rootMirrorLayer);
+        result = createLayer(mirrorArgs, &outResult.handle, &rootMirrorLayer);
         if (result != NO_ERROR) {
             return result;
         }
@@ -5493,7 +5493,7 @@ status_t SurfaceFlinger::createLayer(LayerCreationArgs& args, gui::CreateSurface
             args.flags |= ISurfaceComposerClient::eNoColorFill;
             [[fallthrough]];
         case ISurfaceComposerClient::eFXSurfaceEffect: {
-            result = createBufferStateLayer(args, &outResult.handle, &layer);
+            result = createLayer(args, &outResult.handle, &layer);
             if (result != NO_ERROR) {
                 return result;
             }
@@ -5535,22 +5535,12 @@ status_t SurfaceFlinger::createLayer(LayerCreationArgs& args, gui::CreateSurface
     return result;
 }
 
-status_t SurfaceFlinger::createBufferStateLayer(LayerCreationArgs& args, sp<IBinder>* handle,
-                                                sp<Layer>* outLayer) {
+status_t SurfaceFlinger::createLayer(const LayerCreationArgs& args, sp<IBinder>* handle,
+                                     sp<Layer>* outLayer) {
     if (checkLayerLeaks() != NO_ERROR) {
         return NO_MEMORY;
     }
-    *outLayer = getFactory().createBufferStateLayer(args);
-    *handle = (*outLayer)->getHandle();
-    return NO_ERROR;
-}
-
-status_t SurfaceFlinger::createEffectLayer(const LayerCreationArgs& args, sp<IBinder>* handle,
-                                           sp<Layer>* outLayer) {
-    if (checkLayerLeaks() != NO_ERROR) {
-        return NO_MEMORY;
-    }
-    *outLayer = getFactory().createEffectLayer(args);
+    *outLayer = getFactory().createLayer(args);
     *handle = (*outLayer)->getHandle();
     return NO_ERROR;
 }
