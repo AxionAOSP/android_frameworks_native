@@ -598,6 +598,27 @@ TEST_F(SurfaceTest, TestGetLastDequeueStartTime) {
     ASSERT_GE(after, lastDequeueTime);
 }
 
+TEST_F(SurfaceTest, SurfaceIsForCursor) {
+    sp<SurfaceControl> control;
+    ASSERT_EQ(NO_ERROR,
+              mComposerClient->createSurfaceChecked(String8("Test Surface"), 32, 32,
+                                                    PIXEL_FORMAT_BGRA_8888, &control, 0));
+    sp<Surface> surface = control->getSurface();
+    sp<ANativeWindow> anw(surface);
+
+    surface->setIsForCursor(true);
+
+    ANativeWindow_Buffer b;
+    ASSERT_EQ(NO_ERROR, surface->lock(&b, nullptr));
+    ASSERT_EQ(NO_ERROR, surface->unlockAndPost());
+
+    int fence;
+    ANativeWindowBuffer* buffer;
+    ASSERT_EQ(NO_ERROR, anw->dequeueBuffer(anw.get(), &buffer, &fence));
+
+    EXPECT_TRUE(buffer->usage & GRALLOC_USAGE_CURSOR);
+}
+
 class FakeConsumer : public IConsumerListener {
 public:
     void onFrameAvailable(const BufferItem& /*item*/) override {}

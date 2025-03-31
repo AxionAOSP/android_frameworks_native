@@ -1253,7 +1253,7 @@ int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd,
     //    Surface::queueBuffer
     // -> IConsumerListener::onFrameAvailable callback triggers automatically
     // ->   implementation calls IGraphicBufferConsumer::acquire/release immediately
-    // -> SurfaceListener::onBufferRelesed callback triggers automatically
+    // -> SurfaceListener::onBufferReleased callback triggers automatically
     // ->   implementation calls Surface::dequeueBuffer
     status_t err = mGraphicBufferProducer->queueBuffer(slot, input, &output);
     {
@@ -2724,7 +2724,8 @@ status_t Surface::lock(
             return err;
         }
         // we're intending to do software rendering from this point
-        setUsage(GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN);
+        setUsage(GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN |
+                 (mIsForCursor ? GRALLOC_USAGE_CURSOR : 0));
     }
 
     ANativeWindowBuffer* out;
@@ -2982,6 +2983,19 @@ const char* Surface::getDebugName() {
         mName = getConsumerName();
     }
     return mName.c_str();
+}
+
+bool Surface::IsCursorPlaneCompatibilitySupported() {
+    if (com::android::graphics::libgui::flags::cursor_plane_compatibility()) {
+        const AHardwareBuffer_Desc testDesc{.width = 64,
+                                            .height = 64,
+                                            .layers = 1,
+                                            .format = AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM,
+                                            .usage = GRALLOC_USAGE_CURSOR};
+        return AHardwareBuffer_isSupported(&testDesc);
+    }
+
+    return false;
 }
 
 }; // namespace android

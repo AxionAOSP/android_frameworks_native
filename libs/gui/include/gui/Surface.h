@@ -263,6 +263,12 @@ public:
     virtual status_t setFrameRate(float frameRate, int8_t compatibility,
                                   int8_t changeFrameRateStrategy);
     virtual status_t setFrameTimelineInfo(uint64_t frameNumber, const FrameTimelineInfo& info);
+    // Returns whether this surface holds the mouse cursor.
+    bool isForCursor() const { return mIsForCursor; }
+    // Sets whether this surface holds the mouse cursor.
+    void setIsForCursor(bool isForCursor) { mIsForCursor = isForCursor; }
+
+    static bool IsCursorPlaneCompatibilitySupported();
 
 #if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(BQ_EXTENDEDALLOCATE)
     /**
@@ -598,7 +604,7 @@ protected:
     HdrMetadata mHdrMetadata;
 
     // mHdrMetadataIsSet is a bitfield to track which HDR metadata has been set.
-    // Prevent Surface from resetting HDR metadata that was set on a bufer when
+    // Prevent Surface from resetting HDR metadata that was set on a buffer when
     // HDR metadata is not set on this Surface.
     uint32_t mHdrMetadataIsSet{0};
 
@@ -753,6 +759,11 @@ protected:
 
     // Buffers that are successfully dequeued/attached and handed to clients
     std::unordered_set<int> mDequeuedSlots;
+
+    // Indicates whether this surface holds the mouse cursor, and subsequently determines whether
+    // the GRALLOC_USAGE_CURSOR usage flag should be set on the buffer created when this surface is
+    // locked.
+    bool mIsForCursor = false;
 };
 
 } // namespace android

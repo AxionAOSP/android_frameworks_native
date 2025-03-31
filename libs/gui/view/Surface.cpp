@@ -131,6 +131,7 @@ Surface Surface::fromSurface(const sp<android::Surface>& surface) {
     s.name = String16(surface->getConsumerName());
     s.graphicBufferProducer = surface->getIGraphicBufferProducer();
     s.surfaceControlHandle = surface->getSurfaceControlHandle();
+    ALOGW_IF(surface->isForCursor(), "%s: Unexpectedly encountered cursor surface.", __FUNCTION__);
     return s;
 }
 
