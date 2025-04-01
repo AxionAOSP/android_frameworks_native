@@ -57,6 +57,8 @@ constexpr auto HOVER_MOVE = AMOTION_EVENT_ACTION_HOVER_MOVE;
 constexpr auto INVALID_CURSOR_POSITION = AMOTION_EVENT_INVALID_CURSOR_POSITION;
 constexpr auto AXIS_X = AMOTION_EVENT_AXIS_X;
 constexpr auto AXIS_Y = AMOTION_EVENT_AXIS_Y;
+constexpr auto AXIS_RELATIVE_X = AMOTION_EVENT_AXIS_RELATIVE_X;
+constexpr auto AXIS_RELATIVE_Y = AMOTION_EVENT_AXIS_RELATIVE_Y;
 constexpr ui::LogicalDisplayId DISPLAY_ID = ui::LogicalDisplayId::DEFAULT;
 constexpr ui::LogicalDisplayId SECONDARY_DISPLAY_ID = ui::LogicalDisplayId{DISPLAY_ID.val() + 1};
 constexpr int32_t DISPLAY_WIDTH = 480;
@@ -259,6 +261,59 @@ TEST_F(CursorInputMapperUnitTest, HoverAndLeftButtonPress) {
                                           WithActionButton(AMOTION_EVENT_BUTTON_PRIMARY))),
                             VariantWith<NotifyMotionArgs>(WithMotionAction(ACTION_UP)),
                             VariantWith<NotifyMotionArgs>(WithMotionAction(HOVER_MOVE))));
+}
+
+TEST_F(CursorInputMapperUnitTest, MoveAndButtonChangeInSameFrame) {
+    createMapper();
+    std::list<NotifyArgs> args;
+
+    // Move the cursor and press the button
+    args += process(EV_REL, REL_X, -10);
+    args += process(EV_REL, REL_Y, 20);
+    args += process(EV_KEY, BTN_LEFT, 1);
+    args += process(EV_SYN, SYN_REPORT, 0);
+    ASSERT_THAT(args,
+                ElementsAre(VariantWith<NotifyMotionArgs>(
+                                    AllOf(WithMotionAction(HOVER_MOVE), WithButtonState(0),
+                                          WithNegativeAxis(AXIS_RELATIVE_X),
+                                          WithPositiveAxis(AXIS_RELATIVE_Y), WithPressure(0.0f))),
+                            VariantWith<NotifyMotionArgs>(
+                                    AllOf(WithMotionAction(ACTION_DOWN),
+                                          WithButtonState(AMOTION_EVENT_BUTTON_PRIMARY),
+                                          WithZeroAxis(AXIS_RELATIVE_X),
+                                          WithZeroAxis(AXIS_RELATIVE_Y), WithPressure(1.0f))),
+                            VariantWith<NotifyMotionArgs>(
+                                    AllOf(WithMotionAction(BUTTON_PRESS),
+                                          WithActionButton(AMOTION_EVENT_BUTTON_PRIMARY),
+                                          WithButtonState(AMOTION_EVENT_BUTTON_PRIMARY),
+                                          WithZeroAxis(AXIS_RELATIVE_X),
+                                          WithZeroAxis(AXIS_RELATIVE_Y), WithPressure(1.0f)))));
+
+    // Move some more and release the button
+    args.clear();
+    args += process(EV_REL, REL_X, 10);
+    args += process(EV_REL, REL_Y, -5);
+    args += process(EV_KEY, BTN_LEFT, 0);
+    args += process(EV_SYN, SYN_REPORT, 0);
+    ASSERT_THAT(args,
+                ElementsAre(VariantWith<NotifyMotionArgs>(
+                                    AllOf(WithMotionAction(ACTION_MOVE),
+                                          WithButtonState(AMOTION_EVENT_BUTTON_PRIMARY),
+                                          WithPositiveAxis(AXIS_RELATIVE_X),
+                                          WithNegativeAxis(AXIS_RELATIVE_Y), WithPressure(1.0f))),
+                            VariantWith<NotifyMotionArgs>(
+                                    AllOf(WithMotionAction(BUTTON_RELEASE),
+                                          WithActionButton(AMOTION_EVENT_BUTTON_PRIMARY),
+                                          WithButtonState(0), WithZeroAxis(AXIS_RELATIVE_X),
+                                          WithZeroAxis(AXIS_RELATIVE_Y), WithPressure(0.0f))),
+                            VariantWith<NotifyMotionArgs>(
+                                    AllOf(WithMotionAction(ACTION_UP), WithButtonState(0),
+                                          WithZeroAxis(AXIS_RELATIVE_X),
+                                          WithZeroAxis(AXIS_RELATIVE_Y), WithPressure(0.0f))),
+                            VariantWith<NotifyMotionArgs>(
+                                    AllOf(WithMotionAction(HOVER_MOVE), WithButtonState(0),
+                                          WithZeroAxis(AXIS_RELATIVE_X),
+                                          WithZeroAxis(AXIS_RELATIVE_Y), WithPressure(0.0f)))));
 }
 
 /**
@@ -539,12 +594,15 @@ TEST_F(CursorInputMapperUnitTest, ProcessShouldHandleCombinedXYAndButtonUpdates)
     args += process(ARBITRARY_TIME, EV_KEY, BTN_MOUSE, 1);
     args += process(ARBITRARY_TIME, EV_SYN, SYN_REPORT, 0);
     EXPECT_THAT(args,
-                ElementsAre(VariantWith<NotifyMotionArgs>(WithMotionAction(ACTION_DOWN)),
-                            VariantWith<NotifyMotionArgs>(WithMotionAction(BUTTON_PRESS))));
-    EXPECT_THAT(args,
-                Each(VariantWith<NotifyMotionArgs>(AllOf(WithPositiveAxis(AXIS_X),
-                                                         WithNegativeAxis(AXIS_Y),
-                                                         WithPressure(1.0f)))));
+                ElementsAre(VariantWith<NotifyMotionArgs>(
+                                    AllOf(WithMotionAction(ACTION_MOVE), WithPressure(0.0f),
+                                          WithPositiveAxis(AXIS_X), WithNegativeAxis(AXIS_Y))),
+                            VariantWith<NotifyMotionArgs>(
+                                    AllOf(WithMotionAction(ACTION_DOWN), WithPressure(1.0f),
+                                          WithZeroAxis(AXIS_X), WithZeroAxis(AXIS_Y))),
+                            VariantWith<NotifyMotionArgs>(
+                                    AllOf(WithMotionAction(BUTTON_PRESS), WithPressure(1.0f),
+                                          WithZeroAxis(AXIS_X), WithZeroAxis(AXIS_Y)))));
     args.clear();
 
     // Move X, Y a bit while pressed.
@@ -780,11 +838,9 @@ TEST_F(CursorInputMapperUnitTest, ProcessShouldHandleAllButtonsWithZeroCoords) {
     args += process(ARBITRARY_TIME, EV_KEY, BTN_RIGHT, 0);
     args += process(ARBITRARY_TIME, EV_SYN, SYN_REPORT, 0);
     EXPECT_THAT(args,
-                ElementsAre(VariantWith<NotifyMotionArgs>(WithMotionAction(BUTTON_RELEASE)),
-                            VariantWith<NotifyMotionArgs>(WithMotionAction(ACTION_MOVE))));
-    EXPECT_THAT(args,
-                Each(VariantWith<NotifyMotionArgs>(
-                        AllOf(WithButtonState(AMOTION_EVENT_BUTTON_TERTIARY),
+                ElementsAre(VariantWith<NotifyMotionArgs>(
+                        AllOf(WithMotionAction(BUTTON_RELEASE),
+                              WithButtonState(AMOTION_EVENT_BUTTON_TERTIARY),
                               WithCoords(0.0f, 0.0f), WithPressure(1.0f)))));
     args.clear();
 
@@ -818,10 +874,6 @@ TEST_P(CursorInputMapperButtonKeyTest, ProcessShouldHandleButtonKeyWithZeroCoord
                 ElementsAre(VariantWith<NotifyKeyArgs>(AllOf(WithKeyAction(AKEY_EVENT_ACTION_DOWN),
                                                              WithKeyCode(expectedKeyCode))),
                             VariantWith<NotifyMotionArgs>(
-                                    AllOf(WithMotionAction(HOVER_MOVE),
-                                          WithButtonState(expectedButtonState),
-                                          WithCoords(0.0f, 0.0f), WithPressure(0.0f))),
-                            VariantWith<NotifyMotionArgs>(
                                     AllOf(WithMotionAction(BUTTON_PRESS),
                                           WithButtonState(expectedButtonState),
                                           WithCoords(0.0f, 0.0f), WithPressure(0.0f)))));
@@ -832,9 +884,6 @@ TEST_P(CursorInputMapperButtonKeyTest, ProcessShouldHandleButtonKeyWithZeroCoord
     EXPECT_THAT(args,
                 ElementsAre(VariantWith<NotifyMotionArgs>(
                                     AllOf(WithMotionAction(BUTTON_RELEASE), WithButtonState(0),
-                                          WithCoords(0.0f, 0.0f), WithPressure(0.0f))),
-                            VariantWith<NotifyMotionArgs>(
-                                    AllOf(WithMotionAction(HOVER_MOVE), WithButtonState(0),
                                           WithCoords(0.0f, 0.0f), WithPressure(0.0f))),
                             VariantWith<NotifyKeyArgs>(AllOf(WithKeyAction(AKEY_EVENT_ACTION_UP),
                                                              WithKeyCode(expectedKeyCode)))));

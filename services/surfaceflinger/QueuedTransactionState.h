@@ -105,22 +105,15 @@ struct QueuedTransactionState {
 
         for (const auto& state : states) {
             const bool frameRateChanged = state.state.what & layer_state_t::eFrameRateChanged;
-            if (FlagManager::getInstance().vrr_bugfix_24q4()) {
-                const bool frameRateIsNoVote = frameRateChanged &&
-                        state.state.frameRateCompatibility == ANATIVEWINDOW_FRAME_RATE_NO_VOTE;
-                const bool frameRateCategoryChanged =
-                        state.state.what & layer_state_t::eFrameRateCategoryChanged;
-                const bool frameRateCategoryIsNoPreference = frameRateCategoryChanged &&
-                        state.state.frameRateCategory ==
-                                ANATIVEWINDOW_FRAME_RATE_CATEGORY_NO_PREFERENCE;
-                if (!frameRateIsNoVote && !frameRateCategoryIsNoPreference) {
-                    return true;
-                }
-            } else {
-                if (!frameRateChanged ||
-                    state.state.frameRateCompatibility != ANATIVEWINDOW_FRAME_RATE_NO_VOTE) {
-                    return true;
-                }
+            const bool frameRateIsNoVote = frameRateChanged &&
+                    state.state.frameRateCompatibility == ANATIVEWINDOW_FRAME_RATE_NO_VOTE;
+            const bool frameRateCategoryChanged =
+                    state.state.what & layer_state_t::eFrameRateCategoryChanged;
+            const bool frameRateCategoryIsNoPreference = frameRateCategoryChanged &&
+                    state.state.frameRateCategory ==
+                            ANATIVEWINDOW_FRAME_RATE_CATEGORY_NO_PREFERENCE;
+            if (!frameRateIsNoVote && !frameRateCategoryIsNoPreference) {
+                return true;
             }
         }
 

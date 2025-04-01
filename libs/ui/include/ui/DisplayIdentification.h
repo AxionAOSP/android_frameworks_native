@@ -55,6 +55,17 @@ enum class ScreenPartStatus : uint8_t {
     REPLACED = 2,
 };
 
+inline std::string ScreenPartStatusToString(ScreenPartStatus screenPartStatus) {
+    switch (screenPartStatus) {
+        case ScreenPartStatus::ORIGINAL:
+            return "ORIGINAL";
+        case ScreenPartStatus::REPLACED:
+            return "REPLACED";
+        default:
+            return "UNSUPPORTED";
+    }
+}
+
 struct DisplayIdentificationInfo {
     PhysicalDisplayId id;
     std::string name;

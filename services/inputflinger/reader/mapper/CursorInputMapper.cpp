@@ -272,9 +272,6 @@ std::list<NotifyArgs> CursorInputMapper::sync(nsecs_t when, nsecs_t readTime) {
     pointerProperties.id = 0;
     pointerProperties.toolType = ToolType::MOUSE;
 
-    PointerCoords pointerCoords;
-    pointerCoords.clear();
-
     // A negative value represents inverted scrolling direction.
     // Applies only if the source is a mouse.
     const bool isMouse =
@@ -291,18 +288,6 @@ std::list<NotifyArgs> CursorInputMapper::sync(nsecs_t when, nsecs_t readTime) {
 
     float xCursorPosition = AMOTION_EVENT_INVALID_CURSOR_POSITION;
     float yCursorPosition = AMOTION_EVENT_INVALID_CURSOR_POSITION;
-    if (mSource == AINPUT_SOURCE_MOUSE) {
-        pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_RELATIVE_X, deltaX);
-        pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_RELATIVE_Y, deltaY);
-    } else {
-        // Pointer capture and navigation modes
-        pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_X, deltaX);
-        pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_Y, deltaY);
-        pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_RELATIVE_X, deltaX);
-        pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_RELATIVE_Y, deltaY);
-    }
-
-    pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_PRESSURE, down ? 1.0f : 0.0f);
 
     // Moving an external trackball or mouse should wake the device.
     // We don't do this for internal cursor devices to prevent them from waking up
@@ -313,23 +298,48 @@ std::list<NotifyArgs> CursorInputMapper::sync(nsecs_t when, nsecs_t readTime) {
         policyFlags |= POLICY_FLAG_WAKE;
     }
 
+    const int32_t metaState = getContext()->getGlobalMetaState();
+    // Send an event for the cursor motion.
+    // TODO(b/407018146): we currently need to send a zero-delta HOVER_MOVE before scrolls so that
+    //  InputDispatcher generates a HOVER_ENTER event if necessary. (The VirtualMouseTest in CTS
+    //  depends on this.) Fix this issue then remove `|| scrolled` here.
+    if (moved || scrolled) {
+        int32_t action = wasDown || mSource != AINPUT_SOURCE_MOUSE
+                ? AMOTION_EVENT_ACTION_MOVE
+                : AMOTION_EVENT_ACTION_HOVER_MOVE;
+
+        PointerCoords moveCoords;
+        moveCoords.clear();
+        moveCoords.setAxisValue(AMOTION_EVENT_AXIS_RELATIVE_X, deltaX);
+        moveCoords.setAxisValue(AMOTION_EVENT_AXIS_RELATIVE_Y, deltaY);
+        if (mSource != AINPUT_SOURCE_MOUSE) {
+            // Pointer capture and navigation modes
+            moveCoords.setAxisValue(AMOTION_EVENT_AXIS_X, deltaX);
+            moveCoords.setAxisValue(AMOTION_EVENT_AXIS_Y, deltaY);
+        }
+
+        moveCoords.setAxisValue(AMOTION_EVENT_AXIS_PRESSURE, wasDown ? 1.0f : 0.0f);
+
+        out.push_back(NotifyMotionArgs(getContext()->getNextId(), when, readTime, getDeviceId(),
+                                       mSource, *mDisplayId, policyFlags, action, 0, 0, metaState,
+                                       lastButtonState, MotionClassification::NONE, 1,
+                                       &pointerProperties, &moveCoords, mXPrecision, mYPrecision,
+                                       xCursorPosition, yCursorPosition, downTime,
+                                       /*videoFrames=*/{}));
+    }
+
     // Synthesize key down from buttons if needed.
     out += synthesizeButtonKeys(getContext(), AKEY_EVENT_ACTION_DOWN, when, readTime, getDeviceId(),
                                 mSource, *mDisplayId, policyFlags, lastButtonState,
                                 currentButtonState);
 
-    // Send motion event.
-    if (downChanged || moved || scrolled || buttonsChanged) {
-        int32_t metaState = getContext()->getGlobalMetaState();
+    // Send motion events for buttons and scrolling.
+    if (downChanged || scrolled || buttonsChanged) {
         int32_t buttonState = lastButtonState;
-        int32_t motionEventAction;
-        if (downChanged) {
-            motionEventAction = down ? AMOTION_EVENT_ACTION_DOWN : AMOTION_EVENT_ACTION_UP;
-        } else if (down || (mSource != AINPUT_SOURCE_MOUSE)) {
-            motionEventAction = AMOTION_EVENT_ACTION_MOVE;
-        } else {
-            motionEventAction = AMOTION_EVENT_ACTION_HOVER_MOVE;
-        }
+
+        PointerCoords pointerCoords;
+        pointerCoords.clear();
+        pointerCoords.setAxisValue(AMOTION_EVENT_AXIS_PRESSURE, down ? 1.0f : 0.0f);
 
         if (buttonsReleased) {
             BitSet32 released(buttonsReleased);
@@ -346,12 +356,16 @@ std::list<NotifyArgs> CursorInputMapper::sync(nsecs_t when, nsecs_t readTime) {
             }
         }
 
-        out.push_back(NotifyMotionArgs(getContext()->getNextId(), when, readTime, getDeviceId(),
-                                       mSource, *mDisplayId, policyFlags, motionEventAction, 0, 0,
-                                       metaState, currentButtonState, MotionClassification::NONE, 1,
-                                       &pointerProperties, &pointerCoords, mXPrecision, mYPrecision,
-                                       xCursorPosition, yCursorPosition, downTime,
-                                       /*videoFrames=*/{}));
+        if (downChanged) {
+            int32_t action = down ? AMOTION_EVENT_ACTION_DOWN : AMOTION_EVENT_ACTION_UP;
+            out.push_back(NotifyMotionArgs(getContext()->getNextId(), when, readTime, getDeviceId(),
+                                           mSource, *mDisplayId, policyFlags, action, 0, 0,
+                                           metaState, currentButtonState,
+                                           MotionClassification::NONE, 1, &pointerProperties,
+                                           &pointerCoords, mXPrecision, mYPrecision,
+                                           xCursorPosition, yCursorPosition, downTime,
+                                           /*videoFrames=*/{}));
+        }
 
         if (buttonsPressed) {
             BitSet32 pressed(buttonsPressed);
@@ -371,7 +385,7 @@ std::list<NotifyArgs> CursorInputMapper::sync(nsecs_t when, nsecs_t readTime) {
         ALOG_ASSERT(buttonState == currentButtonState);
 
         // Send hover move after UP to tell the application that the mouse is hovering now.
-        if (motionEventAction == AMOTION_EVENT_ACTION_UP && (mSource == AINPUT_SOURCE_MOUSE)) {
+        if (downChanged && !down && (mSource == AINPUT_SOURCE_MOUSE)) {
             out.push_back(NotifyMotionArgs(getContext()->getNextId(), when, readTime, getDeviceId(),
                                            mSource, *mDisplayId, policyFlags,
                                            AMOTION_EVENT_ACTION_HOVER_MOVE, 0, 0, metaState,

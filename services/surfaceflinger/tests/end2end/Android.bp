@@ -32,6 +32,8 @@ cc_test {
     ],
     srcs: [
         "main.cpp",
+
+        "test_framework/core/EdidBuilder.cpp",
         "test_framework/core/TestService.cpp",
         "test_framework/fake_hwc3/Hwc3Composer.cpp",
         "test_framework/fake_hwc3/Hwc3Controller.cpp",
@@ -39,6 +41,7 @@ cc_test {
 
         // Internal tests
         "tests/internal/AsyncFunction_test.cpp",
+        "tests/internal/EdidBuilder_test.cpp",
 
         // SurfaceFlinger tests
         "tests/Placeholder_test.cpp",

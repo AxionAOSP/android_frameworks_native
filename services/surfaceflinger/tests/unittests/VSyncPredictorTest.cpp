@@ -579,7 +579,6 @@ TEST_F(VSyncPredictorTest, isVSyncInPhase) {
 }
 
 TEST_F(VSyncPredictorTest, isVSyncInPhaseWithRenderRate) {
-    SET_FLAG_FOR_TEST(flags::vrr_bugfix_24q4, true);
     auto last = mNow;
     for (auto i = 0u; i < kMinimumSamplesForPrediction; i++) {
         EXPECT_THAT(tracker.nextAnticipatedVSyncTimeFrom(mNow), Eq(last + mPeriod));
@@ -718,7 +717,6 @@ TEST_F(VSyncPredictorTest, setRenderRateIsIgnoredIfNotDivisor) {
 
 TEST_F(VSyncPredictorTest, setRenderRateWhenRenderRateGoesDown) {
     SET_FLAG_FOR_TEST(flags::vrr_config, true);
-    SET_FLAG_FOR_TEST(flags::vrr_bugfix_24q4, true);
 
     const int32_t kGroup = 0;
     const auto kResolution = ui::Size(1920, 1080);
