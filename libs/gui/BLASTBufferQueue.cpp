@@ -187,37 +187,30 @@ void BLASTBufferItemConsumer::resizeFrameEventHistory(size_t newSize) {
     mFrameEventHistory.resize(newSize);
 }
 
-BLASTBufferQueue::BLASTBufferQueue(const std::string& name, bool updateDestinationFrame)
-      : mSurfaceControl(nullptr),
-        mSize(1, 1),
-        mRequestedSize(mSize),
-        mFormat(PIXEL_FORMAT_RGBA_8888),
-        mTransactionReadyCallback(nullptr),
-        mSyncTransaction(nullptr),
-        mUpdateDestinationFrame(updateDestinationFrame) {
+void BLASTBufferQueue::initialize() {
+    std::lock_guard _lock{mMutex};
     createBufferQueue(&mProducer, &mConsumer);
 #if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
-    mBufferItemConsumer = sp<BLASTBufferItemConsumer>::make(mProducer, mConsumer,
-                                                            GraphicBuffer::USAGE_HW_COMPOSER |
-                                                                    GraphicBuffer::USAGE_HW_TEXTURE,
-                                                            1, false, this);
+    mBufferItemConsumer =
+            sp<BLASTBufferItemConsumer>::make(mProducer, mConsumer,
+                                              GraphicBuffer::USAGE_HW_COMPOSER |
+                                                      GraphicBuffer::USAGE_HW_TEXTURE,
+                                              1, false, wp<BLASTBufferQueue>::fromExisting(this));
 #else
-    mBufferItemConsumer = sp<BLASTBufferItemConsumer>::make(mConsumer,
-                                                            GraphicBuffer::USAGE_HW_COMPOSER |
-                                                                    GraphicBuffer::USAGE_HW_TEXTURE,
-                                                            1, false, this);
+    mBufferItemConsumer =
+            sp<BLASTBufferItemConsumer>::make(mConsumer,
+                                              GraphicBuffer::USAGE_HW_COMPOSER |
+                                                      GraphicBuffer::USAGE_HW_TEXTURE,
+                                              1, false, wp<BLASTBufferQueue>::fromExisting(this));
 #endif //  COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
     // since the adapter is in the client process, set dequeue timeout
     // explicitly so that dequeueBuffer will block
     mProducer->setDequeueTimeout(std::numeric_limits<int64_t>::max());
 
-    static std::atomic<uint32_t> nextId = 0;
-    mProducerId = nextId++;
-    mName = name + "#" + std::to_string(mProducerId);
     auto consumerName = mName + "(BLAST Consumer)" + std::to_string(mProducerId);
     mQueuedBufferTrace = "QueuedBuffer - " + mName + "BLAST#" + std::to_string(mProducerId);
     mBufferItemConsumer->setName(String8(consumerName.c_str()));
-    mBufferItemConsumer->setFrameAvailableListener(this);
+    mBufferItemConsumer->setFrameAvailableListener(wp<BLASTBufferQueue>::fromExisting(this));
 
     ComposerServiceAIDL::getComposerService()->getMaxAcquiredBufferCount(&mMaxAcquiredBuffers);
     mBufferItemConsumer->setMaxAcquiredBufferCount(mMaxAcquiredBuffers);
@@ -239,7 +232,23 @@ BLASTBufferQueue::BLASTBufferQueue(const std::string& name, bool updateDestinati
     mBufferReleaseReader.emplace(*this);
 #endif
 
+    // safe default, most producers are expected to override this
+    mProducer->setMaxDequeuedBufferCount(2);
+
     BQA_LOGV("BLASTBufferQueue created");
+}
+
+BLASTBufferQueue::BLASTBufferQueue(const std::string& name, bool updateDestinationFrame)
+      : mSurfaceControl(nullptr),
+        mSize(1, 1),
+        mRequestedSize(mSize),
+        mFormat(PIXEL_FORMAT_RGBA_8888),
+        mTransactionReadyCallback(nullptr),
+        mSyncTransaction(nullptr),
+        mUpdateDestinationFrame(updateDestinationFrame) {
+    static std::atomic<uint32_t> nextId = 0;
+    mProducerId = nextId++;
+    mName = name + "#" + std::to_string(mProducerId);
 }
 
 BLASTBufferQueue::~BLASTBufferQueue() {
@@ -260,8 +269,7 @@ BLASTBufferQueue::~BLASTBufferQueue() {
 }
 
 void BLASTBufferQueue::onFirstRef() {
-    // safe default, most producers are expected to override this
-    mProducer->setMaxDequeuedBufferCount(2);
+    initialize();
 }
 
 void BLASTBufferQueue::update(const sp<SurfaceControl>& surface, uint32_t width, uint32_t height,
@@ -1022,7 +1030,8 @@ sp<Surface> BLASTBufferQueue::getSurface(bool includeSurfaceControlHandle) {
     if (includeSurfaceControlHandle && mSurfaceControl) {
         scHandle = mSurfaceControl->getHandle();
     }
-    return sp<BBQSurface>::make(mProducer, true, scHandle, this);
+    return sp<BBQSurface>::make(mProducer, true, scHandle,
+                                sp<BLASTBufferQueue>::fromExisting(this));
 }
 
 void BLASTBufferQueue::mergeWithNextTransaction(SurfaceComposerClient::Transaction* t,
@@ -1278,13 +1287,14 @@ void BLASTBufferQueue::createBufferQueue(sp<IGraphicBufferProducer>* outProducer
     LOG_ALWAYS_FATAL_IF(outConsumer == nullptr, "BLASTBufferQueue: outConsumer must not be NULL");
 
 #if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(BUFFER_RELEASE_CHANNEL)
-    auto core = sp<BBQBufferQueueCore>::make(this);
+    auto core = sp<BBQBufferQueueCore>::make(wp<BLASTBufferQueue>::fromExisting(this));
 #else
     auto core = sp<BufferQueueCore>::make();
 #endif
     LOG_ALWAYS_FATAL_IF(core == nullptr, "BLASTBufferQueue: failed to create BufferQueueCore");
 
-    auto producer = sp<BBQBufferQueueProducer>::make(core, this);
+    auto producer =
+            sp<BBQBufferQueueProducer>::make(core, wp<BLASTBufferQueue>::fromExisting(this));
     LOG_ALWAYS_FATAL_IF(producer == nullptr,
                         "BLASTBufferQueue: failed to create BBQBufferQueueProducer");
 

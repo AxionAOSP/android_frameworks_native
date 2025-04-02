@@ -155,7 +155,7 @@ public:
 
     virtual ~BLASTBufferQueue();
 
-    void onFirstRef() override;
+    void onFirstRef() override final;
 
 private:
     // Not public to ensure construction via sp<>::make().
@@ -175,6 +175,7 @@ private:
     void createBufferQueue(sp<IGraphicBufferProducer>* outProducer,
                            sp<IGraphicBufferConsumer>* outConsumer);
 
+    void initialize();
     void resizeFrameEventHistory(size_t newSize);
 
     status_t acquireNextBufferLocked(

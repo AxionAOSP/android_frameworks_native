@@ -602,7 +602,12 @@ private:
     status_t isWideColorDisplay(const sp<IBinder>& displayToken, bool* outIsWideColorDisplay) const;
     status_t addRegionSamplingListener(const Rect& samplingArea, const sp<IBinder>& stopLayerHandle,
                                        const sp<IRegionSamplingListener>& listener);
+    status_t addRegionSamplingListenerWithStopLayerId(const Rect& samplingArea,
+                                                      const int32_t stopLayerId,
+                                                      const sp<IRegionSamplingListener>& listener);
     status_t removeRegionSamplingListener(const sp<IRegionSamplingListener>& listener);
+    status_t getRegionSamplingListeners(
+            std::vector<gui::RegionSamplingDescriptor>* listeners) const;
     status_t addFpsListener(int32_t taskId, const sp<gui::IFpsListener>& listener);
     status_t removeFpsListener(const sp<gui::IFpsListener>& listener);
     status_t addTunnelModeEnabledListener(const sp<gui::ITunnelModeEnabledListener>& listener);
@@ -1640,8 +1645,12 @@ public:
     binder::Status addRegionSamplingListener(
             const gui::ARect& samplingArea, const sp<IBinder>& stopLayerHandle,
             const sp<gui::IRegionSamplingListener>& listener) override;
+    binder::Status addRegionSamplingListenerWithStopLayerId(
+            const gui::ARect& samplingArea, const int32_t stopLayerId,
+            const sp<gui::IRegionSamplingListener>& listener) override;
     binder::Status removeRegionSamplingListener(
             const sp<gui::IRegionSamplingListener>& listener) override;
+    binder::Status getRegionSamplingListeners(std::vector<gui::RegionSamplingDescriptor>*) override;
     binder::Status addFpsListener(int32_t taskId, const sp<gui::IFpsListener>& listener) override;
     binder::Status removeFpsListener(const sp<gui::IFpsListener>& listener) override;
     binder::Status addTunnelModeEnabledListener(

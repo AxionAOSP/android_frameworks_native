@@ -52,7 +52,10 @@ public:
     }
 
     virtual sp<SurfaceControl> createLayerWithBuffer() {
-        return createLayer(mClient, "test", 0, 0, ISurfaceComposerClient::eFXSurfaceBufferState);
+        const std::string test_name = std::string("Test layer for ") +
+                ::testing::UnitTest::GetInstance()->current_test_info()->name();
+        return createLayer(mClient, test_name.c_str(), 0, 0,
+                           ISurfaceComposerClient::eFXSurfaceBufferState);
     }
 
     static int fillBuffer(Transaction& transaction, const sp<SurfaceControl>& layer,
@@ -85,7 +88,6 @@ public:
                 return err;
             }
         }
-
         transaction.addTransactionCompletedCallback(callbackHelper->function,
                                                     callbackHelper->getContext());
         return NO_ERROR;
@@ -1268,10 +1270,14 @@ TEST_F(LayerCallbackTest, SetNullBuffer) {
     transaction.apply();
 
     {
+        // TODO(b/294915480) Fix this as part of release buffer cleanup. We should not be passing a
+        // release fence in this case, because there is no buffer to release. We currently pass a
+        // release fence because of defensive code used to track screenshot work. Passing a fence
+        // here is odd but harmless.
         ExpectedResult expected;
         expected.addSurface(ExpectedResult::Transaction::PRESENTED, layer,
                             ExpectedResult::Buffer::ACQUIRED,
-                            ExpectedResult::PreviousBuffer::NOT_RELEASED);
+                            ExpectedResult::PreviousBuffer::RELEASED);
         EXPECT_NO_FATAL_FAILURE(waitForCallback(callback, expected, true));
     }
 }

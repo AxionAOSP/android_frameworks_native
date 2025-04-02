@@ -45,6 +45,7 @@
 
 #include <android/gui/BnJankListener.h>
 #include <android/gui/ISurfaceComposerClient.h>
+#include <android/gui/RegionSamplingDescriptor.h>
 
 #include <gui/BufferReleaseChannel.h>
 #include <gui/CpuConsumer.h>
@@ -838,7 +839,11 @@ public:
     static status_t addRegionSamplingListener(const Rect& samplingArea,
                                               const sp<IBinder>& stopLayerHandle,
                                               const sp<IRegionSamplingListener>& listener);
+    static status_t addRegionSamplingListenerWithStopLayerId(
+            const Rect& samplingArea, const int32_t stopLayerId,
+            const sp<IRegionSamplingListener>& listener);
     static status_t removeRegionSamplingListener(const sp<IRegionSamplingListener>& listener);
+    static status_t getRegionSamplingListeners(std::vector<gui::RegionSamplingDescriptor>*);
     static status_t addFpsListener(int32_t taskId, const sp<gui::IFpsListener>& listener);
     static status_t removeFpsListener(const sp<gui::IFpsListener>& listener);
     static status_t addTunnelModeEnabledListener(

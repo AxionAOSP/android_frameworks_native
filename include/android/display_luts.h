@@ -67,6 +67,13 @@ typedef struct ADisplayLuts ADisplayLuts;
  * therefore they don't take the ownership of the instance created by
  * \a ADisplayLutsEntry_create.
  *
+ * 1D Lut(s) are treated as gain curves.
+ * 3D Lut(s) are used for direct color manipulations.
+ * The values of 3D Lut(s) data should be normalized to the range 0.0f
+ * to 1.0f, inclusive. And 1.0f is the maximum panel luminance.
+ * And 3D Lut(s) data is organized in RGB order
+ * (R0, R1, R2, ..., RN, G0, G1, G2, ..., GN, B0, B1, B2, ..., BN) if N is the dimension.
+ *
  * @param buffer The lut raw buffer. The function creates a copy of it and does not need to
  * outlive the life of the ADisplayLutsEntry.
  * @param length The length of lut raw buffer
@@ -132,7 +139,7 @@ const float* _Nonnull ADisplayLutsEntry_getBuffer(const ADisplayLutsEntry* _Nonn
 /**
  * Creates a \a ADisplayLuts instance.
  *
- * You are responsible for mamanging the memory of the returned object.
+ * You are responsible for managing the memory of the returned object.
  * Always call \a ADisplayLuts_destroy to release it after use. E.g., after calling
  * the function \a ASurfaceTransaction_setLuts.
  *

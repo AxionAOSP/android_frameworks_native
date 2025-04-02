@@ -18,6 +18,7 @@
 
 #include <android-base/thread_annotations.h>
 #include <android/gui/IRegionSamplingListener.h>
+#include <android/gui/RegionSamplingDescriptor.h>
 #include <binder/IBinder.h>
 #include <renderengine/ExternalTexture.h>
 #include <ui/GraphicBuffer.h>
@@ -77,6 +78,8 @@ public:
                      const sp<IRegionSamplingListener>& listener);
     // Remove the listener to stop receiving median luma notifications.
     void removeListener(const sp<IRegionSamplingListener>& listener);
+    // Gets all listeners that are receiving median luma notifications.
+    const std::vector<gui::RegionSamplingDescriptor> getListeners();
 
     // Notifies sampling engine that composition is done and new content is
     // available, and the deadline for the sampling work on the main thread to

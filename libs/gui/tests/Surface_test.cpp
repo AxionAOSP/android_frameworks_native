@@ -879,8 +879,19 @@ public:
         return binder::Status::ok();
     }
 
+    binder::Status addRegionSamplingListenerWithStopLayerId(
+            const gui::ARect& /*samplingArea*/, const int32_t /*stopLayerId*/,
+            const sp<gui::IRegionSamplingListener>& /*listener*/) override {
+        return binder::Status::ok();
+    }
+
     binder::Status removeRegionSamplingListener(
             const sp<gui::IRegionSamplingListener>& /*listener*/) override {
+        return binder::Status::ok();
+    }
+
+    binder::Status getRegionSamplingListeners(
+            std::vector<gui::RegionSamplingDescriptor>*) override {
         return binder::Status::ok();
     }
 

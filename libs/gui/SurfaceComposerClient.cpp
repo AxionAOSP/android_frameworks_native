@@ -3020,10 +3020,31 @@ status_t SurfaceComposerClient::addRegionSamplingListener(
     return statusTFromBinderStatus(status);
 }
 
+status_t SurfaceComposerClient::addRegionSamplingListenerWithStopLayerId(
+        const Rect& samplingArea, const int32_t stopLayerId,
+        const sp<IRegionSamplingListener>& listener) {
+    gui::ARect rect;
+    rect.left = samplingArea.left;
+    rect.top = samplingArea.top;
+    rect.right = samplingArea.right;
+    rect.bottom = samplingArea.bottom;
+    binder::Status status =
+            ComposerServiceAIDL::getComposerService()
+                    ->addRegionSamplingListenerWithStopLayerId(rect, stopLayerId, listener);
+    return statusTFromBinderStatus(status);
+}
+
 status_t SurfaceComposerClient::removeRegionSamplingListener(
         const sp<IRegionSamplingListener>& listener) {
     binder::Status status =
             ComposerServiceAIDL::getComposerService()->removeRegionSamplingListener(listener);
+    return statusTFromBinderStatus(status);
+}
+
+status_t SurfaceComposerClient::getRegionSamplingListeners(
+        std::vector<gui::RegionSamplingDescriptor>* listeners) {
+    binder::Status status =
+            ComposerServiceAIDL::getComposerService()->getRegionSamplingListeners(listeners);
     return statusTFromBinderStatus(status);
 }
 

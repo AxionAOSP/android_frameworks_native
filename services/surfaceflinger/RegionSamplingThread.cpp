@@ -141,6 +141,25 @@ void RegionSamplingThread::removeListener(const sp<IRegionSamplingListener>& lis
     mDescriptors.erase(wp<IBinder>(IInterface::asBinder(listener)));
 }
 
+const std::vector<gui::RegionSamplingDescriptor> RegionSamplingThread::getListeners() {
+    std::lock_guard lock(mSamplingMutex);
+    std::vector<gui::RegionSamplingDescriptor> listeners;
+    for (const auto& [listener, descriptor] : mDescriptors) {
+        gui::ARect guiRect;
+        guiRect.left = descriptor.area.left;
+        guiRect.top = descriptor.area.top;
+        guiRect.right = descriptor.area.right;
+        guiRect.bottom = descriptor.area.bottom;
+
+        gui::RegionSamplingDescriptor guiDescriptor;
+        guiDescriptor.area = guiRect;
+        guiDescriptor.stopLayerId = descriptor.stopLayerId;
+        guiDescriptor.listener = descriptor.listener;
+        listeners.emplace_back(guiDescriptor);
+    }
+    return listeners;
+}
+
 void RegionSamplingThread::checkForStaleLuma() {
     std::lock_guard lock(mThreadControlMutex);
 

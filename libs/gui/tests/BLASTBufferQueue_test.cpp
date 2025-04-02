@@ -79,10 +79,11 @@ private:
 
 class TestBLASTBufferQueue : public BLASTBufferQueue {
 public:
-    TestBLASTBufferQueue(const std::string& name, const sp<SurfaceControl>& surface, int width,
-                         int height, int32_t format)
-          : BLASTBufferQueue(name) {
-        update(surface, width, height, format);
+    static sp<TestBLASTBufferQueue> create(const sp<SurfaceControl>& surface, int width,
+                                           int height) {
+        auto blastBufferQueueAdapter = sp<TestBLASTBufferQueue>::make("TestBLASTBufferQueue");
+        blastBufferQueueAdapter->update(surface, width, height, PIXEL_FORMAT_RGBA_8888);
+        return blastBufferQueueAdapter;
     }
 
     void transactionCallback(nsecs_t latchTime, const sp<Fence>& presentFence,
@@ -106,6 +107,9 @@ public:
     }
 
 private:
+    friend class sp<TestBLASTBufferQueue>;
+    TestBLASTBufferQueue(const std::string& name) : BLASTBufferQueue(name) {}
+
     std::mutex frameNumberMutex;
     std::condition_variable mWaitForCallbackCV;
     int64_t mLastTransactionFrameNumber = -1;
@@ -114,8 +118,7 @@ private:
 class BLASTBufferQueueHelper {
 public:
     BLASTBufferQueueHelper(const sp<SurfaceControl>& sc, int width, int height) {
-        mBlastBufferQueueAdapter = sp<TestBLASTBufferQueue>::make("TestBLASTBufferQueue", sc, width,
-                                                                  height, PIXEL_FORMAT_RGBA_8888);
+        mBlastBufferQueueAdapter = TestBLASTBufferQueue::create(sc, width, height);
     }
 
     void update(const sp<SurfaceControl>& sc, int width, int height) {

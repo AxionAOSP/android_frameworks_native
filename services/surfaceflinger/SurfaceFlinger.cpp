@@ -2057,11 +2057,29 @@ status_t SurfaceFlinger::addRegionSamplingListener(const Rect& samplingArea,
     return NO_ERROR;
 }
 
+status_t SurfaceFlinger::addRegionSamplingListenerWithStopLayerId(
+        const Rect& samplingArea, const int32_t stopLayerId,
+        const sp<IRegionSamplingListener>& listener) {
+    if (!listener || samplingArea == Rect::INVALID_RECT || samplingArea.isEmpty()) {
+        return BAD_VALUE;
+    }
+
+    mRegionSamplingThread->addListener(samplingArea,
+                                       stopLayerId ? stopLayerId : UNASSIGNED_LAYER_ID, listener);
+    return NO_ERROR;
+}
+
 status_t SurfaceFlinger::removeRegionSamplingListener(const sp<IRegionSamplingListener>& listener) {
     if (!listener) {
         return BAD_VALUE;
     }
     mRegionSamplingThread->removeListener(listener);
+    return NO_ERROR;
+}
+
+status_t SurfaceFlinger::getRegionSamplingListeners(
+        std::vector<gui::RegionSamplingDescriptor>* listeners) const {
+    *listeners = mRegionSamplingThread->getListeners();
     return NO_ERROR;
 }
 
@@ -9358,11 +9376,36 @@ binder::Status SurfaceComposerAIDL::addRegionSamplingListener(
     return binderStatusFromStatusT(status);
 }
 
+binder::Status SurfaceComposerAIDL::addRegionSamplingListenerWithStopLayerId(
+        const gui::ARect& samplingArea, const int32_t stopLayerId,
+        const sp<gui::IRegionSamplingListener>& listener) {
+    status_t status = checkAccessPermission();
+    if (status != OK) {
+        return binderStatusFromStatusT(status);
+    }
+    android::Rect rect;
+    rect.left = samplingArea.left;
+    rect.top = samplingArea.top;
+    rect.right = samplingArea.right;
+    rect.bottom = samplingArea.bottom;
+    status = mFlinger->addRegionSamplingListenerWithStopLayerId(rect, stopLayerId, listener);
+    return binderStatusFromStatusT(status);
+}
+
 binder::Status SurfaceComposerAIDL::removeRegionSamplingListener(
         const sp<gui::IRegionSamplingListener>& listener) {
     status_t status = checkReadFrameBufferPermission();
     if (status == OK) {
         status = mFlinger->removeRegionSamplingListener(listener);
+    }
+    return binderStatusFromStatusT(status);
+}
+
+binder::Status SurfaceComposerAIDL::getRegionSamplingListeners(
+        std::vector<gui::RegionSamplingDescriptor>* listeners) {
+    status_t status = checkAccessPermission();
+    if (status == OK) {
+        status = mFlinger->getRegionSamplingListeners(listeners);
     }
     return binderStatusFromStatusT(status);
 }
