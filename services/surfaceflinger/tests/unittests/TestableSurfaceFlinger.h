@@ -24,6 +24,7 @@
 #include <ftl/match.h>
 #include <gui/LayerMetadata.h>
 #include <gui/ScreenCaptureResults.h>
+#include <ui/DisplayIdentification.h>
 #include <ui/DynamicDisplayInfo.h>
 
 #include <compositionengine/Display.h>
@@ -1121,6 +1122,7 @@ public:
                 const auto it =
                         mFlinger.mutablePhysicalDisplays()
                                 .emplace_or_replace(*physicalId, mDisplayToken, *physicalId, *mPort,
+                                                    android::ScreenPartStatus::UNSUPPORTED,
                                                     *mConnectionType, std::move(modes),
                                                     ui::ColorModes(), std::nullopt)
                                 .first;

@@ -1178,6 +1178,7 @@ status_t SurfaceFlinger::getStaticDisplayInfo(int64_t displayId, ui::StaticDispl
     info->connectionType = snapshot.connectionType();
     info->port = snapshot.port();
     info->deviceProductInfo = snapshot.deviceProductInfo();
+    info->screenPartStatus = snapshot.screenPartStatus();
 
     if (mEmulatedDisplayDensity) {
         info->density = mEmulatedDisplayDensity;
@@ -3782,6 +3783,7 @@ std::optional<DisplayModeId> SurfaceFlinger::processHotplugConnect(PhysicalDispl
         const auto& display = displayOpt->get();
         const auto& snapshot = display.snapshot();
         const uint8_t port = snapshot.port();
+        const android::ScreenPartStatus screenPartStatus = snapshot.screenPartStatus();
 
         std::optional<DeviceProductInfo> deviceProductInfo;
         if (getHwComposer().updatesDeviceProductInfoOnHotplugReconnect()) {
@@ -3794,8 +3796,9 @@ std::optional<DisplayModeId> SurfaceFlinger::processHotplugConnect(PhysicalDispl
         // display on reconnect.
         const auto it =
                 mPhysicalDisplays.try_replace(displayId, display.token(), displayId, port,
-                                              snapshot.connectionType(), std::move(displayModes),
-                                              std::move(colorModes), std::move(deviceProductInfo));
+                                              screenPartStatus, snapshot.connectionType(),
+                                              std::move(displayModes), std::move(colorModes),
+                                              std::move(deviceProductInfo));
 
         auto& state = mCurrentState.displays.editValueFor(it->second.token());
         state.sequenceId = DisplayDeviceState{}.sequenceId; // Generate new sequenceId.
@@ -3812,8 +3815,8 @@ std::optional<DisplayModeId> SurfaceFlinger::processHotplugConnect(PhysicalDispl
     const ui::DisplayConnectionType connectionType =
             getHwComposer().getDisplayConnectionType(displayId);
 
-    mPhysicalDisplays.try_emplace(displayId, token, displayId, info.port, connectionType,
-                                  std::move(displayModes), std::move(colorModes),
+    mPhysicalDisplays.try_emplace(displayId, token, displayId, info.port, info.screenPartStatus,
+                                  connectionType, std::move(displayModes), std::move(colorModes),
                                   std::move(info.deviceProductInfo));
 
     DisplayDeviceState state;
@@ -8195,13 +8198,9 @@ status_t SurfaceFlinger::setDesiredDisplayModeSpecs(const sp<IBinder>& displayTo
             return INVALID_OPERATION;
         } else {
             using Policy = scheduler::RefreshRateSelector::DisplayManagerPolicy;
-            const auto idleScreenConfigOpt =
-                    FlagManager::getInstance().idle_screen_refresh_rate_timeout()
-                    ? specs.idleScreenRefreshRateConfig
-                    : std::nullopt;
             const Policy policy{DisplayModeId(specs.defaultMode), translate(specs.primaryRanges),
                                 translate(specs.appRequestRanges), specs.allowGroupSwitching,
-                                idleScreenConfigOpt};
+                                specs.idleScreenRefreshRateConfig};
 
             return setDesiredDisplayModeSpecsInternal(display, policy);
         }
@@ -8965,6 +8964,7 @@ binder::Status SurfaceComposerAIDL::getStaticDisplayInfo(int64_t displayId,
         outInfo->density = info.density;
         outInfo->secure = info.secure;
         outInfo->installOrientation = static_cast<gui::Rotation>(info.installOrientation);
+        outInfo->screenPartStatus = static_cast<uint8_t>(info.screenPartStatus);
 
         if (const std::optional<DeviceProductInfo> dpi = info.deviceProductInfo) {
             gui::DeviceProductInfo dinfo;

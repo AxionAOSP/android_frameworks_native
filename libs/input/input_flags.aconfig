@@ -224,6 +224,13 @@ flag {
 }
 
 flag {
+  name: "scale_cursor_speed_with_dpi"
+  namespace: "lse_desktop_experience"
+  description: "Scale the cursor speed based on display density"
+  bug: "367662715"
+}
+
+flag {
   name: "use_cloned_screen_coordinates_as_raw"
   namespace: "input"
   description: "Use the cloned window's layer stack (screen) space as the raw coordinate space for input going to clones"

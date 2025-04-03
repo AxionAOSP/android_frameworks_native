@@ -163,7 +163,6 @@ void FlagManager::dump(std::string& result) const {
     DUMP_ACONFIG_FLAG(graphite_renderengine);
     DUMP_ACONFIG_FLAG(hdcp_level_hal);
     DUMP_ACONFIG_FLAG(hdcp_negotiation);
-    DUMP_ACONFIG_FLAG(idle_screen_refresh_rate_timeout);
     DUMP_ACONFIG_FLAG(latch_unsignaled_with_auto_refresh_changed);
     DUMP_ACONFIG_FLAG(local_tonemap_screenshots);
     DUMP_ACONFIG_FLAG(misc1);
@@ -314,9 +313,6 @@ FLAG_MANAGER_ACONFIG_FLAG_IMPORTED(adpf_use_fmq_channel, "", android::os)
 FLAG_MANAGER_ACONFIG_FLAG_IMPORTED(correct_virtual_display_power_state, "",
                                    android::companion::virtualdevice::flags)
 
-/// Trunk stable readonly flags from outside SurfaceFlinger ///
-FLAG_MANAGER_ACONFIG_FLAG_IMPORTED(idle_screen_refresh_rate_timeout, "",
-                                   com::android::server::display::feature::flags)
 FLAG_MANAGER_ACONFIG_FLAG_IMPORTED(adpf_use_fmq_channel_fixed, "", android::os)
 FLAG_MANAGER_ACONFIG_FLAG_IMPORTED(trace_frame_rate_override, "",
                                    com::android::graphics::libgui::flags);

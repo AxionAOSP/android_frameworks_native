@@ -30,6 +30,7 @@
 #include <ftl/fake_guard.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <ui/DisplayIdentification.h>
 
 #define EXPECT_DISPLAY_MODE_REQUEST(expected, requestOpt)                               \
     ASSERT_TRUE(requestOpt);                                                            \
@@ -72,7 +73,9 @@ public:
         ASSERT_TRUE(infoOpt);
 
         mDisplayId = infoOpt->id;
-        mDisplaySnapshotOpt.emplace(mDisplayId, infoOpt->port, ui::DisplayConnectionType::Internal,
+        mDisplaySnapshotOpt.emplace(mDisplayId, infoOpt->port,
+                                    android::ScreenPartStatus::UNSUPPORTED,
+                                    ui::DisplayConnectionType::Internal,
                                     makeModes(kMode60, kMode90, kMode120), ui::ColorModes{},
                                     std::nullopt);
 

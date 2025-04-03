@@ -18,6 +18,7 @@
 #define LOG_TAG "LibSurfaceFlingerUnittests"
 
 #include <ftl/fake_guard.h>
+#include <ui/DisplayIdentification.h>
 
 #include "DisplayHardware/DisplayMode.h"
 
@@ -263,6 +264,7 @@ void SetupNewDisplayDeviceInternalTest::setupNewDisplayDeviceInternalTest() {
 
         const auto it = mFlinger.mutablePhysicalDisplays()
                                 .emplace_or_replace(*displayId, displayToken, *displayId, *port,
+                                                    android::ScreenPartStatus::UNSUPPORTED,
                                                     *kConnectionTypeOpt, makeModes(activeMode),
                                                     std::move(colorModes), std::nullopt)
                                 .first;

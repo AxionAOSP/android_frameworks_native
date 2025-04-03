@@ -348,6 +348,14 @@ std::ostream& operator<<(std::ostream& out, const LayerSnapshot& obj) {
     if (obj.edgeExtensionEffect.hasEffect()) {
         out << obj.edgeExtensionEffect;
     }
+
+    if (obj.currentHdrSdrRatio > 1.f) {
+        out << " currentHdrSdrRatio=" << obj.currentHdrSdrRatio;
+    }
+
+    if (obj.desiredHdrSdrRatio > 1.f) {
+        out << " desiredHdrSdrRatio=" << obj.desiredHdrSdrRatio;
+    }
     return out;
 }
 

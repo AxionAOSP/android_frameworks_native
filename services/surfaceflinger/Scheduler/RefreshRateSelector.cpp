@@ -1674,7 +1674,7 @@ void RefreshRateSelector::dump(utils::Dumper& dumper) const {
 }
 
 std::chrono::milliseconds RefreshRateSelector::getIdleTimerTimeout() {
-    if (FlagManager::getInstance().idle_screen_refresh_rate_timeout() && mIdleTimer) {
+    if (mIdleTimer) {
         return std::chrono::duration_cast<std::chrono::milliseconds>(mIdleTimer->interval());
     }
     return mConfig.legacyIdleTimerTimeout;

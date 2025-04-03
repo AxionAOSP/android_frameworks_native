@@ -97,7 +97,6 @@ public:
     bool graphite_renderengine() const;
     bool hdcp_level_hal() const;
     bool hdcp_negotiation() const;
-    bool idle_screen_refresh_rate_timeout() const;
     bool latch_unsignaled_with_auto_refresh_changed() const;
     bool local_tonemap_screenshots() const;
     bool luts_api() const;

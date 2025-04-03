@@ -98,7 +98,7 @@ cc_test {
         "liblog",
         "libprotobuf-cpp-lite",
         "libprotoutil",
-        "libstatslog",
+        "libstatslog_gpustats",
         "libstatspull",
         "libutils",
     ],
