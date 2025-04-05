@@ -801,9 +801,6 @@ void SurfaceFrame::traceActuals(int64_t displayFrameToken, nsecs_t monoBootOffse
     FrameTimelineDataSource::Trace([&](FrameTimelineDataSource::TraceContext ctx) {
         const auto timestamp = [&]() {
             std::scoped_lock lock(mMutex);
-            if (mActuals.startTime != 0) {
-                return mActuals.startTime;
-            }
             // Actual start time is not yet available, so use expected start instead
             if (mPredictionState == PredictionState::Expired) {
                 // If prediction is expired, we can't use the predicted start time. Instead, just
@@ -814,7 +811,7 @@ void SurfaceFrame::traceActuals(int64_t displayFrameToken, nsecs_t monoBootOffse
                 return endTime - kPredictionExpiredStartTimeDelta;
             }
 
-            return mPredictions.startTime;
+            return mActuals.startTime == 0 ? mPredictions.startTime : mActuals.startTime;
         }();
 
         if (filterFramesBeforeTraceStarts && !shouldTraceForDataSource(ctx, timestamp)) {

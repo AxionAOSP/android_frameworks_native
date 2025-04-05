@@ -85,7 +85,7 @@
 #include <renderengine/RenderEngine.h>
 #include <renderengine/impl/ExternalTexture.h>
 #include <scheduler/FrameTargeter.h>
-#include <statslog_surfaceflinger.h>
+#include <statslog_surfaceflinger_bootstrap.h>
 #include <sys/types.h>
 #include <ui/ColorSpace.h>
 #include <ui/DebugUtils.h>

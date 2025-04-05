@@ -971,6 +971,8 @@ cc_library {
         "IActivityManager.cpp",
         "IUidObserver.cpp",
         ":activity_manager_procstate_aidl",
+        ":activity_manager_iprocessobserver_aidl",
+        ":activity_manager_runningappprocessinfo_aidl",
     ],
     export_include_dirs: ["include_activitymanager"],
     shared_libs: [

@@ -616,15 +616,6 @@ protected:
         mFakeEventHub->addDevice(eventHubId, name, classes);
         mFakeEventHub->setSysfsRootPath(eventHubId, sysfsRootPath);
 
-        // Populate required axis info.
-        if (classes.test(InputDeviceClass::TOUCH_MT)) {
-            mFakeEventHub->addAbsoluteAxis(eventHubId, ABS_MT_POSITION_X, 0, 1, 0, 0);
-            mFakeEventHub->addAbsoluteAxis(eventHubId, ABS_MT_POSITION_Y, 0, 1, 0, 0);
-        } else if (classes.test(InputDeviceClass::TOUCH)) {
-            mFakeEventHub->addAbsoluteAxis(eventHubId, ABS_X, 0, 1, 0, 0);
-            mFakeEventHub->addAbsoluteAxis(eventHubId, ABS_Y, 0, 1, 0, 0);
-        }
-
         if (configuration) {
             mFakeEventHub->addConfigurationMap(eventHubId, configuration);
         }

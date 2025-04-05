@@ -16,8 +16,6 @@
 
 #include "SingleTouchInputMapper.h"
 
-#include <android-base/logging.h>
-
 namespace android {
 
 SingleTouchInputMapper::SingleTouchInputMapper(InputDeviceContext& deviceContext,
@@ -74,11 +72,14 @@ void SingleTouchInputMapper::syncTouch(nsecs_t when, RawState* outState) {
 void SingleTouchInputMapper::configureRawPointerAxes() {
     TouchInputMapper::configureRawPointerAxes();
 
-    const auto xInfo = getAbsoluteAxisInfo(ABS_X);
-    const auto yInfo = getAbsoluteAxisInfo(ABS_Y);
-    LOG_IF(FATAL, !xInfo || !yInfo) << "X/Y axes not found for single-touch device";
-    mRawPointerAxes.x = *xInfo;
-    mRawPointerAxes.y = *yInfo;
+    // TODO(b/351870641): Investigate why we are sometime not getting valid axis infos for the x/y
+    //   axes, even though those axes are required to be supported.
+    if (const auto xInfo = getAbsoluteAxisInfo(ABS_X); xInfo.has_value()) {
+        mRawPointerAxes.x = *xInfo;
+    }
+    if (const auto yInfo = getAbsoluteAxisInfo(ABS_Y); yInfo.has_value()) {
+        mRawPointerAxes.y = *yInfo;
+    }
     mRawPointerAxes.pressure = getAbsoluteAxisInfo(ABS_PRESSURE);
     mRawPointerAxes.toolMajor = getAbsoluteAxisInfo(ABS_TOOL_WIDTH);
     mRawPointerAxes.distance = getAbsoluteAxisInfo(ABS_DISTANCE);

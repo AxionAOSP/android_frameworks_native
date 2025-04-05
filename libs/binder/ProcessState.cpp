@@ -621,6 +621,11 @@ ProcessState::ProcessState(const char* driver)
     LOG_ALWAYS_FATAL_IF(!opened.ok(),
                         "Binder driver '%s' could not be opened. Error: %s. Terminating.",
                         driver, error.c_str());
+#else
+    if (!opened.ok()) {
+        ALOGE("Binder driver '%s' could not be opened. Error: %s. There may be future issues.",
+              driver, error.c_str());
+    }
 #endif
 
     if (opened.ok()) {
