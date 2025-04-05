@@ -438,8 +438,8 @@ void LayerSnapshotBuilder::updateSnapshots(const Args& args) {
     }
 
     for (auto& snapshot : mSnapshots) {
-        if (snapshot->reachablilty == LayerSnapshot::Reachablilty::Reachable) {
-            snapshot->reachablilty = LayerSnapshot::Reachablilty::Unreachable;
+        if (snapshot->reachability == LayerSnapshot::Reachability::Reachable) {
+            snapshot->reachability = LayerSnapshot::Reachability::Unreachable;
         }
     }
 
@@ -480,7 +480,7 @@ void LayerSnapshotBuilder::updateSnapshots(const Args& args) {
     while (it < mSnapshots.end()) {
         auto& traversalPath = it->get()->path;
         const bool unreachable =
-                it->get()->reachablilty == LayerSnapshot::Reachablilty::Unreachable;
+                it->get()->reachability == LayerSnapshot::Reachability::Unreachable;
         const bool isClone = traversalPath.isClone();
         const bool layerIsDestroyed =
                 destroyedLayerIds.find(traversalPath.id) != destroyedLayerIds.end();
@@ -631,7 +631,7 @@ bool LayerSnapshotBuilder::sortSnapshotsByZ(const Args& args) {
         mSnapshots[globalZ]->globalZ = globalZ;
         /* mark unreachable snapshots as explicitly invisible */
         updateVisibility(*mSnapshots[globalZ], false);
-        if (mSnapshots[globalZ]->reachablilty == LayerSnapshot::Reachablilty::Unreachable) {
+        if (mSnapshots[globalZ]->reachability == LayerSnapshot::Reachability::Unreachable) {
             hasUnreachableSnapshots = true;
         }
         globalZ++;
@@ -655,8 +655,8 @@ void LayerSnapshotBuilder::updateRelativeState(LayerSnapshot& snapshot,
             snapshot.relativeLayerMetadata = parentSnapshot.relativeLayerMetadata;
         }
     }
-    if (snapshot.reachablilty == LayerSnapshot::Reachablilty::Unreachable) {
-        snapshot.reachablilty = LayerSnapshot::Reachablilty::ReachableByRelativeParent;
+    if (snapshot.reachability == LayerSnapshot::Reachability::Unreachable) {
+        snapshot.reachability = LayerSnapshot::Reachability::ReachableByRelativeParent;
     }
 }
 
@@ -730,7 +730,7 @@ void LayerSnapshotBuilder::updateSnapshot(LayerSnapshot& snapshot, const Args& a
              RequestedLayerState::Changes::FrameRate | RequestedLayerState::Changes::GameMode);
     snapshot.changes |= parentChanges;
     if (args.displayChanges) snapshot.changes |= RequestedLayerState::Changes::Geometry;
-    snapshot.reachablilty = LayerSnapshot::Reachablilty::Reachable;
+    snapshot.reachability = LayerSnapshot::Reachability::Reachable;
     snapshot.clientChanges |= (parentSnapshot.clientChanges & layer_state_t::AFFECTS_CHILDREN);
     // mark the content as dirty if the parent state changes can dirty the child's content (for
     // example alpha)

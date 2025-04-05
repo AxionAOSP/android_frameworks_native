@@ -292,6 +292,14 @@ flag {
 } # stable_edid_ids
 
 flag {
+    name: "stop_layer"
+    namespace: "window_surfaces"
+    description: "Enables stop layers when building layer snapshots"
+    bug: "403312802"
+    is_fixed_read_only: true
+} # stop_layer
+
+flag {
   name: "synced_resolution_switch"
   namespace: "core_graphics"
   description: "Synchronize resolution modeset with framebuffer resizing"
@@ -316,17 +324,6 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 } # override_trusted_overlay
-
-flag {
-  name: "vrr_bugfix_dropped_frame"
-  namespace: "core_graphics"
-  description: "bug fix for VRR dropped frame"
-  bug: "343603085"
-  is_fixed_read_only: true
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-} # vrr_bugfix_dropped_frame
 
 flag {
   name: "vsync_predictor_recovery"

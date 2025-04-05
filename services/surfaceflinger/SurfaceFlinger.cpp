@@ -7887,12 +7887,22 @@ ftl::SharedFuture<FenceResult> SurfaceFlinger::captureScreenshot(
                                 return fenceResult;
                             }
 
-                            return getRenderEngine()
-                                    .tonemapAndDrawGainmap(hdrBuffer, fenceResult.value()->get(),
-                                                           hdrSdrRatio,
-                                                           static_cast<ui::Dataspace>(dataspace),
-                                                           buffer, gainmapBuffer)
-                                    .get();
+                            auto tonemapAndDrawGainmap = [&]() -> FenceResult {
+                                return getRenderEngine()
+                                        .tonemapAndDrawGainmap(hdrBuffer,
+                                                               fenceResult.value()->get(),
+                                                               hdrSdrRatio,
+                                                               static_cast<ui::Dataspace>(
+                                                                       dataspace),
+                                                               buffer, gainmapBuffer)
+                                        .get();
+                            };
+
+                            if (mRenderEngine->isThreaded()) {
+                                return tonemapAndDrawGainmap();
+                            } else {
+                                return mScheduler->schedule(std::move(tonemapAndDrawGainmap)).get();
+                            }
                         })
                         .share();
     } else {

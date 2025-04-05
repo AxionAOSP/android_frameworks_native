@@ -109,7 +109,7 @@ struct LayerSnapshot : public compositionengine::LayerFECompositionState {
     uint32_t touchCropId;
     gui::Uid uid = gui::Uid::INVALID;
     gui::Pid pid = gui::Pid::INVALID;
-    enum class Reachablilty : uint32_t {
+    enum class Reachability : uint32_t {
         // Can traverse the hierarchy from a root node and reach this snapshot
         Reachable,
         // Cannot traverse the hierarchy from a root node and reach this snapshot
@@ -135,7 +135,7 @@ struct LayerSnapshot : public compositionengine::LayerFECompositionState {
         // and input.
         ReachableByRelativeParent
     };
-    Reachablilty reachablilty;
+    Reachability reachability;
     // True when the surfaceDamage is recognized as a small area update.
     bool isSmallDirty = false;
 

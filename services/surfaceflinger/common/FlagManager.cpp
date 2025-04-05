@@ -174,11 +174,11 @@ void FlagManager::dump(std::string& result) const {
     DUMP_ACONFIG_FLAG(restore_blur_step);
     DUMP_ACONFIG_FLAG(skip_invisible_windows_in_input);
     DUMP_ACONFIG_FLAG(stable_edid_ids);
+    DUMP_ACONFIG_FLAG(stop_layer);
     DUMP_ACONFIG_FLAG(synced_resolution_switch);
     DUMP_ACONFIG_FLAG(trace_frame_rate_override);
     DUMP_ACONFIG_FLAG(true_hdr_screenshots);
     DUMP_ACONFIG_FLAG(use_known_refresh_rate_for_fps_consistency);
-    DUMP_ACONFIG_FLAG(vrr_bugfix_dropped_frame);
     DUMP_ACONFIG_FLAG(vrr_config);
     DUMP_ACONFIG_FLAG(vulkan_renderengine);
     DUMP_ACONFIG_FLAG(window_blur_kawase2);
@@ -275,7 +275,6 @@ FLAG_MANAGER_ACONFIG_FLAG(restore_blur_step, "debug.renderengine.restore_blur_st
 FLAG_MANAGER_ACONFIG_FLAG(dont_skip_on_early_ro, "")
 FLAG_MANAGER_ACONFIG_FLAG(no_vsyncs_on_screen_off, "debug.sf.no_vsyncs_on_screen_off")
 FLAG_MANAGER_ACONFIG_FLAG(protected_if_client, "")
-FLAG_MANAGER_ACONFIG_FLAG(vrr_bugfix_dropped_frame, "")
 FLAG_MANAGER_ACONFIG_FLAG(graphite_renderengine, "debug.renderengine.graphite")
 FLAG_MANAGER_ACONFIG_FLAG(filter_frames_before_trace_starts, "")
 FLAG_MANAGER_ACONFIG_FLAG(latch_unsignaled_with_auto_refresh_changed, "");
@@ -294,6 +293,7 @@ FLAG_MANAGER_ACONFIG_FLAG(display_config_error_hal, "");
 FLAG_MANAGER_ACONFIG_FLAG(connected_display_hdr, "debug.sf.connected_display_hdr");
 FLAG_MANAGER_ACONFIG_FLAG(deprecate_frame_tracker, "");
 FLAG_MANAGER_ACONFIG_FLAG(skip_invisible_windows_in_input, "");
+FLAG_MANAGER_ACONFIG_FLAG(stop_layer, "");
 FLAG_MANAGER_ACONFIG_FLAG(begone_bright_hlg, "debug.sf.begone_bright_hlg");
 FLAG_MANAGER_ACONFIG_FLAG(window_blur_kawase2, "");
 FLAG_MANAGER_ACONFIG_FLAG(reject_dupe_layerstacks, "");
