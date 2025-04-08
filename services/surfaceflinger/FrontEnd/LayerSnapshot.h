@@ -76,6 +76,11 @@ struct LayerSnapshot : public compositionengine::LayerFECompositionState {
     bool contentOpaque;
     bool layerOpaqueFlagSet;
     RoundedCornerState roundedCorner;
+    // roundedCorner of the parent but in local space.
+    RoundedCornerState parentRoundedCorner;
+    // geomLayerCrop of the parent but in local space.
+    FloatRect parentGeomLayerCrop;
+
     FloatRect transformedBounds;
     Rect transformedBoundsWithoutTransparentRegion;
     bool premultipliedAlpha;

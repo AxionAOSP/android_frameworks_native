@@ -124,6 +124,14 @@ std::optional<compositionengine::LayerFE::LayerSettings> LayerFE::prepareClientC
     SFTRACE_CALL();
     compositionengine::LayerFE::LayerSettings layerSettings;
     layerSettings.geometry.originalBounds = mSnapshot->geomLayerBounds;
+
+    if (mSnapshot->parentRoundedCorner.hasRequestedRadius()) {
+        layerSettings.geometry.otherRoundedCornersRadius = mSnapshot->parentRoundedCorner.radius;
+        layerSettings.geometry.otherCrop = mSnapshot->parentRoundedCorner.cropRect;
+    } else {
+        layerSettings.geometry.otherCrop = mSnapshot->parentGeomLayerCrop;
+    }
+
     layerSettings.geometry.boundaries =
             reduce(mSnapshot->geomLayerBounds, mSnapshot->transparentRegionHint);
     layerSettings.geometry.positionTransform = mSnapshot->geomLayerTransform.asMatrix4();

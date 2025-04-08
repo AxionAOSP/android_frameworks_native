@@ -1041,7 +1041,7 @@ void BLASTBufferQueue::mergeWithNextTransaction(SurfaceComposerClient::Transacti
         // Apply the transaction since we have already acquired the desired frame.
         t->setApplyToken(mApplyToken).apply();
     } else {
-        mPendingTransactions.emplace_back(frameNumber, std::move(*t));
+        mPendingTransactions.emplace_back(frameNumber, *t);
         // Clear the transaction so it can't be applied elsewhere.
         t->clear();
     }
@@ -1059,8 +1059,8 @@ void BLASTBufferQueue::applyPendingTransactions(uint64_t frameNumber) {
 void BLASTBufferQueue::mergePendingTransactions(SurfaceComposerClient::Transaction* t,
                                                 uint64_t frameNumber) {
     auto mergeTransaction =
-            [t, currentFrameNumber = frameNumber](
-                    std::pair<uint64_t, SurfaceComposerClient::Transaction>& pendingTransaction) {
+            [&t, currentFrameNumber = frameNumber](
+                    std::tuple<uint64_t, SurfaceComposerClient::Transaction> pendingTransaction) {
                 auto& [targetFrameNumber, transaction] = pendingTransaction;
                 if (currentFrameNumber < targetFrameNumber) {
                     return false;

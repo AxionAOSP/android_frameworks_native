@@ -1048,6 +1048,8 @@ void LayerSnapshotBuilder::updateRoundedCorner(LayerSnapshot& snapshot,
     } else {
         snapshot.roundedCorner.radius = snapshot.roundedCorner.requestedRadius;
     }
+
+    snapshot.parentRoundedCorner = parentRoundedCorner;
 }
 
 /**
@@ -1134,6 +1136,9 @@ void LayerSnapshotBuilder::updateLayerBounds(LayerSnapshot& snapshot,
                                                         requested.getTransparentRegion());
         snapshot.cursorFrame = snapshot.geomLayerTransform.transform(bounds);
     }
+
+    snapshot.parentGeomLayerCrop =
+            snapshot.localTransform.inverse().transform(parentSnapshot.geomLayerCrop);
 }
 
 void LayerSnapshotBuilder::updateShadows(LayerSnapshot& snapshot, const RequestedLayerState&,

@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <android-base/result.h>
 #include <ftl/enum.h>
 #include <ui/LogicalDisplayId.h>
 
@@ -58,8 +59,23 @@ struct DisplayTopologyGraph {
     std::unordered_map<ui::LogicalDisplayId, std::vector<DisplayTopologyAdjacentDisplay>> graph;
     std::unordered_map<ui::LogicalDisplayId, int> displaysDensity;
 
-    bool isValid() const;
+    DisplayTopologyGraph() = default;
     std::string dump() const;
+
+    // Builds the topology graph from components.
+    // Returns error if a valid graph cannot be built from the supplied components.
+    static base::Result<const DisplayTopologyGraph> create(
+            ui::LogicalDisplayId primaryDisplay,
+            std::unordered_map<ui::LogicalDisplayId, std::vector<DisplayTopologyAdjacentDisplay>>&&
+                    adjacencyGraph,
+            std::unordered_map<ui::LogicalDisplayId, int>&& displaysDensityMap);
+
+private:
+    DisplayTopologyGraph(
+            ui::LogicalDisplayId primaryDisplay,
+            std::unordered_map<ui::LogicalDisplayId, std::vector<DisplayTopologyAdjacentDisplay>>&&
+                    adjacencyGraph,
+            std::unordered_map<ui::LogicalDisplayId, int>&& displaysDensityMap);
 };
 
 } // namespace android

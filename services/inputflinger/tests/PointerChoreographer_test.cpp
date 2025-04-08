@@ -150,9 +150,11 @@ protected:
             // setDefaultMouseDisplayId without topology.
             // For this reason in tests we mock this behavior by creating topology with a single
             // display.
-            mChoreographer.setDisplayTopology({.primaryDisplayId = displayId,
-                                               .graph{{displayId, {}}},
-                                               .displaysDensity = {{displayId, DENSITY_MEDIUM}}});
+            mChoreographer.setDisplayTopology(
+                    DisplayTopologyGraph::create(/*primaryDisplayId=*/displayId,
+                                                 /*adjacencyGraph=*/{},
+                                                 /*displaysDensity=*/{{displayId, DENSITY_MEDIUM}})
+                            .value());
         } else {
             mChoreographer.setDefaultMouseDisplayId(displayId);
         }
@@ -2784,24 +2786,42 @@ protected:
             createViewport(DISPLAY_HIGH_DENSITY_ID, /*width*/ 200, /*height*/ 200, ui::ROTATION_0),
     };
 
-    DisplayTopologyGraph
-            mTopology{DISPLAY_CENTER_ID,
-                      {{DISPLAY_CENTER_ID,
-                        {{DISPLAY_TOP_ID, DisplayTopologyPosition::TOP, 50.0f},
-                         // Place a high density display on the left of DISPLAY_TOP_ID with 25 dp
-                         // gap
-                         {DISPLAY_HIGH_DENSITY_ID, DisplayTopologyPosition::TOP, -75.0f},
-                         {DISPLAY_RIGHT_ID, DisplayTopologyPosition::RIGHT, 10.0f},
-                         {DISPLAY_BOTTOM_ID, DisplayTopologyPosition::BOTTOM, 10.0f},
-                         {DISPLAY_LEFT_ID, DisplayTopologyPosition::LEFT, 10.0f},
-                         {DISPLAY_TOP_RIGHT_CORNER_ID, DisplayTopologyPosition::RIGHT, -90.0f}}}},
-                      {{DISPLAY_CENTER_ID, DENSITY_MEDIUM},
-                       {DISPLAY_TOP_ID, DENSITY_MEDIUM},
-                       {DISPLAY_RIGHT_ID, DENSITY_MEDIUM},
-                       {DISPLAY_BOTTOM_ID, DENSITY_MEDIUM},
-                       {DISPLAY_LEFT_ID, DENSITY_MEDIUM},
-                       {DISPLAY_TOP_RIGHT_CORNER_ID, DENSITY_MEDIUM},
-                       {DISPLAY_HIGH_DENSITY_ID, DENSITY_HIGH}}};
+    DisplayTopologyGraph mTopology =
+            DisplayTopologyGraph::
+                    create(/*primaryDisplay=*/DISPLAY_CENTER_ID,
+                           /*adjacencyGraph=*/
+                           {{DISPLAY_CENTER_ID,
+                             {{DISPLAY_TOP_ID, DisplayTopologyPosition::TOP, 50.0f},
+                              // Place a high density display on the left of DISPLAY_TOP_ID with
+                              // 25 dp gap
+                              {DISPLAY_HIGH_DENSITY_ID, DisplayTopologyPosition::TOP, -75.0f},
+                              {DISPLAY_RIGHT_ID, DisplayTopologyPosition::RIGHT, 10.0f},
+                              {DISPLAY_BOTTOM_ID, DisplayTopologyPosition::BOTTOM, 10.0f},
+                              {DISPLAY_LEFT_ID, DisplayTopologyPosition::LEFT, 10.0f},
+                              {DISPLAY_TOP_RIGHT_CORNER_ID, DisplayTopologyPosition::RIGHT,
+                               -90.0f}}},
+                            // Reverse edges
+                            {DISPLAY_TOP_ID,
+                             {{DISPLAY_CENTER_ID, DisplayTopologyPosition::BOTTOM, -50.0f}}},
+                            {DISPLAY_HIGH_DENSITY_ID,
+                             {{DISPLAY_CENTER_ID, DisplayTopologyPosition::BOTTOM, 75.0f}}},
+                            {DISPLAY_RIGHT_ID,
+                             {{DISPLAY_CENTER_ID, DisplayTopologyPosition::LEFT, -10.0f}}},
+                            {DISPLAY_BOTTOM_ID,
+                             {{DISPLAY_CENTER_ID, DisplayTopologyPosition::TOP, -10.0f}}},
+                            {DISPLAY_LEFT_ID,
+                             {{DISPLAY_CENTER_ID, DisplayTopologyPosition::RIGHT, -10.0f}}},
+                            {DISPLAY_TOP_RIGHT_CORNER_ID,
+                             {{DISPLAY_CENTER_ID, DisplayTopologyPosition::LEFT, 90.0f}}}},
+                           /*displaysDensityMap=*/
+                           {{DISPLAY_CENTER_ID, DENSITY_MEDIUM},
+                            {DISPLAY_TOP_ID, DENSITY_MEDIUM},
+                            {DISPLAY_RIGHT_ID, DENSITY_MEDIUM},
+                            {DISPLAY_BOTTOM_ID, DENSITY_MEDIUM},
+                            {DISPLAY_LEFT_ID, DENSITY_MEDIUM},
+                            {DISPLAY_TOP_RIGHT_CORNER_ID, DENSITY_MEDIUM},
+                            {DISPLAY_HIGH_DENSITY_ID, DENSITY_HIGH}})
+                            .value();
 };
 
 TEST_P(PointerChoreographerDisplayTopologyCursorTestFixture,
@@ -2955,7 +2975,6 @@ protected:
 
         std::unordered_map<ui::LogicalDisplayId, std::vector<DisplayTopologyAdjacentDisplay>>
                 topologyGraph;
-        topologyGraph[primaryDisplayId] = {};
 
         std::unordered_map<ui::LogicalDisplayId, int> displaysDensity;
         displaysDensity[primaryDisplayId] = DENSITY_MEDIUM;
@@ -2969,9 +2988,13 @@ protected:
                                                         .offsetDp = 0.0f});
 
             displaysDensity[adjacentDisplayId] = DENSITY_MEDIUM;
+            previousDisplay = adjacentDisplayId;
         }
 
-        mChoreographer.setDisplayTopology({primaryDisplayId, topologyGraph, displaysDensity});
+        mChoreographer.setDisplayTopology(DisplayTopologyGraph::create(primaryDisplayId,
+                                                                       std::move(topologyGraph),
+                                                                       std::move(displaysDensity))
+                                                  .value());
     }
 };
 
@@ -3028,7 +3051,7 @@ TEST_F(PointerChoreographerDisplayTopologyDefaultMouseDisplayTests,
 
     // Change the primary display to the third display
     setDisplayTopologyWithDisplays(/*primaryDisplayId=*/THIRD_DISPLAY_ID, /*adjacentDisplays=*/
-                                   {SECOND_DISPLAY_ID, THIRD_DISPLAY_ID});
+                                   {SECOND_DISPLAY_ID, FIRST_DISPLAY_ID});
 
     assertPointerControllerNotCreated();
     pc->assertViewportSet(SECOND_DISPLAY_ID);

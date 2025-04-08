@@ -868,6 +868,38 @@ TEST_P(LayerTypeAndRenderTypeTransactionTest, SetBoxShadowSettings) {
     }
 }
 
+TEST_P(LayerTypeAndRenderTypeTransactionTest, CropElevationShadowByParent) {
+    sp<SurfaceControl> parent;
+    sp<SurfaceControl> child;
+    const uint32_t size = 64;
+    const uint32_t parentSize = size * 3;
+    ASSERT_NO_FATAL_FAILURE(parent = createLayer("parent", parentSize, parentSize));
+    ASSERT_NO_FATAL_FAILURE(fillLayerColor(parent, Color::WHITE, parentSize, parentSize));
+    ASSERT_NO_FATAL_FAILURE(child = createLayer("child", size, size));
+    ASSERT_NO_FATAL_FAILURE(fillLayerColor(child, Color::GREEN, size, size));
+
+    // TODO(b/377194534): This test fails on Tangor because global shadow
+    // settings seem to not respect rotation.
+    SurfaceComposerClient::getDefault()->setGlobalShadowSettings({1, 0, 0, 0.5f}, {0, 1, 0, 0.5f},
+                                                                 0, 500.0f, 800.0f);
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    Transaction()
+            .setCrop(parent, Rect(0, 0, parentSize / 2, parentSize))
+            .reparent(child, parent)
+            .setCrop(child, Rect(0, 0, size, size))
+            .setPosition(child, size, size)
+            .setCornerRadius(child, 20.0f)
+            .setShadowRadius(child, 20.0f)
+            .apply(true);
+
+    auto shot = getScreenCapture();
+
+    shot->expectBufferMatchesImageFromFile(Rect(0, 0, parentSize, parentSize),
+                                           "testdata/CropElevationShadowByParent.png");
+}
+
 TEST_P(LayerTypeAndRenderTypeTransactionTest, SetBackgroundBlurRadiusSimple) {
     if (!deviceSupportsBlurs()) GTEST_SKIP();
     if (!deviceUsesSkiaRenderEngine()) GTEST_SKIP();

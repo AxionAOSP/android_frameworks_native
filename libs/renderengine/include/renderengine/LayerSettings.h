@@ -93,6 +93,10 @@ struct Geometry {
 
     // Rectangle within which corners will be rounded.
     FloatRect roundedCornersCrop = FloatRect();
+
+    // Crop geometry in local space, used for cropping outset rendering, e.g. shadows.
+    vec2 otherRoundedCornersRadius = vec2(0.0f, 0.0f);
+    FloatRect otherCrop = FloatRect();
 };
 
 // Descriptor of the source pixels for this layer.
@@ -228,6 +232,12 @@ static inline void PrintTo(const Geometry& settings, ::std::ostream* os) {
     *os << "\n    .roundedCornersRadiusY = " << settings.roundedCornersRadius.y;
     *os << "\n    .roundedCornersCrop = ";
     PrintTo(settings.roundedCornersCrop, os);
+
+    *os << "\n    .otherRoundedCornersRadiusX = " << settings.otherRoundedCornersRadius.x;
+    *os << "\n    .otherRoundedCornersRadiusY = " << settings.otherRoundedCornersRadius.y;
+    *os << "\n    .otherCrop = ";
+    PrintTo(settings.otherCrop, os);
+
     *os << "\n}";
 }
 

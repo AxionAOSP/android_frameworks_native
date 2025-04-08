@@ -518,8 +518,18 @@ public:
         return mFlinger->mTransactionHandler.mPendingTransactionCount.load();
     }
 
-    auto setTransactionState(TransactionState&& state) {
-        return mFlinger->setTransactionState(std::move(state));
+    auto setTransactionState(
+            const FrameTimelineInfo& frameTimelineInfo, Vector<ComposerState>& states,
+            Vector<DisplayState>& displays, uint32_t flags, const sp<IBinder>& applyToken,
+            const InputWindowCommands& inputWindowCommands, int64_t desiredPresentTime,
+            bool isAutoTimestamp, const std::vector<client_cache_t>& uncacheBuffers,
+            bool hasListenerCallbacks, std::vector<ListenerCallbacks>& listenerCallbacks,
+            uint64_t transactionId, const std::vector<uint64_t>& mergedTransactionIds) {
+        return mFlinger->setTransactionState(frameTimelineInfo, states, displays, flags, applyToken,
+                                             inputWindowCommands, desiredPresentTime,
+                                             isAutoTimestamp, uncacheBuffers, hasListenerCallbacks,
+                                             listenerCallbacks, transactionId,
+                                             mergedTransactionIds);
     }
 
     auto setTransactionStateInternal(QueuedTransactionState& transaction) {
@@ -562,8 +572,8 @@ public:
     }
 
     auto mirrorLayer(const LayerCreationArgs& args, const sp<IBinder>& mirrorFromHandle,
-                     gui::CreateSurfaceResult& outResult) {
-        return mFlinger->mirrorLayer(args, mirrorFromHandle, outResult);
+                     const sp<IBinder>& stopAtHandle, gui::CreateSurfaceResult& outResult) {
+        return mFlinger->mirrorLayer(args, mirrorFromHandle, stopAtHandle, outResult);
     }
 
     void getDynamicDisplayInfoFromToken(const sp<IBinder>& displayToken,

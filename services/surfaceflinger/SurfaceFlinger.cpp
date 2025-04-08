@@ -5002,7 +5002,13 @@ bool SurfaceFlinger::shouldLatchUnsignaled(const layer_state_t& state, size_t nu
     return true;
 }
 
-status_t SurfaceFlinger::setTransactionState(TransactionState&& transactionState) {
+status_t SurfaceFlinger::setTransactionState(
+        const FrameTimelineInfo& frameTimelineInfo, Vector<ComposerState>& states,
+        Vector<DisplayState>& displays, uint32_t flags, const sp<IBinder>& applyToken,
+        InputWindowCommands inputWindowCommands, int64_t desiredPresentTime, bool isAutoTimestamp,
+        const std::vector<client_cache_t>& uncacheBuffers, bool hasListenerCallbacks,
+        const std::vector<ListenerCallbacks>& listenerCallbacks, uint64_t transactionId,
+        const std::vector<uint64_t>& mergedTransactionIds) {
     SFTRACE_CALL();
 
     IPCThreadState* ipc = IPCThreadState::self();
@@ -5010,7 +5016,7 @@ status_t SurfaceFlinger::setTransactionState(TransactionState&& transactionState
     const int originUid = ipc->getCallingUid();
     uint32_t permissions = LayerStatePermissions::getTransactionPermissions(originPid, originUid);
     ftl::Flags<adpf::Workload> queuedWorkload;
-    for (auto& composerState : transactionState.mComposerStates) {
+    for (auto& composerState : states) {
         composerState.state.sanitize(permissions);
         if (composerState.state.what & layer_state_t::COMPOSITION_EFFECTS) {
             queuedWorkload |= adpf::Workload::EFFECTS;
@@ -5020,27 +5026,27 @@ status_t SurfaceFlinger::setTransactionState(TransactionState&& transactionState
         }
     }
 
-    for (DisplayState& display : transactionState.mDisplayStates) {
+    for (DisplayState& display : displays) {
         display.sanitize(permissions);
     }
 
-    if (!transactionState.mInputWindowCommands.empty() &&
+    if (!inputWindowCommands.empty() &&
         (permissions & layer_state_t::Permission::ACCESS_SURFACE_FLINGER) == 0) {
         ALOGE("Only privileged callers are allowed to send input commands.");
-        transactionState.mInputWindowCommands.clear();
+        inputWindowCommands.clear();
     }
 
-    if (transactionState.mFlags & (eEarlyWakeupStart | eEarlyWakeupEnd)) {
+    if (flags & (eEarlyWakeupStart | eEarlyWakeupEnd)) {
         const bool hasPermission =
                 (permissions & layer_state_t::Permission::ACCESS_SURFACE_FLINGER) ||
                 callingThreadHasPermission(sWakeupSurfaceFlinger);
         if (!hasPermission) {
             ALOGE("Caller needs permission android.permission.WAKEUP_SURFACE_FLINGER to use "
                   "eEarlyWakeup[Start|End] flags");
-            transactionState.mFlags &= ~(eEarlyWakeupStart | eEarlyWakeupEnd);
+            flags &= ~(eEarlyWakeupStart | eEarlyWakeupEnd);
         }
     }
-    if (transactionState.mFlags & eEarlyWakeupStart) {
+    if (flags & eEarlyWakeupStart) {
         queuedWorkload |= adpf::Workload::WAKEUP;
     }
     mPowerAdvisor->setQueuedWorkload(queuedWorkload);
@@ -5048,8 +5054,8 @@ status_t SurfaceFlinger::setTransactionState(TransactionState&& transactionState
     const int64_t postTime = systemTime();
 
     std::vector<uint64_t> uncacheBufferIds;
-    uncacheBufferIds.reserve(transactionState.mUncacheBuffers.size());
-    for (const auto& uncacheBuffer : transactionState.mUncacheBuffers) {
+    uncacheBufferIds.reserve(uncacheBuffers.size());
+    for (const auto& uncacheBuffer : uncacheBuffers) {
         sp<GraphicBuffer> buffer = ClientCache::getInstance().erase(uncacheBuffer);
         if (buffer != nullptr) {
             uncacheBufferIds.push_back(buffer->getId());
@@ -5057,8 +5063,8 @@ status_t SurfaceFlinger::setTransactionState(TransactionState&& transactionState
     }
 
     std::vector<ResolvedComposerState> resolvedStates;
-    resolvedStates.reserve(transactionState.mComposerStates.size());
-    for (auto& state : transactionState.mComposerStates) {
+    resolvedStates.reserve(states.size());
+    for (auto& state : states) {
         resolvedStates.emplace_back(std::move(state));
         auto& resolvedState = resolvedStates.back();
         resolvedState.layerId = LayerHandle::getLayerId(resolvedState.state.surface);
@@ -5069,7 +5075,7 @@ status_t SurfaceFlinger::setTransactionState(TransactionState&& transactionState
                     (layer) ? layer->getDebugName() : std::to_string(resolvedState.state.layerId);
             resolvedState.externalTexture =
                     getExternalTextureFromBufferData(*resolvedState.state.bufferData,
-                                                     layerName.c_str(), transactionState.getId());
+                                                     layerName.c_str(), transactionId);
             if (resolvedState.externalTexture) {
                 resolvedState.state.bufferData->buffer = resolvedState.externalTexture->getBuffer();
                 if (FlagManager::getInstance().monitor_buffer_fences()) {
@@ -5097,12 +5103,22 @@ status_t SurfaceFlinger::setTransactionState(TransactionState&& transactionState
         }
     }
 
-    QueuedTransactionState state{std::move(transactionState),
-                                 std::move(resolvedStates),
+    QueuedTransactionState state{frameTimelineInfo,
+                                 resolvedStates,
+                                 displays,
+                                 flags,
+                                 applyToken,
+                                 std::move(inputWindowCommands),
+                                 desiredPresentTime,
+                                 isAutoTimestamp,
                                  std::move(uncacheBufferIds),
                                  postTime,
+                                 hasListenerCallbacks,
+                                 listenerCallbacks,
                                  originPid,
-                                 originUid};
+                                 originUid,
+                                 transactionId,
+                                 mergedTransactionIds};
     state.workloadHint = queuedWorkload;
 
     if (mTransactionTracing) {
@@ -5116,9 +5132,6 @@ status_t SurfaceFlinger::setTransactionState(TransactionState&& transactionState
     }(state.flags);
 
     const auto frameHint = state.isFrameActive() ? FrameHint::kActive : FrameHint::kNone;
-    // Copy fields of |state| needed after it is moved into queueTransaction
-    VsyncId vsyncId{state.frameTimelineInfo.vsyncId};
-    auto applyToken = state.applyToken;
     {
         // Transactions are added via a lockless queue and does not need to be added from the main
         // thread.
@@ -5128,7 +5141,7 @@ status_t SurfaceFlinger::setTransactionState(TransactionState&& transactionState
 
     for (const auto& [displayId, data] : mNotifyExpectedPresentMap) {
         if (data.hintStatus.load() == NotifyExpectedPresentHintStatus::ScheduleOnTx) {
-            scheduleNotifyExpectedPresentHint(displayId, vsyncId);
+            scheduleNotifyExpectedPresentHint(displayId, VsyncId{frameTimelineInfo.vsyncId});
         }
     }
     setTransactionFlags(eTransactionFlushNeeded, schedule, applyToken, frameHint);
@@ -5137,7 +5150,7 @@ status_t SurfaceFlinger::setTransactionState(TransactionState&& transactionState
 
 bool SurfaceFlinger::applyTransactionState(
         const FrameTimelineInfo& frameTimelineInfo, std::vector<ResolvedComposerState>& states,
-        std::span<DisplayState> displays, uint32_t flags,
+        Vector<DisplayState>& displays, uint32_t flags,
         const InputWindowCommands& inputWindowCommands, const int64_t desiredPresentTime,
         bool isAutoTimestamp, const std::vector<uint64_t>& uncacheBufferIds, const int64_t postTime,
         bool hasListenerCallbacks, const std::vector<ListenerCallbacks>& listenerCallbacks,
@@ -5429,6 +5442,7 @@ uint32_t SurfaceFlinger::addInputWindowCommands(const InputWindowCommands& input
 
 status_t SurfaceFlinger::mirrorLayer(const LayerCreationArgs& args,
                                      const sp<IBinder>& mirrorFromHandle,
+                                     const sp<IBinder>& stopAtHandle,
                                      gui::CreateSurfaceResult& outResult) {
     if (!mirrorFromHandle) {
         return NAME_NOT_FOUND;
@@ -5446,6 +5460,13 @@ status_t SurfaceFlinger::mirrorLayer(const LayerCreationArgs& args,
         mirrorArgs.flags |= ISurfaceComposerClient::eNoColorFill;
         mirrorArgs.mirrorLayerHandle = mirrorFromHandle;
         mirrorArgs.addToRoot = false;
+        if (stopAtHandle) {
+            uint32_t stopLayerId = LayerHandle::getLayerId(stopAtHandle);
+            if (stopLayerId == UNASSIGNED_LAYER_ID) {
+                return NAME_NOT_FOUND;
+            }
+            mirrorArgs.stopLayerId = stopLayerId;
+        }
         status_t result = createLayer(mirrorArgs, &outResult.handle, &mirrorLayer);
         if (result != NO_ERROR) {
             return result;
@@ -5617,8 +5638,7 @@ void SurfaceFlinger::initializeDisplays() {
 
     auto layerStack = ui::DEFAULT_LAYER_STACK.id;
     for (const auto& [id, display] : FTL_FAKE_GUARD(mStateLock, mPhysicalDisplays)) {
-        state.displays.emplace_back(
-                DisplayState(display.token(), ui::LayerStack::fromValue(layerStack++)));
+        state.displays.push(DisplayState(display.token(), ui::LayerStack::fromValue(layerStack++)));
     }
 
     std::vector<QueuedTransactionState> transactions;

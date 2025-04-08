@@ -18,6 +18,7 @@
 
 #include <android-base/logging.h>
 #include <android-base/stringprintf.h>
+#include <com_android_input_flags.h>
 #include <ftl/enum.h>
 #include <input/DisplayTopologyGraph.h>
 #include <input/PrintTools.h>
@@ -26,6 +27,8 @@
 #include <algorithm>
 
 #define INDENT "  "
+
+namespace input_flags = com::android::input::flags;
 
 namespace android {
 
@@ -44,16 +47,19 @@ DisplayTopologyPosition getOppositePosition(DisplayTopologyPosition position) {
     }
 }
 
-bool validatePrimaryDisplay(const android::DisplayTopologyGraph& displayTopologyGraph) {
-    return displayTopologyGraph.primaryDisplayId != ui::LogicalDisplayId::INVALID &&
-            displayTopologyGraph.graph.contains(displayTopologyGraph.primaryDisplayId);
+bool validatePrimaryDisplay(ui::LogicalDisplayId primaryDisplayId,
+                            const std::unordered_map<ui::LogicalDisplayId, int>& displaysDensity) {
+    return primaryDisplayId != ui::LogicalDisplayId::INVALID &&
+            displaysDensity.contains(primaryDisplayId);
 }
 
-bool validateTopologyGraph(const android::DisplayTopologyGraph& displayTopologyGraph) {
-    for (const auto& [sourceDisplay, adjacentDisplays] : displayTopologyGraph.graph) {
+bool validateTopologyGraph(
+        const std::unordered_map<ui::LogicalDisplayId, std::vector<DisplayTopologyAdjacentDisplay>>&
+                graph) {
+    for (const auto& [sourceDisplay, adjacentDisplays] : graph) {
         for (const DisplayTopologyAdjacentDisplay& adjacentDisplay : adjacentDisplays) {
-            const auto adjacentGraphIt = displayTopologyGraph.graph.find(adjacentDisplay.displayId);
-            if (adjacentGraphIt == displayTopologyGraph.graph.end()) {
+            const auto adjacentGraphIt = graph.find(adjacentDisplay.displayId);
+            if (adjacentGraphIt == graph.end()) {
                 LOG(ERROR) << "Missing adjacent display in topology graph: "
                            << adjacentDisplay.displayId << " for source " << sourceDisplay;
                 return false;
@@ -90,9 +96,11 @@ bool validateTopologyGraph(const android::DisplayTopologyGraph& displayTopologyG
     return true;
 }
 
-bool validateDensities(const android::DisplayTopologyGraph& displayTopologyGraph) {
-    for (const auto& [sourceDisplay, adjacentDisplays] : displayTopologyGraph.graph) {
-        if (!displayTopologyGraph.displaysDensity.contains(sourceDisplay)) {
+bool validateDensities(const std::unordered_map<ui::LogicalDisplayId,
+                                                std::vector<DisplayTopologyAdjacentDisplay>>& graph,
+                       const std::unordered_map<ui::LogicalDisplayId, int>& displaysDensity) {
+    for (const auto& [sourceDisplay, adjacentDisplays] : graph) {
+        if (!displaysDensity.contains(sourceDisplay)) {
             LOG(ERROR) << "Missing density value in topology graph for display: " << sourceDisplay;
             return false;
         }
@@ -113,22 +121,23 @@ std::string adjacentDisplayVectorToString(
     return dumpVector(adjacentDisplays, adjacentDisplayToString);
 }
 
-} // namespace
-
-std::string DisplayTopologyAdjacentDisplay::dump() const {
-    std::string dump;
-    dump += base::StringPrintf("DisplayTopologyAdjacentDisplay: {displayId: %d, position: %s, "
-                               "offsetDp: %f}",
-                               displayId.val(), ftl::enum_string(position).c_str(), offsetDp);
-    return dump;
+bool areTopologyGraphComponentsValid(
+        ui::LogicalDisplayId primaryDisplayId,
+        const std::unordered_map<ui::LogicalDisplayId, std::vector<DisplayTopologyAdjacentDisplay>>&
+                graph,
+        const std::unordered_map<ui::LogicalDisplayId, int>& displaysDensity) {
+    if (!input_flags::enable_display_topology_validation()) {
+        return true;
+    }
+    return validatePrimaryDisplay(primaryDisplayId, displaysDensity) &&
+            validateTopologyGraph(graph) && validateDensities(graph, displaysDensity);
 }
 
-bool DisplayTopologyGraph::isValid() const {
-    return validatePrimaryDisplay(*this) && validateTopologyGraph(*this) &&
-            validateDensities(*this);
-}
-
-std::string DisplayTopologyGraph::dump() const {
+std::string dumpTopologyGraphComponents(
+        ui::LogicalDisplayId primaryDisplayId,
+        const std::unordered_map<ui::LogicalDisplayId, std::vector<DisplayTopologyAdjacentDisplay>>&
+                graph,
+        const std::unordered_map<ui::LogicalDisplayId, int>& displaysDensity) {
     std::string dump;
     dump += base::StringPrintf("PrimaryDisplayId: %d\n", primaryDisplayId.val());
     dump += base::StringPrintf("TopologyGraph:\n");
@@ -139,6 +148,43 @@ std::string DisplayTopologyGraph::dump() const {
     dump += addLinePrefix(dumpMap(displaysDensity, logicalDisplayIdToString), INDENT);
     dump += "\n";
     return dump;
+}
+
+} // namespace
+
+std::string DisplayTopologyAdjacentDisplay::dump() const {
+    std::string dump;
+    dump += base::StringPrintf("DisplayTopologyAdjacentDisplay: {displayId: %d, position: %s, "
+                               "offsetDp: %f}",
+                               displayId.val(), ftl::enum_string(position).c_str(), offsetDp);
+    return dump;
+}
+
+DisplayTopologyGraph::DisplayTopologyGraph(
+        ui::LogicalDisplayId primaryDisplay,
+        std::unordered_map<ui::LogicalDisplayId, std::vector<DisplayTopologyAdjacentDisplay>>&&
+                adjacencyGraph,
+        std::unordered_map<ui::LogicalDisplayId, int>&& displaysDensityMap)
+      : primaryDisplayId(primaryDisplay),
+        graph(std::move(adjacencyGraph)),
+        displaysDensity(std::move(displaysDensityMap)) {}
+
+std::string DisplayTopologyGraph::dump() const {
+    return dumpTopologyGraphComponents(primaryDisplayId, graph, displaysDensity);
+}
+
+base::Result<const DisplayTopologyGraph> DisplayTopologyGraph::create(
+        ui::LogicalDisplayId primaryDisplay,
+        std::unordered_map<ui::LogicalDisplayId, std::vector<DisplayTopologyAdjacentDisplay>>&&
+                adjacencyGraph,
+        std::unordered_map<ui::LogicalDisplayId, int>&& displaysDensityMap) {
+    if (areTopologyGraphComponentsValid(primaryDisplay, adjacencyGraph, displaysDensityMap)) {
+        return DisplayTopologyGraph(primaryDisplay, std::move(adjacencyGraph),
+                                    std::move(displaysDensityMap));
+    }
+    return base::Error() << "Invalid display topology components: "
+                         << dumpTopologyGraphComponents(primaryDisplay, adjacencyGraph,
+                                                        displaysDensityMap);
 }
 
 } // namespace android

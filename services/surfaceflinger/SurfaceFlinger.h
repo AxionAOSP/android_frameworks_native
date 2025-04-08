@@ -545,7 +545,13 @@ private:
     }
 
     sp<IBinder> getPhysicalDisplayToken(PhysicalDisplayId displayId) const;
-    status_t setTransactionState(TransactionState&&) override;
+    status_t setTransactionState(
+            const FrameTimelineInfo& frameTimelineInfo, Vector<ComposerState>& state,
+            Vector<DisplayState>& displays, uint32_t flags, const sp<IBinder>& applyToken,
+            InputWindowCommands inputWindowCommands, int64_t desiredPresentTime,
+            bool isAutoTimestamp, const std::vector<client_cache_t>& uncacheBuffers,
+            bool hasListenerCallbacks, const std::vector<ListenerCallbacks>& listenerCallbacks,
+            uint64_t transactionId, const std::vector<uint64_t>& mergedTransactionIds) override;
     void bootFinished();
     status_t getSupportedFrameTimestamps(std::vector<FrameEvent>* outSupported) const;
     sp<IDisplayEventConnection> createDisplayEventConnection(
@@ -792,7 +798,7 @@ private:
      */
     bool applyTransactionState(const FrameTimelineInfo& info,
                                std::vector<ResolvedComposerState>& state,
-                               std::span<DisplayState> displays, uint32_t flags,
+                               Vector<DisplayState>& displays, uint32_t flags,
                                const InputWindowCommands& inputWindowCommands,
                                const int64_t desiredPresentTime, bool isAutoTimestamp,
                                const std::vector<uint64_t>& uncacheBufferIds,
@@ -854,7 +860,7 @@ private:
     status_t checkLayerLeaks();
 
     status_t mirrorLayer(const LayerCreationArgs& args, const sp<IBinder>& mirrorFromHandle,
-                         gui::CreateSurfaceResult& outResult);
+                         const sp<IBinder>& stopAtHandle, gui::CreateSurfaceResult& outResult);
 
     status_t mirrorDisplay(DisplayId displayId, const LayerCreationArgs& args,
                            gui::CreateSurfaceResult& outResult);

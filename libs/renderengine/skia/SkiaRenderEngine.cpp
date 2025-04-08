@@ -887,6 +887,7 @@ void SkiaRenderEngine::drawLayersInternal(
         const auto [bounds, roundRectClip] =
                 getBoundsAndClip(layer.geometry.boundaries, layer.geometry.roundedCornersCrop,
                                  layer.geometry.roundedCornersRadius);
+
         if (mBlurFilter && layerHasBlur(layer, ctModifiesAlpha)) {
             std::unordered_map<uint32_t, sk_sp<SkImage>> cachedBlurs;
 
@@ -963,66 +964,82 @@ void SkiaRenderEngine::drawLayersInternal(
             }
         }
 
-        if (layer.shadow.length > 0) {
-            // This would require a new parameter/flag to SkShadowUtils::DrawShadow
-            LOG_ALWAYS_FATAL_IF(layer.disableBlending, "Cannot disableBlending with a shadow");
-
-            SkRRect shadowBounds, shadowClip;
-            if (layer.geometry.boundaries == layer.shadow.boundaries) {
-                shadowBounds = bounds;
-                shadowClip = roundRectClip;
-            } else {
-                std::tie(shadowBounds, shadowClip) =
-                        getBoundsAndClip(layer.shadow.boundaries, layer.geometry.roundedCornersCrop,
-                                         layer.geometry.roundedCornersRadius);
+        {
+            SkRRect otherCrop;
+            otherCrop.setRectXY(getSkRect(layer.geometry.otherCrop),
+                                layer.geometry.otherRoundedCornersRadius.x,
+                                layer.geometry.otherRoundedCornersRadius.y);
+            // Outset rendering needs to be clipped by parent.
+            SkAutoCanvasRestore acr(canvas, true);
+            if (!otherCrop.isEmpty()) {
+                canvas->clipRRect(otherCrop, true);
             }
 
-            // Technically, if bounds is a rect and roundRectClip is not empty,
-            // it means that the bounds and roundedCornersCrop were different
-            // enough that we should intersect them to find the proper shadow.
-            // In practice, this often happens when the two rectangles appear to
-            // not match due to rounding errors. Draw the rounded version, which
-            // looks more like the intent.
-            const auto& rrect =
-                    shadowBounds.isRect() && !shadowClip.isEmpty() ? shadowClip : shadowBounds;
-            drawShadow(canvas, rrect, layer.shadow);
-        }
+            if (layer.shadow.length > 0) {
+                // This would require a new parameter/flag to SkShadowUtils::DrawShadow
+                LOG_ALWAYS_FATAL_IF(layer.disableBlending, "Cannot disableBlending with a shadow");
 
-        // TODO(b/367464660): Move this code above and
-        // update elevation shadow rendering to use these bounds since they should be
-        // identical.
-        SkRRect originalBounds, originalClip;
-        std::tie(originalBounds, originalClip) =
-                getBoundsAndClip(layer.geometry.originalBounds, layer.geometry.roundedCornersCrop,
-                                 layer.geometry.roundedCornersRadius);
-        const SkRRect& preferredOriginalBounds =
-                originalBounds.isRect() && !originalClip.isEmpty() ? originalClip : originalBounds;
+                SkRRect shadowBounds, shadowClip;
+                if (layer.geometry.boundaries == layer.shadow.boundaries) {
+                    shadowBounds = bounds;
+                    shadowClip = roundRectClip;
+                } else {
+                    std::tie(shadowBounds, shadowClip) =
+                            getBoundsAndClip(layer.shadow.boundaries,
+                                             layer.geometry.roundedCornersCrop,
+                                             layer.geometry.roundedCornersRadius);
+                }
 
-        // Similar to shadows, do the rendering before the clip is applied because even when the
-        // layer is occluded it should have an outline.
-        if (layer.borderSettings.strokeWidth > 0) {
-            SkRRect outlineRect = preferredOriginalBounds;
-            outlineRect.outset(layer.borderSettings.strokeWidth, layer.borderSettings.strokeWidth);
+                // Technically, if bounds is a rect and roundRectClip is not empty,
+                // it means that the bounds and roundedCornersCrop were different
+                // enough that we should intersect them to find the proper shadow.
+                // In practice, this often happens when the two rectangles appear to
+                // not match due to rounding errors. Draw the rounded version, which
+                // looks more like the intent.
+                const auto& rrect =
+                        shadowBounds.isRect() && !shadowClip.isEmpty() ? shadowClip : shadowBounds;
+                drawShadow(canvas, rrect, layer.shadow);
+            }
 
-            SkPaint paint;
-            paint.setAntiAlias(true);
-            paint.setColor(layer.borderSettings.color);
-            paint.setStyle(SkPaint::kFill_Style);
-            canvas->drawDRRect(outlineRect, preferredOriginalBounds, paint);
-        }
+            // TODO(b/367464660): Move this code above and
+            // update elevation shadow rendering to use these bounds since they should be
+            // identical.
+            SkRRect originalBounds, originalClip;
+            std::tie(originalBounds, originalClip) =
+                    getBoundsAndClip(layer.geometry.originalBounds,
+                                     layer.geometry.roundedCornersCrop,
+                                     layer.geometry.roundedCornersRadius);
+            const SkRRect& preferredOriginalBounds =
+                    originalBounds.isRect() && !originalClip.isEmpty() ? originalClip
+                                                                       : originalBounds;
 
-        if (!layer.boxShadowSettings.boxShadows.empty()) {
-            for (const gui::BoxShadowSettings::BoxShadowParams& box :
-                 layer.boxShadowSettings.boxShadows) {
-                SkRRect boxRect = preferredOriginalBounds;
-                boxRect.outset(box.spreadRadius, box.spreadRadius);
-                boxRect.offset(box.offsetX, box.offsetY);
-                float sigma = convertBlurUserRadiusToSigma(box.blurRadius);
-                SkPaint blur;
-                blur.setAntiAlias(true);
-                blur.setColor(box.color);
-                blur.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, sigma, false));
-                canvas->drawRRect(boxRect, blur);
+            // Similar to shadows, do the rendering before the clip is applied because even when the
+            // layer is occluded it should have an outline.
+            if (layer.borderSettings.strokeWidth > 0) {
+                SkRRect outlineRect = preferredOriginalBounds;
+                outlineRect.outset(layer.borderSettings.strokeWidth,
+                                   layer.borderSettings.strokeWidth);
+
+                SkPaint paint;
+                paint.setAntiAlias(true);
+                paint.setColor(layer.borderSettings.color);
+                paint.setStyle(SkPaint::kFill_Style);
+                canvas->drawDRRect(outlineRect, preferredOriginalBounds, paint);
+            }
+
+            if (!layer.boxShadowSettings.boxShadows.empty()) {
+                for (const gui::BoxShadowSettings::BoxShadowParams& box :
+                     layer.boxShadowSettings.boxShadows) {
+                    SkRRect boxRect = preferredOriginalBounds;
+                    boxRect.outset(box.spreadRadius, box.spreadRadius);
+                    boxRect.offset(box.offsetX, box.offsetY);
+                    float sigma = convertBlurUserRadiusToSigma(box.blurRadius);
+                    SkPaint blur;
+                    blur.setAntiAlias(true);
+                    blur.setColor(box.color);
+                    blur.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, sigma, false));
+                    canvas->drawRRect(boxRect, blur);
+                }
             }
         }
 

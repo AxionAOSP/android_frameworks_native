@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
+#include <com_android_input_flags.h>
 #include <gtest/gtest.h>
 #include <input/DisplayTopologyGraph.h>
 
 #include <string>
 #include <string_view>
 #include <tuple>
+
+#include "ScopedFlagOverride.h"
 
 namespace android {
 
@@ -31,87 +34,104 @@ constexpr int DENSITY_MEDIUM = 160;
 
 } // namespace
 
+using DisplayTopologyAdjacentDisplayMap =
+        std::unordered_map<ui::LogicalDisplayId, std::vector<DisplayTopologyAdjacentDisplay>>;
+using DisplayTopologyDisplaysDensityMapVector = std::unordered_map<ui::LogicalDisplayId, int>;
 using DisplayTopologyGraphTestFixtureParam =
-        std::tuple<std::string_view /*name*/, DisplayTopologyGraph, bool /*isValid*/>;
+        std::tuple<std::string_view /*name*/, ui::LogicalDisplayId /*primaryDisplayId*/,
+                   DisplayTopologyAdjacentDisplayMap, DisplayTopologyDisplaysDensityMapVector,
+                   bool /*isValid*/>;
 
 class DisplayTopologyGraphTestFixture
       : public testing::Test,
         public testing::WithParamInterface<DisplayTopologyGraphTestFixtureParam> {};
 
 TEST_P(DisplayTopologyGraphTestFixture, DisplayTopologyGraphTest) {
-    const auto& [_, displayTopology, isValid] = GetParam();
-    EXPECT_EQ(isValid, displayTopology.isValid());
+    SCOPED_FLAG_OVERRIDE(enable_display_topology_validation, true);
+    auto [_, primaryDisplayId, graph, displaysDensity, isValid] = GetParam();
+    auto result = DisplayTopologyGraph::create(primaryDisplayId, std::move(graph),
+                                               std::move(displaysDensity));
+    EXPECT_EQ(isValid, result.ok());
 }
 
 INSTANTIATE_TEST_SUITE_P(
         DisplayTopologyGraphTest, DisplayTopologyGraphTestFixture,
         testing::Values(
-                std::make_tuple(
-                        "InvalidPrimaryDisplay",
-                        DisplayTopologyGraph{.primaryDisplayId = ui::LogicalDisplayId::INVALID,
-                                             .graph = {},
-                                             .displaysDensity = {}},
-                        false),
+                std::make_tuple("InvalidPrimaryDisplay",
+                                /*primaryDisplayId=*/ui::LogicalDisplayId::INVALID,
+                                /*graph=*/DisplayTopologyAdjacentDisplayMap{},
+                                /*displaysDensity=*/DisplayTopologyDisplaysDensityMapVector{},
+                                false),
                 std::make_tuple("PrimaryDisplayNotInGraph",
-                                DisplayTopologyGraph{.primaryDisplayId = DISPLAY_ID_1,
-                                                     .graph = {},
-                                                     .displaysDensity = {}},
+                                /*primaryDisplayId=*/DISPLAY_ID_1,
+                                /*graph=*/DisplayTopologyAdjacentDisplayMap{},
+                                /*displaysDensity=*/DisplayTopologyDisplaysDensityMapVector{},
                                 false),
                 std::make_tuple("DisplayDensityMissing",
-                                DisplayTopologyGraph{.primaryDisplayId = DISPLAY_ID_1,
-                                                     .graph = {{DISPLAY_ID_1, {}}},
-                                                     .displaysDensity = {}},
+                                /*primaryDisplayId=*/DISPLAY_ID_1,
+                                /*graph=*/DisplayTopologyAdjacentDisplayMap{{DISPLAY_ID_1, {}}},
+                                /*displaysDensity=*/DisplayTopologyDisplaysDensityMapVector{},
                                 false),
                 std::make_tuple("ValidSingleDisplayTopology",
-                                DisplayTopologyGraph{.primaryDisplayId = DISPLAY_ID_1,
-                                                     .graph = {{DISPLAY_ID_1, {}}},
-                                                     .displaysDensity = {{DISPLAY_ID_1,
-                                                                          DENSITY_MEDIUM}}},
+                                /*primaryDisplayId=*/DISPLAY_ID_1,
+                                /*graph=*/DisplayTopologyAdjacentDisplayMap{{DISPLAY_ID_1, {}}},
+                                /*displaysDensity=*/
+                                DisplayTopologyDisplaysDensityMapVector{
+                                        {DISPLAY_ID_1, DENSITY_MEDIUM}},
                                 true),
                 std::make_tuple(
                         "MissingReverseEdge",
-                        DisplayTopologyGraph{.primaryDisplayId = DISPLAY_ID_1,
-                                             .graph = {{DISPLAY_ID_1,
-                                                        {{DISPLAY_ID_2,
-                                                          DisplayTopologyPosition::TOP, 0}}}},
-                                             .displaysDensity = {{DISPLAY_ID_1, DENSITY_MEDIUM},
-                                                                 {DISPLAY_ID_2, DENSITY_MEDIUM}}},
+                        /*primaryDisplayId=*/DISPLAY_ID_1,
+                        /*graph=*/
+                        DisplayTopologyAdjacentDisplayMap{
+                                {DISPLAY_ID_1, {{DISPLAY_ID_2, DisplayTopologyPosition::TOP, 0}}}},
+                        /*displaysDensity=*/
+                        DisplayTopologyDisplaysDensityMapVector{{DISPLAY_ID_1, DENSITY_MEDIUM},
+                                                                {DISPLAY_ID_2, DENSITY_MEDIUM}},
                         false),
                 std::make_tuple(
                         "IncorrectReverseEdgeDirection",
-                        DisplayTopologyGraph{.primaryDisplayId = DISPLAY_ID_1,
-                                             .graph = {{DISPLAY_ID_1,
-                                                        {{DISPLAY_ID_2,
-                                                          DisplayTopologyPosition::TOP, 0}}},
-                                                       {DISPLAY_ID_2,
-                                                        {{DISPLAY_ID_1,
-                                                          DisplayTopologyPosition::TOP, 0}}}},
-                                             .displaysDensity = {{DISPLAY_ID_1, DENSITY_MEDIUM},
-                                                                 {DISPLAY_ID_2, DENSITY_MEDIUM}}},
+                        /*primaryDisplayId=*/DISPLAY_ID_1,
+                        /*graph=*/
+                        DisplayTopologyAdjacentDisplayMap{{DISPLAY_ID_1,
+                                                           {{DISPLAY_ID_2,
+                                                             DisplayTopologyPosition::TOP, 0}}},
+                                                          {DISPLAY_ID_2,
+                                                           {{DISPLAY_ID_1,
+                                                             DisplayTopologyPosition::TOP, 0}}}},
+                        /*displaysDensity=*/
+                        DisplayTopologyDisplaysDensityMapVector{{DISPLAY_ID_1, DENSITY_MEDIUM},
+                                                                {DISPLAY_ID_2, DENSITY_MEDIUM}},
                         false),
                 std::make_tuple(
                         "IncorrectReverseEdgeOffset",
-                        DisplayTopologyGraph{.primaryDisplayId = DISPLAY_ID_1,
-                                             .graph = {{DISPLAY_ID_1,
-                                                        {{DISPLAY_ID_2,
-                                                          DisplayTopologyPosition::TOP, 10}}},
-                                                       {DISPLAY_ID_2,
-                                                        {{DISPLAY_ID_1,
-                                                          DisplayTopologyPosition::BOTTOM, 20}}}},
-                                             .displaysDensity = {{DISPLAY_ID_1, DENSITY_MEDIUM},
-                                                                 {DISPLAY_ID_2, DENSITY_MEDIUM}}},
+                        /*primaryDisplayId=*/DISPLAY_ID_1,
+                        /*graph=*/
+                        DisplayTopologyAdjacentDisplayMap{{DISPLAY_ID_1,
+                                                           {{DISPLAY_ID_2,
+                                                             DisplayTopologyPosition::TOP, 10}}},
+                                                          {DISPLAY_ID_2,
+                                                           {{DISPLAY_ID_1,
+                                                             DisplayTopologyPosition::BOTTOM,
+                                                             20}}}},
+                        /*displaysDensity=*/
+                        DisplayTopologyDisplaysDensityMapVector{{DISPLAY_ID_1, DENSITY_MEDIUM},
+                                                                {DISPLAY_ID_2, DENSITY_MEDIUM}},
                         false),
                 std::make_tuple(
                         "ValidMultiDisplayTopology",
-                        DisplayTopologyGraph{.primaryDisplayId = DISPLAY_ID_1,
-                                             .graph = {{DISPLAY_ID_1,
-                                                        {{DISPLAY_ID_2,
-                                                          DisplayTopologyPosition::TOP, 10}}},
-                                                       {DISPLAY_ID_2,
-                                                        {{DISPLAY_ID_1,
-                                                          DisplayTopologyPosition::BOTTOM, -10}}}},
-                                             .displaysDensity = {{DISPLAY_ID_1, DENSITY_MEDIUM},
-                                                                 {DISPLAY_ID_2, DENSITY_MEDIUM}}},
+                        /*primaryDisplayId=*/DISPLAY_ID_1,
+                        /*graph=*/
+                        DisplayTopologyAdjacentDisplayMap{{DISPLAY_ID_1,
+                                                           {{DISPLAY_ID_2,
+                                                             DisplayTopologyPosition::TOP, 10}}},
+                                                          {DISPLAY_ID_2,
+                                                           {{DISPLAY_ID_1,
+                                                             DisplayTopologyPosition::BOTTOM,
+                                                             -10}}}},
+                        /*displaysDensity=*/
+                        DisplayTopologyDisplaysDensityMapVector{{DISPLAY_ID_1, DENSITY_MEDIUM},
+                                                                {DISPLAY_ID_2, DENSITY_MEDIUM}},
                         true)),
         [](const testing::TestParamInfo<DisplayTopologyGraphTestFixtureParam>& p) {
             return std::string{std::get<0>(p.param)};
