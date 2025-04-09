@@ -448,6 +448,29 @@ cc_library_shared {
 }
 
 soong_config_module_type {
+    name: "release_libbinder_binder_observer_config",
+    module_type: "cc_defaults",
+    config_namespace: "libbinder",
+    bool_variables: ["release_libbinder_binder_observer"],
+    properties: [
+        "cflags",
+    ],
+}
+
+release_libbinder_binder_observer_config {
+    name: "release_libbinder_enable_binder_observer_flag",
+    soong_config_variables: {
+        release_libbinder_binder_observer: {
+            cflags: ["-DLIBBINDER_BINDER_OBSERVER"],
+            conditions_default: {
+                cflags: ["-DNO_LIBBINDER_BINDER_OBSERVER"],
+            },
+        },
+    },
+}
+
+
+soong_config_module_type {
     name: "libbinder_remove_cache_static_list_config",
     module_type: "cc_defaults",
     config_namespace: "libbinder",
@@ -519,6 +542,7 @@ cc_defaults {
         "libbinder_client_cache_flag",
         "libbinder_addservice_cache_flag",
         "libbinder_remove_cache_static_list_flag",
+        "release_libbinder_enable_binder_observer_flag",
     ],
     srcs: [
         "BufferedTextOutput.cpp",

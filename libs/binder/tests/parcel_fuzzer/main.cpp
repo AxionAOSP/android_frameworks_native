@@ -25,8 +25,11 @@
 #include <android-base/logging.h>
 #include <android/binder_auto_utils.h>
 #include <android/binder_libbinder.h>
+#include <binder/ProcessState.h>
+#include <binder/Trace.h>
 #include <fuzzbinder/random_parcel.h>
 #include <fuzzer/FuzzedDataProvider.h>
+#include <hwbinder/ProcessState.h>
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -40,6 +43,7 @@ using android::fillRandomParcel;
 using android::RandomParcelOptions;
 using android::sp;
 using android::HexString;
+std::once_flag gOpenFds;
 
 void fillRandomParcel(::android::hardware::Parcel* p, FuzzedDataProvider&& provider,
                       RandomParcelOptions* options) {
@@ -167,6 +171,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
     // avoid timeouts, see b/142617274, b/142473153
     if (size > 50000) return 0;
+    std::call_once(gOpenFds, []() {
+        // Cause the known FDs to be created before we track them.
+        android::binder::ScopedTrace openYourFds(ATRACE_TAG_AIDL, "Open FDs");
+        (void)android::ProcessState::self();
+        (void)android::hardware::ProcessState::self();
+        ALOGE("Logging creates a socked + a pmsg FD");
+    });
 
     struct rlimit limit{};
     CHECK_EQ(0, getrlimit(RLIMIT_NOFILE, &limit));
