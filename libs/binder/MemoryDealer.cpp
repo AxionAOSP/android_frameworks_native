@@ -374,6 +374,7 @@ ssize_t SimpleBestFitAllocator::alloc(size_t size, uint32_t flags)
         }
         return (free_chunk->start)*kMemoryAlign;
     }
+    ALOGE("%s: no free chunk", __FUNCTION__);
     return NO_MEMORY;
 }
 

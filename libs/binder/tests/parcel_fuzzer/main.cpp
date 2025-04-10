@@ -107,7 +107,11 @@ void doReadFuzz(const char* backend, const std::vector<ParcelRead<P>>& reads,
     CHECK_LE(reads.size(), 255u) << reads.size();
 
     FUZZ_LOG() << "doReadFuzz backend: " << backend;
-    FUZZ_LOG() << "input: " << HexString(p.data(), p.dataSize());
+
+    if (p.data() != nullptr) {
+        FUZZ_LOG() << "input: " << HexString(p.data(), p.dataSize());
+    }
+
     FUZZ_LOG() << "instructions: " << HexString(instructions.data(), instructions.size());
 
     FuzzedDataProvider instructionsProvider(instructions.data(), instructions.size());

@@ -48,9 +48,18 @@ struct BufferedTextOutput::BufferState : public RefBase
     }
     
     status_t append(const char* txt, size_t len) {
-        if (len > SIZE_MAX - bufferPos) return NO_MEMORY; // overflow
+        if (len > SIZE_MAX - bufferPos) {
+            ALOGE("%s: expanding buffer length by %zu exceeds max size (bufferPos: %zu)\n",
+                  __FUNCTION__, len, bufferPos);
+            return NO_MEMORY; // overflow
+        }
         if ((len+bufferPos) > bufferSize) {
-            if ((len + bufferPos) > SIZE_MAX / 3) return NO_MEMORY; // overflow
+            if ((len + bufferPos) > SIZE_MAX / 3) {
+                ALOGE("%s: cannot realloc to increase buffer size. Total length: %zu (len: %zu, "
+                      "bufferPos: %zu)",
+                      __FUNCTION__, len + bufferPos, len, bufferPos);
+                return NO_MEMORY; // overflow
+            }
             size_t newSize = ((len+bufferPos)*3)/2;
             void* b = realloc(buffer, newSize);
             if (!b) return NO_MEMORY;

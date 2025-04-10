@@ -121,6 +121,7 @@ status_t RpcState::onBinderLeaving(const sp<RpcSession>& session, const sp<IBind
     // arbitrary limit for maximum number of nodes in a process (otherwise we
     // might run out of addresses)
     if (mNodeForAddress.size() > 100000) {
+        ALOGE("%s: too many nodes in the process (%zu)", __FUNCTION__, mNodeForAddress.size());
         return NO_MEMORY;
     }
 

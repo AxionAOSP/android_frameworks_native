@@ -41,6 +41,7 @@ void fillRandomParcel(Parcel* outputParcel, FuzzedDataProvider&& provider,
     const bool resultShouldBeView = fuzzerParcelOptions & 1;
     const bool resultShouldBeRpc = fuzzerParcelOptions & 2;
     const bool resultShouldMarkSensitive = fuzzerParcelOptions & 4;
+    const bool resultRandomSet = fuzzerParcelOptions & 8;
 
     auto sensitivity_guard = binder::impl::make_scope_guard([&]() {
         if (resultShouldMarkSensitive) {
@@ -85,6 +86,12 @@ void fillRandomParcel(Parcel* outputParcel, FuzzedDataProvider&& provider,
 
     if (options->writeHeader) {
         options->writeHeader(p, provider);
+    }
+
+    std::vector<uint8_t> instructionData;
+    if (resultRandomSet) {
+        size_t dataSize = provider.ConsumeIntegralInRange<size_t>(0, 100);
+        instructionData = provider.ConsumeBytes<uint8_t>(dataSize);
     }
 
     while (provider.remaining_bytes() > 0) {
@@ -148,6 +155,23 @@ void fillRandomParcel(Parcel* outputParcel, FuzzedDataProvider&& provider,
         });
 
         fillFunc();
+    }
+
+    if (resultRandomSet) {
+        auto value = 0;
+        FuzzedDataProvider setInstructionsProvider(instructionData.data(), instructionData.size());
+        while (setInstructionsProvider.remaining_bytes() > 0) {
+            if (setInstructionsProvider.ConsumeBool()) {
+                value = setInstructionsProvider.ConsumeIntegralInRange<size_t>(0, 2048);
+            }
+            auto setRandomValue =
+                    setInstructionsProvider.PickValueInArray<const std::function<void()>>({
+                            [&]() { p->setDataCapacity(value); },
+                            [&]() { p->setDataPosition(value); },
+                            [&]() { p->setDataSize(value); },
+                    });
+            setRandomValue();
+        }
     }
 }
 
