@@ -43,7 +43,7 @@ namespace {
 // Should minidebug info be included in compiled artifacts? Even if this value is
 // "true," usage might still be conditional to other constraints, e.g., system
 // property overrides.
-static constexpr bool kEnableMinidebugInfo = true;
+static constexpr bool kEnableMinidebugInfo = false;
 
 static constexpr const char* kMinidebugInfoSystemProperty = "dalvik.vm.dex2oat-minidebuginfo";
 static constexpr bool kMinidebugInfoSystemPropertyDefault = false;
