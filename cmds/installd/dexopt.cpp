@@ -335,29 +335,7 @@ static bool kAlwaysProvideSwapFile = false;
 static bool kDefaultProvideSwapFile = true;
 
 static bool ShouldUseSwapFileForDexopt() {
-    if (kAlwaysProvideSwapFile) {
-        return true;
-    }
-
-    // Check the "override" property. If it exists, return value == "true".
-    std::string dex2oat_prop_buf = GetProperty("dalvik.vm.dex2oat-swap", "");
-    if (!dex2oat_prop_buf.empty()) {
-        return dex2oat_prop_buf == "true";
-    }
-
-    // Shortcut for default value. This is an implementation optimization for the process sketched
-    // above. If the default value is true, we can avoid to check whether this is a low-mem device,
-    // as low-mem is never returning false. The compiler will optimize this away if it can.
-    if (kDefaultProvideSwapFile) {
-        return true;
-    }
-
-    if (GetBoolProperty("ro.config.low_ram", false)) {
-        return true;
-    }
-
-    // Default value must be false here.
-    return kDefaultProvideSwapFile;
+    return true;
 }
 
 static void SetDex2OatScheduling(bool set_to_bg) {
