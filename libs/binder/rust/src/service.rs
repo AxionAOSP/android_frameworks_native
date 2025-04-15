@@ -18,7 +18,10 @@ use crate::binder::{AsNative, FromIBinder, Strong};
 use crate::error::{status_result, Result, StatusCode};
 use crate::proxy::SpIBinder;
 use crate::sys;
-
+// TODO(b/402766978) Add this back into vendor variants when the LLNDK symbols are supported
+// with something like __builtin_available
+#[cfg(not(any(trusty, android_ndk, android_vendor, android_vndk)))]
+use libc::{pid_t, uid_t};
 use std::ffi::{c_void, CStr, CString};
 use std::os::raw::c_char;
 use std::sync::Mutex;
@@ -245,4 +248,41 @@ pub fn get_declared_instances(interface: &str) -> Result<Vec<String>> {
             eprintln!("An interface instance name was not a valid UTF-8 string: {}", e);
             StatusCode::BAD_VALUE
         })
+}
+
+/// Check if this 'caller_sid' has access for the 'permission' for a given service 'name'.
+///
+/// This is useful when a process will be making calls to servicemanager on behalf of another
+/// process.
+/// caller_sid - SELinux context of the process that is being checked.
+/// caller_debug_pid - Debug PID of the process that is being checked.
+///                    Used for logging denials.
+/// callerUid - UID process that is being checked. Used for logging denials
+/// name - name of the service that the caller wants to interact with
+/// permission - the servicemanager SELinux permission that the process is
+///              interested in for the service. This is either "find", "list", or "add".
+// TODO(b/402766978) Add this back into vendor variants when the LLNDK symbols are supported
+// with something like __builtin_available
+#[cfg(not(any(trusty, android_ndk, android_vendor, android_vndk)))]
+pub fn check_service_access(
+    caller_sid: &str,
+    caller_debug_pid: pid_t,
+    caller_uid: uid_t,
+    name: &str,
+    permission: &str,
+) -> Result<bool> {
+    let caller_sid = CString::new(caller_sid).or(Err(StatusCode::UNEXPECTED_NULL))?;
+    let name = CString::new(name).or(Err(StatusCode::UNEXPECTED_NULL))?;
+    let permission = CString::new(permission).or(Err(StatusCode::UNEXPECTED_NULL))?;
+    // Safety: The CStrings are valid at this point and are only used during the duration
+    // of the call.
+    unsafe {
+        Ok(sys::AServiceManager_checkServiceAccess(
+            caller_sid.as_ptr(),
+            caller_debug_pid,
+            caller_uid,
+            name.as_ptr(),
+            permission.as_ptr(),
+        ))
+    }
 }

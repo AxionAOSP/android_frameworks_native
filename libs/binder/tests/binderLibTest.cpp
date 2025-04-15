@@ -610,6 +610,31 @@ TEST_F(BinderLibTest, UnregisterForNotificationsFailure) {
     EXPECT_EQ(BAD_VALUE, sm->unregisterForNotifications(String16("InvalidName!!!"), cb));
 }
 
+TEST_F(BinderLibTest, CheckServiceAccessOk) {
+    // this test runs as su which has access to all services
+    auto sm = defaultServiceManager();
+    EXPECT_TRUE(
+            sm->checkServiceAccess(String16("u:r:su:s0"), 0, 0, String16("adb"), String16("find")));
+}
+
+TEST_F(BinderLibTest, CheckServiceAccessNotOk) {
+    auto sm = defaultServiceManager();
+    EXPECT_FALSE(sm->checkServiceAccess(String16("u:r:some_unknown_sid:s0"), 0, 0, String16("adb"),
+                                        String16("find")));
+}
+
+TEST_F(BinderLibTest, CheckServiceAccessBadArgs) {
+    auto sm = defaultServiceManager();
+    EXPECT_FALSE(sm->checkServiceAccess(String16(""), 0, 0, String16(""), String16("")));
+    EXPECT_FALSE(sm->checkServiceAccess(String16("u:r:su:s0"), 0, 0, String16(""), String16("")));
+    EXPECT_FALSE(
+            sm->checkServiceAccess(String16("u:r:su:s0"), 0, 0, String16("adb"), String16("")));
+    EXPECT_FALSE(
+            sm->checkServiceAccess(String16("u:r:su:s0"), 0, 0, String16(""), String16("find")));
+    EXPECT_FALSE(sm->checkServiceAccess(String16("u:r:su:s"), 0, 0, String16("adb"),
+                                        String16("unknown")));
+}
+
 TEST_F(BinderLibTest, WasParceled) {
     auto binder = sp<BBinder>::make();
     EXPECT_FALSE(binder->wasParceled());

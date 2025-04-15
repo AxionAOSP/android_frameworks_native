@@ -28,6 +28,7 @@
 
 #include <utils/Errors.h>
 #include <utils/RefBase.h>
+#include <utils/Mutex.h>
 #include <utils/Singleton.h>
 #include <utils/SortedVector.h>
 #include <utils/threads.h>
@@ -875,7 +876,10 @@ public:
     static void setDisplayProjection(const sp<IBinder>& token, ui::Rotation orientation,
                                      const Rect& layerStackRect, const Rect& displayRect);
 
-    inline sp<ISurfaceComposerClient> getClient() { return mClient; }
+    inline sp<ISurfaceComposerClient> getClient() {
+      Mutex::Autolock _lm(mLock);
+      return mClient;
+    }
 
     static status_t getDisplayedContentSamplingAttributes(const sp<IBinder>& display,
                                                           ui::PixelFormat* outFormat,
@@ -922,8 +926,8 @@ private:
     virtual void onFirstRef();
 
     mutable     Mutex                       mLock;
-                status_t                    mStatus;
-                sp<ISurfaceComposerClient>  mClient;
+                status_t                    mStatus GUARDED_BY(mLock);
+                sp<ISurfaceComposerClient>  mClient GUARDED_BY(mLock);
 };
 
 // ---------------------------------------------------------------------------

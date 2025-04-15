@@ -925,6 +925,10 @@ cc_defaults {
         "libbinder_random_parcel",
         "libcutils",
     ],
+    exclude_shared_libs: [
+        "libbase",
+        "libcutils",
+    ],
     target: {
         android: {
             shared_libs: [
@@ -935,6 +939,11 @@ cc_defaults {
         },
         host: {
             static_libs: [
+                "libbinder_ndk",
+                "libbinder",
+                "libutils",
+            ],
+            exclude_shared_libs: [
                 "libbinder_ndk",
                 "libbinder",
                 "libutils",

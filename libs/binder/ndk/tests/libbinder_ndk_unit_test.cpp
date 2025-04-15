@@ -1085,6 +1085,25 @@ TEST(NdkBinder, GetClassInterfaceDescriptor) {
     ASSERT_STREQ(IFoo::kIFooDescriptor, AIBinder_Class_getDescriptor(IFoo::kClass));
 }
 
+TEST(NdkBinder, CheckServiceAccessOk) {
+    // This test case runs as su which has access to all services
+    EXPECT_TRUE(AServiceManager_checkServiceAccess("u:r:su:s0", 0, 0, "adb", "find"));
+}
+
+TEST(NdkBinder, CheckServiceAccessNotOk) {
+    EXPECT_FALSE(
+            AServiceManager_checkServiceAccess("u:r:some_unknown_sid:s0", 0, 0, "adb", "find"));
+}
+
+TEST(NdkBinder, InvalidCheckServiceAccessArgs) {
+    EXPECT_DEATH(AServiceManager_checkServiceAccess(nullptr, 0, 0, nullptr, nullptr), "nullptr");
+    EXPECT_DEATH(AServiceManager_checkServiceAccess("u:r:su:s0", 0, 0, nullptr, nullptr),
+                 "nullptr");
+    EXPECT_DEATH(AServiceManager_checkServiceAccess("u:r:su:s0", 0, 0, "adb", nullptr), "nullptr");
+    EXPECT_DEATH(AServiceManager_checkServiceAccess("u:r:su:s0", 0, 0, nullptr, "find"), "nullptr");
+    EXPECT_FALSE(AServiceManager_checkServiceAccess("u:r:su:s0", 0, 0, "adb", "unknown"));
+}
+
 static void addOne(int* to) {
     if (!to) return;
     ++(*to);

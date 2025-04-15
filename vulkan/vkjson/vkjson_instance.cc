@@ -154,7 +154,7 @@ VkJsonDevice VkJsonGetDevice(VkPhysicalDevice physical_device) {
   if (HasExtension("VK_EXT_custom_border_color", device.extensions)) {
     device.ext_custom_border_color.reported = true;
     device.ext_custom_border_color.custom_border_color_features_ext.sType =
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_PROPERTIES_EXT;
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT;
     device.ext_custom_border_color.custom_border_color_features_ext.pNext =
         features.pNext;
     features.pNext =

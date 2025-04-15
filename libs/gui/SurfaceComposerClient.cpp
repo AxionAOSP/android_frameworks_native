@@ -34,6 +34,7 @@
 #include <gui/TraceUtils.h>
 #include <utils/Errors.h>
 #include <utils/Log.h>
+#include <utils/Mutex.h>
 #include <utils/SortedVector.h>
 #include <utils/String8.h>
 #include <utils/threads.h>
@@ -2620,6 +2621,7 @@ SurfaceComposerClient::SurfaceComposerClient(const sp<ISurfaceComposerClient>& c
 
 void SurfaceComposerClient::onFirstRef() {
     sp<gui::ISurfaceComposer> sf(ComposerServiceAIDL::getComposerService());
+    Mutex::Autolock _lm(mLock);
     if (sf != nullptr && mStatus == NO_INIT) {
         sp<ISurfaceComposerClient> conn;
         binder::Status status = sf->createConnection(&conn);
@@ -2635,10 +2637,12 @@ SurfaceComposerClient::~SurfaceComposerClient() {
 }
 
 status_t SurfaceComposerClient::initCheck() const {
+    Mutex::Autolock _lm(mLock);
     return mStatus;
 }
 
 sp<IBinder> SurfaceComposerClient::connection() const {
+    Mutex::Autolock _lm(mLock);
     return IInterface::asBinder(mClient);
 }
 
@@ -2687,6 +2691,7 @@ status_t SurfaceComposerClient::createSurfaceChecked(const String8& name, uint32
                                                      const sp<IBinder>& parentHandle,
                                                      LayerMetadata metadata,
                                                      uint32_t* outTransformHint) {
+    Mutex::Autolock _lm(mLock);
     status_t err = mStatus;
 
     if (mStatus == NO_ERROR) {
@@ -2713,6 +2718,8 @@ sp<SurfaceControl> SurfaceComposerClient::mirrorSurface(SurfaceControl* mirrorFr
         return nullptr;
     }
 
+    Mutex::Autolock _lm(mLock);
+
     sp<IBinder> mirrorFromHandle = mirrorFromSurface->getHandle();
     sp<IBinder> stopAtHandle = stopAt ? stopAt->getHandle() : nullptr;
     gui::CreateSurfaceResult result;
@@ -2726,6 +2733,8 @@ sp<SurfaceControl> SurfaceComposerClient::mirrorSurface(SurfaceControl* mirrorFr
 }
 
 sp<SurfaceControl> SurfaceComposerClient::mirrorDisplay(DisplayId displayId) {
+    Mutex::Autolock _lm(mLock);
+
     gui::CreateSurfaceResult result;
     const binder::Status status = mClient->mirrorDisplay(displayId.value, &result);
     const status_t err = statusTFromBinderStatus(status);
@@ -2737,6 +2746,8 @@ sp<SurfaceControl> SurfaceComposerClient::mirrorDisplay(DisplayId displayId) {
 }
 
 status_t SurfaceComposerClient::clearLayerFrameStats(const sp<IBinder>& token) const {
+    Mutex::Autolock _lm(mLock);
+
     if (mStatus != NO_ERROR) {
         return mStatus;
     }
@@ -2745,10 +2756,13 @@ status_t SurfaceComposerClient::clearLayerFrameStats(const sp<IBinder>& token) c
 }
 
 status_t SurfaceComposerClient::getLayerFrameStats(const sp<IBinder>& token,
-        FrameStats* outStats) const {
+    FrameStats* outStats) const {
+    Mutex::Autolock _lm(mLock);
+
     if (mStatus != NO_ERROR) {
         return mStatus;
     }
+
     gui::FrameStats stats;
     const binder::Status status = mClient->getLayerFrameStats(token, &stats);
     if (status.isOk()) {

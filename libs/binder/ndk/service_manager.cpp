@@ -250,3 +250,15 @@ void AServiceManager_reRegister() {
     auto serviceRegistrar = android::binder::LazyServiceRegistrar::getInstance();
     serviceRegistrar.reRegister();
 }
+
+bool AServiceManager_checkServiceAccess(const char* caller_sid, pid_t caller_debug_pid,
+                                        uid_t caller_uid, const char* instance,
+                                        const char* permission) {
+    LOG_ALWAYS_FATAL_IF(caller_sid == nullptr, "caller_sid == nullptr");
+    LOG_ALWAYS_FATAL_IF(instance == nullptr, "instance == nullptr");
+    LOG_ALWAYS_FATAL_IF(permission == nullptr, "permission == nullptr");
+
+    sp<IServiceManager> sm = defaultServiceManager();
+    return sm->checkServiceAccess(String16(caller_sid), caller_debug_pid, caller_uid,
+                                  String16(instance), String16(permission));
+}

@@ -2278,52 +2278,6 @@ TEST_F(SurfaceTest, BatchIllegalOperations) {
     ASSERT_EQ(NO_ERROR, surface->disconnect(NATIVE_WINDOW_API_CPU));
 }
 
-TEST_F(SurfaceTest, setMaxDequeuedBufferCount_setMaxAcquiredBufferCount_allocations) {
-    //
-    // Set up the consumer and producer--nothing fancy.
-    //
-    auto [consumer, surface] =
-            BufferItemConsumer::create(GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_HW_RENDER);
-    sp<SurfaceListener> surfaceListener = sp<StubSurfaceListener>::make();
-    surface->connect(NATIVE_WINDOW_API_CPU, surfaceListener);
-    sp<GraphicBuffer> buffer;
-    sp<Fence> fence;
-
-    //
-    // These values are independent. The consumer can dequeue 3 and the consumer can acquire 3 at
-    // the same time.
-    //
-    ASSERT_EQ(OK, consumer->setMaxAcquiredBufferCount(3));
-    ASSERT_EQ(OK, surface->setMaxDequeuedBufferCount(3));
-
-    //
-    // Take all three buffers out of the queue--a fourth can't be retrieved. Then queue them.
-    //
-    std::vector<Surface::BatchBuffer> dequeuedBuffers(3);
-    EXPECT_EQ(OK, surface->dequeueBuffers(&dequeuedBuffers));
-    if (::com::android::graphics::libgui::flags::bq_always_use_max_dequeued_buffer_count()) {
-        EXPECT_EQ(INVALID_OPERATION, surface->dequeueBuffer(&buffer, &fence));
-    }
-
-    for (auto& batchBuffer : dequeuedBuffers) {
-        EXPECT_EQ(OK,
-                  surface->queueBuffer(GraphicBuffer::from(batchBuffer.buffer),
-                                       sp<Fence>::make(batchBuffer.fenceFd)));
-    }
-    dequeuedBuffers.assign(3, {});
-
-    //
-    // Acquire all three, then we should be able to dequeue 3 more.
-    //
-    std::vector<BufferItem> acquiredBuffers(3);
-    for (auto& bufferItem : acquiredBuffers) {
-        EXPECT_EQ(OK, consumer->acquireBuffer(&bufferItem, 0));
-    }
-
-    EXPECT_EQ(OK, surface->dequeueBuffers(&dequeuedBuffers));
-    EXPECT_EQ(INVALID_OPERATION, surface->dequeueBuffer(&buffer, &fence));
-}
-
 #if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_PLATFORM_API_IMPROVEMENTS)
 
 TEST_F(SurfaceTest, PlatformBufferMethods) {

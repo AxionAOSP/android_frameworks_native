@@ -22,18 +22,43 @@
 
 #include <android-base/expected.h>
 
-#include <aidl/android/hardware/graphics/composer3/PowerMode.h>
-
 #include "test_framework/core/DisplayConfiguration.h"
+#include "test_framework/hwc3/events/ClientDestroyed.h"
+#include "test_framework/hwc3/events/DisplayPresented.h"
+#include "test_framework/hwc3/events/PendingBufferSwap.h"
+#include "test_framework/hwc3/events/PowerMode.h"
+#include "test_framework/hwc3/events/VSync.h"
+#include "test_framework/hwc3/events/VSyncEnabled.h"
 
 namespace android::surfaceflinger::tests::end2end::test_framework::hwc3 {
 
 class FakeComposer;
+class ObservingComposer;
 
-class Hwc3Controller final {
+class Hwc3Controller final : public std::enable_shared_from_this<Hwc3Controller> {
     struct Passkey;  // Uses the passkey idiom to restrict construction.
 
   public:
+    struct Callbacks final {
+        // Invoked when SF destroys its HWC client connection.
+        events::ClientDestroyed::AsyncConnector onClientDestroyed;
+
+        // Invoked when SF configures the power mode for a display.
+        events::PowerMode::AsyncConnector onPowerModeChanged;
+
+        // Invoked when SF enables or disables vsync callbacks for a display.
+        events::VSyncEnabled::AsyncConnector onVsyncEnabledChanged;
+
+        // Invoked when SF presents a display.
+        events::DisplayPresented::AsyncConnector onDisplayPresented;
+
+        // Invoked when SF is swapping the buffer content of a hardware overlay.
+        events::PendingBufferSwap::AsyncConnector onPendingBufferSwap;
+
+        // Invoked when the client sends SF a vsync callback.
+        events::VSync::AsyncConnector onVSyncCallbackSent;
+    };
+
     // Gets the service name for the HWC3 instance that will be created and registered
     [[nodiscard]] static auto getServiceName() -> std::string;
 
@@ -42,6 +67,12 @@ class Hwc3Controller final {
             -> base::expected<std::shared_ptr<hwc3::Hwc3Controller>, std::string>;
 
     explicit Hwc3Controller(Passkey passkey);
+
+    // Allows the callbacks to be routed.
+    [[nodiscard]] auto editCallbacks() -> Callbacks&;
+
+    // Allows the callbacks to be sent.
+    [[nodiscard]] auto callbacks() const -> const Callbacks&;
 
     // Adds a new display to the HWC3, which will become a hotplug connect event.
     void addDisplay(const core::DisplayConfiguration& config);
@@ -56,6 +87,8 @@ class Hwc3Controller final {
             -> base::expected<void, std::string>;
 
     std::shared_ptr<FakeComposer> mFakeComposer;
+    std::shared_ptr<ObservingComposer> mObservingComposer;
+    Callbacks mCallbacks;
 };
 
 }  // namespace android::surfaceflinger::tests::end2end::test_framework::hwc3

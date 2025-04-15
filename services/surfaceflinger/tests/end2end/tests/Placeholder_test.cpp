@@ -14,11 +14,18 @@
  * limitations under the License.
  */
 
-#include <gtest/gtest.h>
+#include <utility>
 
 #include <android-base/logging.h>
+#include <fmt/format.h>
+#include <gtest/gtest.h>
 
 #include "test_framework/core/TestService.h"
+#include "test_framework/hwc3/Hwc3Controller.h"
+#include "test_framework/hwc3/ObservingComposer.h"
+#include "test_framework/hwc3/events/DisplayPresented.h"
+#include "test_framework/hwc3/events/PendingBufferSwap.h"
+#include "test_framework/hwc3/events/VSyncEnabled.h"
 
 namespace android::surfaceflinger::tests::end2end {
 namespace {
@@ -33,6 +40,21 @@ TEST_F(Placeholder, Bringup) {
         LOG(WARNING) << "End2End service not available. " << serviceResult.error();
         GTEST_SKIP() << "End2End service not available. " << serviceResult.error();
     }
+
+    auto service = *std::move(serviceResult);
+
+    service->hwc().editCallbacks().onVsyncEnabledChanged.set(
+            [&](test_framework::hwc3::events::VSyncEnabled event) {
+                LOG(INFO) << fmt::format("onVsyncEnabledChanged {}", event);
+            })();
+    service->hwc().editCallbacks().onDisplayPresented.set(
+            [&](test_framework::hwc3::events::DisplayPresented event) {
+                LOG(INFO) << fmt::format("onDisplayPresented {}", event);
+            })();
+    service->hwc().editCallbacks().onPendingBufferSwap.set(
+            [&](test_framework::hwc3::events::PendingBufferSwap event) {
+                LOG(INFO) << fmt::format("onPendingBufferSwap {}", event);
+            })();
 }
 
 }  // namespace

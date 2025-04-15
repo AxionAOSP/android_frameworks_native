@@ -157,14 +157,3 @@ flag {
   }
   is_fixed_read_only: true
 } # allocate_buffer_priority
-
-flag {
-  name: "bq_always_use_max_dequeued_buffer_count"
-  namespace: "core_graphics"
-  description: "BufferQueueProducer::dequeue's respects setMaxDequeuedBufferCount even before a buffer is dequeued."
-  bug: "399328309"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-  is_fixed_read_only: true
-} # bq_always_use_max_dequeued_buffer_count

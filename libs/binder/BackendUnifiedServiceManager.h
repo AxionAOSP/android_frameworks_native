@@ -147,6 +147,10 @@ public:
                                         const sp<IBinder>& service) override;
     binder::Status getServiceDebugInfo(::std::vector<os::ServiceDebugInfo>* _aidl_return) override;
 
+    binder::Status checkServiceAccess(const os::IServiceManager::CallerContext& callerCtx,
+                                      const ::std::string& name, const ::std::string& permission,
+                                      bool* _aidl_return) override;
+
     void enableAddServiceCache(bool value) { mEnableAddServiceCache = value; }
     // for legacy ABI
     const String16& getInterfaceDescriptor() const override {

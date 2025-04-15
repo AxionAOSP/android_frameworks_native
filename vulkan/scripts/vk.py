@@ -786,7 +786,7 @@ VULKAN_EXTENSIONS_AND_STRUCTS_MAPPING = {
       {"VkPhysicalDeviceImage2DViewOf3DFeaturesEXT" : "VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_2D_VIEW_OF_3D_FEATURES_EXT"},
     ],
     "VK_EXT_custom_border_color" : [
-      {"VkPhysicalDeviceCustomBorderColorFeaturesEXT" : "VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_PROPERTIES_EXT"},
+      {"VkPhysicalDeviceCustomBorderColorFeaturesEXT" : "VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT"},
     ],
     "VK_EXT_primitive_topology_list_restart": [
       {"VkPhysicalDevicePrimitiveTopologyListRestartFeaturesEXT" : "VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIMITIVE_TOPOLOGY_LIST_RESTART_FEATURES_EXT"},

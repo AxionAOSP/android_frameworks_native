@@ -30,6 +30,7 @@
 #include "test_framework/core/DisplayConfiguration.h"
 #include "test_framework/hwc3/FakeComposer.h"
 #include "test_framework/hwc3/Hwc3Controller.h"
+#include "test_framework/hwc3/ObservingComposer.h"
 
 namespace android::surfaceflinger::tests::end2end::test_framework::hwc3 {
 
@@ -39,7 +40,7 @@ auto Hwc3Controller::make(std::span<const core::DisplayConfiguration> displays)
         -> base::expected<std::shared_ptr<hwc3::Hwc3Controller>, std::string> {
     using namespace std::string_literals;
 
-    auto controller = std::make_unique<Hwc3Controller>(Passkey{});
+    auto controller = std::make_shared<Hwc3Controller>(Passkey{});
     if (controller == nullptr) {
         return base::unexpected("Failed to construct the Hwc3Controller instance"s);
     }
@@ -60,8 +61,6 @@ auto Hwc3Controller::init(const std::span<const core::DisplayConfiguration> disp
         -> base::expected<void, std::string> {
     using namespace std::string_literals;
 
-    auto qualifiedServiceName = FakeComposer::getServiceName(baseServiceName);
-
     auto fakeComposerResult = FakeComposer::make();
     if (!fakeComposerResult) {
         return base::unexpected(std::move(fakeComposerResult).error());
@@ -72,7 +71,15 @@ auto Hwc3Controller::init(const std::span<const core::DisplayConfiguration> disp
         fakeComposer->addDisplay(display);
     }
 
-    auto binder = fakeComposer->getComposer()->asBinder();
+    auto observingComposerResult =
+            ObservingComposer::make(shared_from_this(), fakeComposer->getComposer());
+    if (!observingComposerResult) {
+        return base::unexpected(std::move(observingComposerResult).error());
+    }
+    auto observingComposer = *std::move(observingComposerResult);
+
+    const auto qualifiedServiceName = ObservingComposer::getServiceName(baseServiceName);
+    auto binder = observingComposer->getComposer()->asBinder();
 
     // This downgrade allows us to use the fake service name without it being defined in the
     // VINTF manifest.
@@ -86,7 +93,16 @@ auto Hwc3Controller::init(const std::span<const core::DisplayConfiguration> disp
     LOG(INFO) << "Registered service " << qualifiedServiceName << ". Error: " << status;
 
     mFakeComposer = std::move(fakeComposer);
+    mObservingComposer = std::move(observingComposer);
     return {};
+}
+
+auto Hwc3Controller::editCallbacks() -> Callbacks& {
+    return mCallbacks;
+}
+
+auto Hwc3Controller::callbacks() const -> const Callbacks& {
+    return mCallbacks;
 }
 
 auto Hwc3Controller::getServiceName() -> std::string {
