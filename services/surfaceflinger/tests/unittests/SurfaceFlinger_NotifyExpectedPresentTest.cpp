@@ -51,7 +51,8 @@ protected:
                                      TimePoint::now().ns() + s2ns(1), transaction.isAutoTimestamp,
                                      transaction.unCachedBuffers,
                                      /*HasListenerCallbacks=*/false, transaction.callbacks,
-                                     transaction.id, transaction.mergedTransactionIds);
+                                     transaction.id, transaction.mergedTransactionIds,
+                                     transaction.earlyWakeupInfo);
     }
 
     struct TransactionInfo {
@@ -66,6 +67,7 @@ protected:
         std::vector<client_cache_t> unCachedBuffers;
         uint64_t id = static_cast<uint64_t>(-1);
         std::vector<uint64_t> mergedTransactionIds;
+        gui::EarlyWakeupInfo earlyWakeupInfo;
         std::vector<ListenerCallbacks> callbacks;
     };
 

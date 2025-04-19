@@ -510,6 +510,9 @@ public:
         // per process will be used.
         sp<IBinder> mApplyToken = nullptr;
 
+        // Tracks the client setting the early wakeup request
+        gui::EarlyWakeupInfo mEarlyWakeupInfo;
+
         InputWindowCommands mInputWindowCommands;
         int mStatus = NO_ERROR;
 
@@ -584,6 +587,8 @@ public:
                                                 float clientDrawnCornerRadius);
         Transaction& setBackgroundBlurRadius(const sp<SurfaceControl>& sc,
                                              int backgroundBlurRadius);
+        Transaction& setBackgroundBlurScale(const sp<SurfaceControl>& sc,
+                                             float backgroundBlurScale);
         Transaction& setBlurRegions(const sp<SurfaceControl>& sc,
                                     const std::vector<BlurRegion>& regions);
         Transaction& setLayerStack(const sp<SurfaceControl>&, ui::LayerStack);
@@ -844,9 +849,10 @@ public:
         void setDisplayProjection(const sp<IBinder>& token, ui::Rotation orientation,
                                   const Rect& layerStackRect, const Rect& displayRect);
         void setDisplaySize(const sp<IBinder>& token, uint32_t width, uint32_t height);
+
         void setAnimationTransaction();
-        void setEarlyWakeupStart();
-        void setEarlyWakeupEnd();
+        void setEarlyWakeupStart(const gui::EarlyWakeupInfo& token);
+        void setEarlyWakeupEnd(const gui::EarlyWakeupInfo& token);
 
         /**
          * Strip the transaction of all permissioned requests, required when
@@ -905,10 +911,8 @@ public:
     static status_t removeTunnelModeEnabledListener(
             const sp<gui::ITunnelModeEnabledListener>& listener);
 
-    status_t addWindowInfosListener(
-            const sp<gui::WindowInfosListener>& windowInfosListener,
-            std::pair<std::vector<gui::WindowInfo>, std::vector<gui::DisplayInfo>>* outInitialInfo =
-                    nullptr);
+    status_t addWindowInfosListener(const sp<gui::WindowInfosListener>& windowInfosListener,
+                                    gui::WindowInfosUpdate* outInitialUpdate);
     status_t removeWindowInfosListener(const sp<gui::WindowInfosListener>& windowInfosListener);
 
     static void notifyShutdown();

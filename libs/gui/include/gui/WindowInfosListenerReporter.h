@@ -31,10 +31,9 @@ class WindowInfosListenerReporter : public gui::BnWindowInfosListener {
 public:
     static sp<WindowInfosListenerReporter> getInstance();
     binder::Status onWindowInfosChanged(const gui::WindowInfosUpdate& update) override;
-    status_t addWindowInfosListener(
-            const sp<gui::WindowInfosListener>& windowInfosListener,
-            const sp<gui::ISurfaceComposer>&,
-            std::pair<std::vector<gui::WindowInfo>, std::vector<gui::DisplayInfo>>* outInitialInfo);
+    status_t addWindowInfosListener(const sp<gui::WindowInfosListener>& windowInfosListener,
+                                    const sp<gui::ISurfaceComposer>&,
+                                    gui::WindowInfosUpdate* outInitialUpdate);
     status_t removeWindowInfosListener(const sp<gui::WindowInfosListener>& windowInfosListener,
                                        const sp<gui::ISurfaceComposer>& surfaceComposer);
     void reconnect(const sp<gui::ISurfaceComposer>&);
@@ -47,8 +46,7 @@ private:
     std::unordered_set<sp<gui::WindowInfosListener>, gui::SpHash<gui::WindowInfosListener>>
             mWindowInfosListeners GUARDED_BY(mListenersMutex);
 
-    std::vector<gui::WindowInfo> mLastWindowInfos GUARDED_BY(mListenersMutex);
-    std::vector<gui::DisplayInfo> mLastDisplayInfos GUARDED_BY(mListenersMutex);
+    gui::WindowInfosUpdate mLastUpdate GUARDED_BY(mListenersMutex);
 
     sp<gui::IWindowInfosPublisher> mWindowInfosPublisher;
     int64_t mListenerId;

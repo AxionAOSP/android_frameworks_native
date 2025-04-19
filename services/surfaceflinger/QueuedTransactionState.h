@@ -61,7 +61,8 @@ struct QueuedTransactionState {
                            bool hasListenerCallbacks,
                            std::vector<ListenerCallbacks> listenerCallbacks, int originPid,
                            int originUid, uint64_t transactionId,
-                           std::vector<uint64_t> mergedTransactionIds)
+                           std::vector<uint64_t> mergedTransactionIds,
+                           const gui::EarlyWakeupInfo& earlyWakeupInfo)
           : frameTimelineInfo(frameTimelineInfo),
             states(std::move(composerStates)),
             displays(displayStates),
@@ -77,7 +78,8 @@ struct QueuedTransactionState {
             originPid(originPid),
             originUid(originUid),
             id(transactionId),
-            mergedTransactionIds(std::move(mergedTransactionIds)) {}
+            mergedTransactionIds(std::move(mergedTransactionIds)),
+            earlyWakeupInfo(earlyWakeupInfo) {}
 
     // Invokes `void(const layer_state_t&)` visitor for matching layers.
     template <typename Visitor>
@@ -144,6 +146,7 @@ struct QueuedTransactionState {
     uint64_t id;
     bool sentFenceTimeoutWarning = false;
     std::vector<uint64_t> mergedTransactionIds;
+    gui::EarlyWakeupInfo earlyWakeupInfo;
     ftl::Flags<adpf::Workload> workloadHint;
 };
 

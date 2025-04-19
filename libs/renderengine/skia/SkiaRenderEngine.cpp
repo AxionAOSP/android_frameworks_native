@@ -944,7 +944,8 @@ void SkiaRenderEngine::drawLayersInternal(
 
                     cachedBlurs[layer.backgroundBlurRadius] = blurredImage;
 
-                    mBlurFilter->drawBlurRegion(canvas, bounds, layer.backgroundBlurRadius, 1.0f,
+                    mBlurFilter->drawBlurRegion(canvas, bounds, layer.backgroundBlurRadius,
+                                                layer.backgroundBlurScale, 1.0f,
                                                 blurRect, blurredImage, blurInput);
                 }
 
@@ -958,7 +959,7 @@ void SkiaRenderEngine::drawLayersInternal(
                     }
 
                     mBlurFilter->drawBlurRegion(canvas, getBlurRRect(region), region.blurRadius,
-                                                region.alpha, blurRect,
+                                                1.0f, region.alpha, blurRect,
                                                 cachedBlurs[region.blurRadius], blurInput);
                 }
             }

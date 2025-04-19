@@ -36,7 +36,9 @@ public:
     bool waitForWindowInfosPredicate(const WindowInfosPredicate& predicate) {
         std::promise<void> promise;
         auto listener = sp<WindowInfosListener>::make(std::move(predicate), promise);
-        mClient->addWindowInfosListener(listener);
+        gui::WindowInfosUpdate initialUpdate;
+        mClient->addWindowInfosListener(listener, &initialUpdate);
+        listener->onWindowInfosChanged(initialUpdate);
         auto future = promise.get_future();
         bool satisfied = future.wait_for(std::chrono::seconds{5 * HwTimeoutMultiplier()}) ==
                 std::future_status::ready;

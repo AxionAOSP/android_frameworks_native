@@ -266,6 +266,7 @@ std::string LayerSnapshot::getIsVisibleReason() const {
         reason << " boxShadowSettings.length=" << boxShadowSettings.toString();
     if (hasBorderSettings()) reason << "borderSettings=" << borderSettings.toString();
     if (backgroundBlurRadius > 0) reason << " backgroundBlurRadius=" << backgroundBlurRadius;
+    if (backgroundBlurScale != 1.0f) reason << " backgroundBlurScale=" << backgroundBlurScale;
     if (blurRegions.size() > 0) reason << " blurRegions.size()=" << blurRegions.size();
     if (contentDirty) reason << " contentDirty";
     return reason.str();

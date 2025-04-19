@@ -127,6 +127,9 @@ perfetto::protos::LayerState TransactionProtoParser::toProto(
     if (layer.what & layer_state_t::eBackgroundBlurRadiusChanged) {
         proto.set_background_blur_radius(layer.backgroundBlurRadius);
     }
+    if (layer.what & layer_state_t::eBackgroundBlurScaleChanged) {
+        proto.set_background_blur_scale(layer.backgroundBlurScale);
+    }
 
     if (layer.what & layer_state_t::eAlphaChanged) {
         proto.set_alpha(layer.color.a);
@@ -395,6 +398,9 @@ void TransactionProtoParser::fromProto(const perfetto::protos::LayerState& proto
     }
     if (proto.what() & layer_state_t::eBackgroundBlurRadiusChanged) {
         layer.backgroundBlurRadius = proto.background_blur_radius();
+    }
+    if (proto.what() & layer_state_t::eBackgroundBlurScaleChanged) {
+        layer.backgroundBlurScale = proto.background_blur_radius();
     }
 
     if (proto.what() & layer_state_t::eAlphaChanged) {

@@ -66,7 +66,8 @@ public:
             InputWindowCommands commands, int64_t desiredPresentTime, bool isAutoTimestamp,
             const std::vector<client_cache_t>& uncacheBuffers, bool hasListenerCallbacks,
             const std::vector<ListenerCallbacks>& listenerCallbacks, uint64_t transactionId,
-            const std::vector<uint64_t>& mergedTransactionIds) override {
+            const std::vector<uint64_t>& mergedTransactionIds,
+            const gui::EarlyWakeupInfo& earlyWakeupInfo) override {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
 
@@ -106,6 +107,8 @@ public:
         for (auto mergedTransactionId : mergedTransactionIds) {
             SAFE_PARCEL(data.writeUint64, mergedTransactionId);
         }
+
+        earlyWakeupInfo.writeToParcel(&data);
 
         if (flags & ISurfaceComposer::eOneWay) {
             return remote()->transact(BnSurfaceComposer::SET_TRANSACTION_STATE,
@@ -197,10 +200,14 @@ status_t BnSurfaceComposer::onTransact(
                 SAFE_PARCEL(data.readUint64, &mergedTransactions[i]);
             }
 
+            gui::EarlyWakeupInfo earlyWakeupInfo;
+            earlyWakeupInfo.readFromParcel(&data);
+
             return setTransactionState(frameTimelineInfo, state, displays, stateFlags, applyToken,
                                        std::move(inputWindowCommands), desiredPresentTime,
                                        isAutoTimestamp, uncacheBuffers, hasListenerCallbacks,
-                                       listenerCallbacks, transactionId, mergedTransactions);
+                                       listenerCallbacks, transactionId, mergedTransactions,
+                                       earlyWakeupInfo);
         }
         case GET_SCHEDULING_POLICY: {
             gui::SchedulingPolicy policy;

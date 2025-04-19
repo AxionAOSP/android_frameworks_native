@@ -142,6 +142,7 @@ struct LayerSettings {
     gui::BoxShadowSettings boxShadowSettings;
 
     int backgroundBlurRadius = 0;
+    float backgroundBlurScale = 1.0f;
 
     std::vector<BlurRegion> blurRegions;
 
@@ -201,6 +202,7 @@ static inline bool operator==(const LayerSettings& lhs, const LayerSettings& rhs
             lhs.disableBlending == rhs.disableBlending &&
             lhs.skipContentDraw == rhs.skipContentDraw && lhs.shadow == rhs.shadow &&
             lhs.backgroundBlurRadius == rhs.backgroundBlurRadius &&
+            lhs.backgroundBlurScale == rhs.backgroundBlurScale &&
             lhs.blurRegionTransform == rhs.blurRegionTransform &&
             lhs.stretchEffect == rhs.stretchEffect &&
             lhs.edgeExtensionEffect == rhs.edgeExtensionEffect &&
@@ -303,6 +305,7 @@ static inline void PrintTo(const LayerSettings& settings, ::std::ostream* os) {
         PrintTo(settings.shadow, os);
     }
     *os << "\n    .backgroundBlurRadius = " << settings.backgroundBlurRadius;
+    *os << "\n    .backgroundBlurScale = " << settings.backgroundBlurScale;
     if (settings.blurRegions.size()) {
         *os << "\n    .blurRegions =";
         for (auto blurRegion : settings.blurRegions) {

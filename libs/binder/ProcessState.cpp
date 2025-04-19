@@ -117,6 +117,11 @@ sp<ProcessState> ProcessState::selfOrNull()
     return init(nullptr, false /*requireDefault*/);
 }
 
+sp<ProcessState> ProcessState::selfIfKernelBinderEnabled() {
+    if (access(kDefaultDriver, R_OK) == -1) return nullptr;
+    return init(kDefaultDriver, false /*requireDefault*/);
+}
+
 [[clang::no_destroy]] static sp<ProcessState> gProcess;
 [[clang::no_destroy]] static std::mutex gProcessMutex;
 

@@ -916,11 +916,16 @@ void LayerSnapshotBuilder::updateSnapshot(LayerSnapshot& snapshot, const Args& a
 
     if (forceUpdate ||
         snapshot.clientChanges &
-                (layer_state_t::eBackgroundBlurRadiusChanged | layer_state_t::eBlurRegionsChanged |
+                (layer_state_t::eBackgroundBlurRadiusChanged |
+                 layer_state_t::eBackgroundBlurScaleChanged |
+                 layer_state_t::eBlurRegionsChanged |
                  layer_state_t::eAlphaChanged)) {
         snapshot.backgroundBlurRadius = args.supportsBlur
                 ? static_cast<int>(parentSnapshot.color.a * (float)requested.backgroundBlurRadius)
                 : 0;
+        snapshot.backgroundBlurScale = args.supportsBlur
+                ? requested.backgroundBlurScale
+                : 1.0f;
         snapshot.blurRegions = requested.blurRegions;
         for (auto& region : snapshot.blurRegions) {
             region.alpha = region.alpha * snapshot.color.a;

@@ -107,13 +107,12 @@ PointerChoreographer::PointerChoreographer(InputListenerInterface& inputListener
       : PointerChoreographer(
                 inputListener, policy,
                 [](const sp<android::gui::WindowInfosListener>& listener) {
-                    auto initialInfo = std::make_pair(std::vector<android::gui::WindowInfo>{},
-                                                      std::vector<android::gui::DisplayInfo>{});
+                    gui::WindowInfosUpdate initialInfo;
 #if defined(__ANDROID__)
                     SurfaceComposerClient::getDefault()->addWindowInfosListener(listener,
                                                                                 &initialInfo);
 #endif
-                    return initialInfo.first;
+                    return initialInfo.windowInfos;
                 },
                 [](const sp<android::gui::WindowInfosListener>& listener) {
 #if defined(__ANDROID__)

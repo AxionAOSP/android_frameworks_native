@@ -651,7 +651,8 @@ bool RequestedLayerState::isSimpleBufferUpdate(const layer_state_t& s) const {
             layer_state_t::eColorTransformChanged | layer_state_t::eBackgroundColorChanged |
             layer_state_t::eMatrixChanged | layer_state_t::eCornerRadiusChanged |
             layer_state_t::eClientDrawnCornerRadiusChanged |
-            layer_state_t::eBackgroundBlurRadiusChanged | layer_state_t::eBufferTransformChanged |
+            layer_state_t::eBackgroundBlurRadiusChanged |
+            layer_state_t::eBackgroundBlurScaleChanged | layer_state_t::eBufferTransformChanged |
             layer_state_t::eTransformToDisplayInverseChanged | layer_state_t::eCropChanged |
             layer_state_t::eDataspaceChanged | layer_state_t::eHdrMetadataChanged |
             layer_state_t::eSidebandStreamChanged | layer_state_t::eColorSpaceAgnosticChanged |

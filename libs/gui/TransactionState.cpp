@@ -32,6 +32,7 @@ status_t TransactionState::writeToParcel(Parcel* parcel) const {
     SAFE_PARCEL(parcel->writeStrongBinder, mApplyToken);
     SAFE_PARCEL(parcel->writeBool, mMayContainBuffer);
     SAFE_PARCEL(parcel->writeBool, mLogCallPoints);
+    mEarlyWakeupInfo.writeToParcel(parcel);
 
     SAFE_PARCEL(parcel->writeUint32, static_cast<uint32_t>(mDisplayStates.size()));
     for (auto const& displayState : mDisplayStates) {
@@ -73,6 +74,7 @@ status_t TransactionState::readFromParcel(const Parcel* parcel) {
     SAFE_PARCEL(parcel->readNullableStrongBinder, &mApplyToken);
     SAFE_PARCEL(parcel->readBool, &mMayContainBuffer);
     SAFE_PARCEL(parcel->readBool, &mLogCallPoints);
+    mEarlyWakeupInfo.readFromParcel(parcel);
 
     uint32_t count;
     SAFE_PARCEL_READ_SIZE(parcel->readUint32, &count, parcel->dataSize())
@@ -194,6 +196,7 @@ void TransactionState::merge(TransactionState&& other,
     // mApplyToken is explicitly not merged. Token should be set before applying the transactions to
     // make synchronization decisions a bit simpler.
     mergeFrameTimelineInfo(other.mFrameTimelineInfo);
+    mEarlyWakeupInfo = other.mEarlyWakeupInfo;
     other.clear();
 }
 
@@ -225,6 +228,7 @@ void TransactionState::clear() {
     mFlags = 0;
     mMayContainBuffer = false;
     mLogCallPoints = false;
+    mEarlyWakeupInfo = {};
 }
 
 layer_state_t* TransactionState::getLayerState(const sp<SurfaceControl>& sc) {

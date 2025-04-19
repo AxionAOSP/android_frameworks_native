@@ -957,7 +957,9 @@ InputDispatcher::InputDispatcher(InputDispatcherPolicyInterface& policy,
 
     mWindowInfoListener = sp<DispatcherWindowListener>::make(*this);
 #if defined(__ANDROID__)
-    SurfaceComposerClient::getDefault()->addWindowInfosListener(mWindowInfoListener);
+    gui::WindowInfosUpdate update;
+    SurfaceComposerClient::getDefault()->addWindowInfosListener(mWindowInfoListener, &update);
+    onWindowInfosChanged(update);
 #endif
     mKeyRepeatState.lastKeyEntry = nullptr;
 

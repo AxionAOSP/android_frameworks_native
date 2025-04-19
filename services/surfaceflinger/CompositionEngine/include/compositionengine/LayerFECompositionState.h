@@ -122,6 +122,9 @@ struct LayerFECompositionState {
     // Background blur in pixels
     int backgroundBlurRadius{0};
 
+    // Background blur content scale factor, between 0.0 and 1.0
+    float backgroundBlurScale{1.0f};
+
     // The transform from layer local coordinates to composition coordinates
     ui::Transform geomLayerTransform;
 

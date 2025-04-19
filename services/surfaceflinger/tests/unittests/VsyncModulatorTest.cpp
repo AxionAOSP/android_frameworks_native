@@ -68,6 +68,13 @@ protected:
     sp<TestableVsyncModulator> mVsyncModulator = sp<TestableVsyncModulator>::make(mOffsets, Now);
 
     void SetUp() override { EXPECT_EQ(kLate, mVsyncModulator->setVsyncConfigSet(mOffsets)); }
+
+    gui::EarlyWakeupInfo createTestEarlyWakeupInfo() {
+        gui::EarlyWakeupInfo earlyWakeupInfo;
+        earlyWakeupInfo.token = sp<BBinder>::make();
+        earlyWakeupInfo.trace = "example calling trace";
+        return earlyWakeupInfo;
+    }
 };
 
 #define CHECK_COMMIT(result, configs)                          \
@@ -88,8 +95,8 @@ TEST_F(VsyncModulatorTest, Late) {
 }
 
 TEST_F(VsyncModulatorTest, EarlyEnd) {
-    const auto token = sp<BBinder>::make();
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, token));
+    const auto earlyWakeupInfo = createTestEarlyWakeupInfo();
+    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, earlyWakeupInfo));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(MIN_EARLY_TRANSACTION_FRAMES - 1, kEarly, kEarly);
@@ -97,13 +104,14 @@ TEST_F(VsyncModulatorTest, EarlyEnd) {
 }
 
 TEST_F(VsyncModulatorTest, EarlyStart) {
-    const auto token = sp<BBinder>::make();
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyStart, token));
+    const auto earlyWakeupInfo = createTestEarlyWakeupInfo();
+    EXPECT_EQ(kEarly,
+              mVsyncModulator->setTransactionSchedule(Schedule::EarlyStart, earlyWakeupInfo));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(5 * MIN_EARLY_TRANSACTION_FRAMES, std::nullopt, kEarly);
 
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, token));
+    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, earlyWakeupInfo));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(MIN_EARLY_TRANSACTION_FRAMES - 1, kEarly, kEarly);
@@ -111,8 +119,9 @@ TEST_F(VsyncModulatorTest, EarlyStart) {
 }
 
 TEST_F(VsyncModulatorTest, EarlyStartWithMoreTransactions) {
-    const auto token = sp<BBinder>::make();
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyStart, token));
+    const auto earlyWakeupInfo = createTestEarlyWakeupInfo();
+    EXPECT_EQ(kEarly,
+              mVsyncModulator->setTransactionSchedule(Schedule::EarlyStart, earlyWakeupInfo));
 
     CHECK_COMMIT(kEarly, kEarly);
 
@@ -121,7 +130,7 @@ TEST_F(VsyncModulatorTest, EarlyStartWithMoreTransactions) {
         CHECK_REFRESH(1, std::nullopt, kEarly);
     }
 
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, token));
+    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, earlyWakeupInfo));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(MIN_EARLY_TRANSACTION_FRAMES - 1, kEarly, kEarly);
@@ -129,19 +138,20 @@ TEST_F(VsyncModulatorTest, EarlyStartWithMoreTransactions) {
 }
 
 TEST_F(VsyncModulatorTest, EarlyStartAfterEarlyEnd) {
-    const auto token = sp<BBinder>::make();
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, token));
+    const auto earlyWakeupInfo = createTestEarlyWakeupInfo();
+    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, earlyWakeupInfo));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(MIN_EARLY_TRANSACTION_FRAMES - 1, kEarly, kEarly);
 
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyStart, token));
+    EXPECT_EQ(kEarly,
+              mVsyncModulator->setTransactionSchedule(Schedule::EarlyStart, earlyWakeupInfo));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(1, kEarly, kEarly);
     CHECK_REFRESH(5 * MIN_EARLY_TRANSACTION_FRAMES, std::nullopt, kEarly);
 
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, token));
+    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, earlyWakeupInfo));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(MIN_EARLY_TRANSACTION_FRAMES - 1, kEarly, kEarly);
@@ -149,13 +159,14 @@ TEST_F(VsyncModulatorTest, EarlyStartAfterEarlyEnd) {
 }
 
 TEST_F(VsyncModulatorTest, EarlyStartAfterEarlyEndWithMoreTransactions) {
-    const auto token = sp<BBinder>::make();
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, token));
+    const auto earlyWakeupInfo = createTestEarlyWakeupInfo();
+    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, earlyWakeupInfo));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(MIN_EARLY_TRANSACTION_FRAMES - 1, kEarly, kEarly);
 
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyStart, token));
+    EXPECT_EQ(kEarly,
+              mVsyncModulator->setTransactionSchedule(Schedule::EarlyStart, earlyWakeupInfo));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(1, kEarly, kEarly);
@@ -165,7 +176,7 @@ TEST_F(VsyncModulatorTest, EarlyStartAfterEarlyEndWithMoreTransactions) {
         CHECK_REFRESH(1, std::nullopt, kEarly);
     }
 
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, token));
+    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, earlyWakeupInfo));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(MIN_EARLY_TRANSACTION_FRAMES - 1, kEarly, kEarly);
@@ -173,24 +184,28 @@ TEST_F(VsyncModulatorTest, EarlyStartAfterEarlyEndWithMoreTransactions) {
 }
 
 TEST_F(VsyncModulatorTest, EarlyStartDifferentClients) {
-    const auto token1 = sp<BBinder>::make();
-    const auto token2 = sp<BBinder>::make();
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyStart, token1));
+    const auto earlyWakeupInfo1 = createTestEarlyWakeupInfo();
+    const auto earlyWakeupInfo2 = createTestEarlyWakeupInfo();
+    EXPECT_EQ(kEarly,
+              mVsyncModulator->setTransactionSchedule(Schedule::EarlyStart, earlyWakeupInfo1));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(5 * MIN_EARLY_TRANSACTION_FRAMES, std::nullopt, kEarly);
 
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyStart, token2));
+    EXPECT_EQ(kEarly,
+              mVsyncModulator->setTransactionSchedule(Schedule::EarlyStart, earlyWakeupInfo2));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(5 * MIN_EARLY_TRANSACTION_FRAMES, std::nullopt, kEarly);
 
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, token1));
+    EXPECT_EQ(kEarly,
+              mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, earlyWakeupInfo1));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(5 * MIN_EARLY_TRANSACTION_FRAMES, std::nullopt, kEarly);
 
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, token2));
+    EXPECT_EQ(kEarly,
+              mVsyncModulator->setTransactionSchedule(Schedule::EarlyEnd, earlyWakeupInfo2));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(MIN_EARLY_TRANSACTION_FRAMES - 1, kEarly, kEarly);
@@ -198,13 +213,14 @@ TEST_F(VsyncModulatorTest, EarlyStartDifferentClients) {
 }
 
 TEST_F(VsyncModulatorTest, EarlyStartWithBinderDeath) {
-    const auto token = sp<BBinder>::make();
-    EXPECT_EQ(kEarly, mVsyncModulator->setTransactionSchedule(Schedule::EarlyStart, token));
+    const auto earlyWakeupInfo = createTestEarlyWakeupInfo();
+    EXPECT_EQ(kEarly,
+              mVsyncModulator->setTransactionSchedule(Schedule::EarlyStart, earlyWakeupInfo));
 
     CHECK_COMMIT(kEarly, kEarly);
     CHECK_REFRESH(5 * MIN_EARLY_TRANSACTION_FRAMES, std::nullopt, kEarly);
 
-    mVsyncModulator->binderDied(token);
+    mVsyncModulator->binderDied(earlyWakeupInfo.token);
 
     CHECK_COMMIT(std::nullopt, kLate);
 }

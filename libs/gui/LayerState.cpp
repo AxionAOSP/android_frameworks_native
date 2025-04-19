@@ -90,6 +90,7 @@ layer_state_t::layer_state_t()
         cornerRadius(0.0f),
         clientDrawnCornerRadius(0.0f),
         backgroundBlurRadius(0),
+        backgroundBlurScale{1.0f},
         color(0),
         bufferTransform(0),
         transformToDisplayInverse(false),
@@ -166,6 +167,7 @@ status_t layer_state_t::write(Parcel& output) const
     SAFE_PARCEL(output.writeFloat, cornerRadius);
     SAFE_PARCEL(output.writeFloat, clientDrawnCornerRadius);
     SAFE_PARCEL(output.writeUint32, backgroundBlurRadius);
+    SAFE_PARCEL(output.writeFloat, backgroundBlurScale);
     SAFE_PARCEL(output.writeParcelable, metadata);
     SAFE_PARCEL(output.writeFloat, bgColor.r);
     SAFE_PARCEL(output.writeFloat, bgColor.g);
@@ -305,6 +307,7 @@ status_t layer_state_t::read(const Parcel& input)
     SAFE_PARCEL(input.readFloat, &cornerRadius);
     SAFE_PARCEL(input.readFloat, &clientDrawnCornerRadius);
     SAFE_PARCEL(input.readUint32, &backgroundBlurRadius);
+    SAFE_PARCEL(input.readFloat, &backgroundBlurScale);
     SAFE_PARCEL(input.readParcelable, &metadata);
 
     SAFE_PARCEL(input.readFloat, &tmpFloat);
@@ -637,6 +640,10 @@ void layer_state_t::merge(const layer_state_t& other) {
         what |= eBackgroundBlurRadiusChanged;
         backgroundBlurRadius = other.backgroundBlurRadius;
     }
+    if (other.what & eBackgroundBlurScaleChanged) {
+        what |= eBackgroundBlurScaleChanged;
+        backgroundBlurScale = other.backgroundBlurScale;
+    }
     if (other.what & eBlurRegionsChanged) {
         what |= eBlurRegionsChanged;
         blurRegions = other.blurRegions;
@@ -860,6 +867,7 @@ uint64_t layer_state_t::diff(const layer_state_t& other) const {
     CHECK_DIFF(diff, eCornerRadiusChanged, other, cornerRadius);
     CHECK_DIFF(diff, eClientDrawnCornerRadiusChanged, other, clientDrawnCornerRadius);
     CHECK_DIFF(diff, eBackgroundBlurRadiusChanged, other, backgroundBlurRadius);
+    CHECK_DIFF(diff, eBackgroundBlurScaleChanged, other, backgroundBlurScale);
     if (other.what & eBlurRegionsChanged) diff |= eBlurRegionsChanged;
     if (other.what & eRelativeLayerChanged) {
         diff |= eRelativeLayerChanged;

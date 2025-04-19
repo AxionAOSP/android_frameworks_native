@@ -35,7 +35,7 @@ sp<WindowInfosListenerReporter> WindowInfosListenerReporter::getInstance() {
 status_t WindowInfosListenerReporter::addWindowInfosListener(
         const sp<WindowInfosListener>& windowInfosListener,
         const sp<gui::ISurfaceComposer>& surfaceComposer,
-        std::pair<std::vector<gui::WindowInfo>, std::vector<gui::DisplayInfo>>* outInitialInfo) {
+        gui::WindowInfosUpdate* outInitialUpdate) {
     status_t status = OK;
     {
         std::scoped_lock lock(mListenersMutex);
@@ -53,9 +53,8 @@ status_t WindowInfosListenerReporter::addWindowInfosListener(
             mWindowInfosListeners.insert(windowInfosListener);
         }
 
-        if (outInitialInfo != nullptr) {
-            outInitialInfo->first = mLastWindowInfos;
-            outInitialInfo->second = mLastDisplayInfos;
+        if (outInitialUpdate != nullptr) {
+            *outInitialUpdate = mLastUpdate;
         }
     }
 
@@ -77,8 +76,7 @@ status_t WindowInfosListenerReporter::removeWindowInfosListener(
             status = statusTFromBinderStatus(s);
             // Clear the last stored state since we're disabling updates and don't want to hold
             // stale values
-            mLastWindowInfos.clear();
-            mLastDisplayInfos.clear();
+            mLastUpdate = gui::WindowInfosUpdate();
         }
 
         if (status == OK) {
@@ -100,8 +98,7 @@ binder::Status WindowInfosListenerReporter::onWindowInfosChanged(
             windowInfosListeners.insert(listener);
         }
 
-        mLastWindowInfos = update.windowInfos;
-        mLastDisplayInfos = update.displayInfos;
+        mLastUpdate = update;
     }
 
     for (auto listener : windowInfosListeners) {

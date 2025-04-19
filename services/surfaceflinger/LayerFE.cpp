@@ -167,11 +167,13 @@ std::optional<compositionengine::LayerFE::LayerSettings> LayerFE::prepareClientC
     switch (targetSettings.blurSetting) {
         case LayerFE::ClientCompositionTargetSettings::BlurSetting::Enabled:
             layerSettings.backgroundBlurRadius = mSnapshot->backgroundBlurRadius;
+            layerSettings.backgroundBlurScale = mSnapshot->backgroundBlurScale;
             layerSettings.blurRegions = mSnapshot->blurRegions;
             layerSettings.blurRegionTransform = mSnapshot->localTransformInverse.asMatrix4();
             break;
         case LayerFE::ClientCompositionTargetSettings::BlurSetting::BackgroundBlurOnly:
             layerSettings.backgroundBlurRadius = mSnapshot->backgroundBlurRadius;
+            layerSettings.backgroundBlurScale = mSnapshot->backgroundBlurScale;
             break;
         case LayerFE::ClientCompositionTargetSettings::BlurSetting::BlurRegionsOnly:
             layerSettings.blurRegions = mSnapshot->blurRegions;

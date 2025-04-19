@@ -320,6 +320,17 @@ public:
         mLifecycleManager.applyTransactions(transactions);
     }
 
+    void setBackgroundBlurScale(uint32_t id, float backgroundBlurScale) {
+        std::vector<QueuedTransactionState> transactions;
+        transactions.emplace_back();
+        transactions.back().states.push_back({});
+
+        transactions.back().states.front().state.what = layer_state_t::eBackgroundBlurScaleChanged;
+        transactions.back().states.front().layerId = id;
+        transactions.back().states.front().state.backgroundBlurScale = backgroundBlurScale;
+        mLifecycleManager.applyTransactions(transactions);
+    }
+
     void setFrameRateSelectionPriority(uint32_t id, int32_t priority) {
         std::vector<QueuedTransactionState> transactions;
         transactions.emplace_back();
