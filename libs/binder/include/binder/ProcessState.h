@@ -40,10 +40,6 @@ class IPCThreadState;
 class ProcessState : public virtual RefBase {
 public:
     LIBBINDER_EXPORTED static sp<ProcessState> self();
-    // The behavior is the same as self() if kernel binder is enabled for this
-    // process (can it reach the binder device node). If not, this returns null
-    // and does not create a ProcessState object.
-    LIBBINDER_EXPORTED static sp<ProcessState> selfIfKernelBinderEnabled();
     LIBBINDER_EXPORTED static sp<ProcessState> selfOrNull();
 
     LIBBINDER_EXPORTED static bool isVndservicemanagerEnabled();

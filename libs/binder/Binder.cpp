@@ -417,7 +417,7 @@ status_t BBinder::transact(
         }
     }
 
-    if (kEnableKernelIpc && mRecordingOn && code != START_RECORDING_TRANSACTION) [[unlikely]] {
+    if (kEnableKernelIpc && kEnableRecording && mRecordingOn && code != START_RECORDING_TRANSACTION) [[unlikely]] {
         Extras* e = mExtras.load(std::memory_order_acquire);
         RpcMutexUniqueLock lock(e->mLock);
         if (mRecordingOn) {

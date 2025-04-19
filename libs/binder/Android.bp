@@ -469,6 +469,7 @@ release_libbinder_binder_observer_config {
     },
 }
 
+
 soong_config_module_type {
     name: "libbinder_remove_cache_static_list_config",
     module_type: "cc_defaults",
@@ -856,7 +857,7 @@ cc_library_static {
     ],
 }
 
-// ServiceManager AIDL interface between libbinder and framework.jar
+// AIDL interface between libbinder and framework.jar
 filegroup {
     name: "libbinder_aidl",
     srcs: [
@@ -875,15 +876,6 @@ filegroup {
     name: "libbinder_accessor_aidl",
     srcs: [
         "aidl/android/os/IAccessor.aidl",
-    ],
-    path: "aidl",
-    visibility: [":__subpackages__"],
-}
-
-filegroup {
-    name: "libbinder_rpc_aidl",
-    srcs: [
-        "aidl/android/os/IRpcProvider.aidl",
     ],
     path: "aidl",
     visibility: [":__subpackages__"],
@@ -912,19 +904,12 @@ aidl_interface {
 }
 
 aidl_interface {
-    name: "servicemanager_aidl",
+    name: "libbinder_aidl_test_stub",
     unstable: true,
     local_include_dir: "aidl",
     srcs: [":libbinder_aidl"],
     vendor_available: true,
     backend: {
-        cpp: {
-            // libbinder exports this type itself so use that
-            enabled: false,
-        },
-        rust: {
-            enabled: true,
-        },
         java: {
             enabled: false,
         },
@@ -932,33 +917,6 @@ aidl_interface {
     visibility: [
         ":__subpackages__",
         "//system/tools/aidl:__subpackages__",
-        "//frameworks/native/cmds/servicemanager/rpc_servicemanager",
-    ],
-}
-
-aidl_interface {
-    name: "rpc_servicemanager_aidl",
-    unstable: true,
-    local_include_dir: "aidl",
-    srcs: [":libbinder_rpc_aidl"],
-    vendor_available: true,
-    backend: {
-        rust: {
-            enabled: true,
-            apex_available: [
-                "com.android.virt",
-                "com.android.compos",
-            ],
-        },
-        java: {
-            enabled: false,
-        },
-    },
-    visibility: [
-        ":__subpackages__",
-        "//system/tools/aidl:__subpackages__",
-        "//frameworks/native/cmds/servicemanager/rpc_servicemanager",
-        "//packages/modules/Virtualization:__subpackages__",
     ],
 }
 
