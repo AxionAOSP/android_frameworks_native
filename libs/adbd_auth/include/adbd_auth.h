@@ -28,6 +28,7 @@
 __BEGIN_DECLS
 
 // The transport type of the device connection.
+// must be in sync with frameworks/base/core/java/android/debug/AdbTransportType.aidl
 enum AdbTransportType : int32_t {
     kAdbTransportTypeUsb = 0,
     kAdbTransportTypeWifi,
