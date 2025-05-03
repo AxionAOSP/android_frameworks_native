@@ -123,6 +123,7 @@ void FlagManager::dump(std::string& result) const {
     DUMP_LEGACY_SERVER_FLAG(use_skia_tracing);
 
     /// Trunk stable server (R/W) flags ///
+    DUMP_ACONFIG_FLAG(adpf_cpu_effects_loadup);
     DUMP_ACONFIG_FLAG(adpf_gpu_sf);
     DUMP_ACONFIG_FLAG(adpf_native_session_manager);
     DUMP_ACONFIG_FLAG(adpf_use_fmq_channel);
@@ -289,6 +290,7 @@ FLAG_MANAGER_ACONFIG_FLAG(synced_resolution_switch, "");
 
 /// Trunk stable server (R/W) flags ///
 FLAG_MANAGER_ACONFIG_FLAG(refresh_rate_overlay_on_external_display, "")
+FLAG_MANAGER_ACONFIG_FLAG(adpf_cpu_effects_loadup, "");
 FLAG_MANAGER_ACONFIG_FLAG(adpf_gpu_sf, "")
 FLAG_MANAGER_ACONFIG_FLAG(adpf_native_session_manager, "");
 FLAG_MANAGER_ACONFIG_FLAG(graphite_renderengine_preview_rollout, "");

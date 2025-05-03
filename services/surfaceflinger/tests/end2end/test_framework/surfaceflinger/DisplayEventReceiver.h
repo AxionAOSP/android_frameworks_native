@@ -30,17 +30,20 @@
 #include <binder/IBinder.h>
 #include <ftl/finalizer.h>
 #include <ftl/flags.h>
+#include <ftl/function.h>
 #include <gui/DisplayEventReceiver.h>
 #include <gui/VsyncEventData.h>
 #include <ui/DisplayId.h>
 #include <utils/StrongPointer.h>
 
+#include "test_framework/core/DisplayConfiguration.h"
 #include "test_framework/surfaceflinger/PollFdThread.h"
 #include "test_framework/surfaceflinger/events/Hotplug.h"
 #include "test_framework/surfaceflinger/events/VSyncTiming.h"
 
 namespace android::surfaceflinger::tests::end2end::test_framework::surfaceflinger {
 
+class SFController;
 class PollFdThread;
 
 class DisplayEventReceiver final {
@@ -58,9 +61,13 @@ class DisplayEventReceiver final {
         events::Hotplug::AsyncConnector onHotplug;
     };
 
+    using PhysicalIdToTestDisplayId = ftl::Function<
+            auto(PhysicalDisplayId)->std::optional<test_framework::core::DisplayConfiguration::Id>>;
+
     [[nodiscard]] static auto make(
-            const sp<gui::ISurfaceComposer>& client, PollFdThread& pollFdThread,
-            gui::ISurfaceComposer::VsyncSource source, const sp<IBinder>& layerHandle,
+            std::weak_ptr<SFController> controller, const sp<gui::ISurfaceComposer>& client,
+            PollFdThread& pollFdThread, gui::ISurfaceComposer::VsyncSource source,
+            const sp<IBinder>& layerHandle,
             const ftl::Flags<gui::ISurfaceComposer::EventRegistration>& events)
             -> base::expected<std::shared_ptr<DisplayEventReceiver>, std::string>;
 
@@ -86,7 +93,8 @@ class DisplayEventReceiver final {
     using Timestamp = std::chrono::steady_clock::time_point;
     using VsyncEventData = android::VsyncEventData;
 
-    [[nodiscard]] auto init(const sp<gui::ISurfaceComposer>& client, PollFdThread& pollFdThread,
+    [[nodiscard]] auto init(std::weak_ptr<SFController> controller,
+                            const sp<gui::ISurfaceComposer>& client, PollFdThread& pollFdThread,
                             gui::ISurfaceComposer::VsyncSource source,
                             const sp<IBinder>& layerHandle,
                             const ftl::Flags<gui::ISurfaceComposer::EventRegistration>& events)
@@ -94,6 +102,8 @@ class DisplayEventReceiver final {
 
     void processReceivedEvents();
     void processReceivedEvents(std::span<Event> events);
+    auto mapPhysicalDisplayIdToTestDisplayId(PhysicalDisplayId displayId)
+            -> std::optional<core::DisplayConfiguration::Id>;
     void onVsync(DisplayId displayId, Timestamp timestamp, uint32_t count,
                  VsyncEventData vsyncData);
     void onHotplug(DisplayId displayId, Timestamp timestamp, bool connected,
@@ -105,6 +115,7 @@ class DisplayEventReceiver final {
     static void onHdcpLevelsChange(DisplayId displayId, Timestamp timestamp, int32_t connectedLevel,
                                    int32_t maxLevel);
 
+    std::weak_ptr<SFController> mController;
     Callbacks mCallbacks;
 
     sp<gui::IDisplayEventConnection> mDisplayEventConnection;

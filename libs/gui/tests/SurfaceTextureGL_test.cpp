@@ -737,7 +737,6 @@ TEST_F(SurfaceTextureGLTest, InvalidWidthOrHeightFails) {
     ASSERT_NE(NO_ERROR, mST->updateTexImage());
 }
 
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
 TEST_F(SurfaceTextureGLTest, TestUnlimitedSlots) {
     ASSERT_EQ(OK, mSTC->connect(NATIVE_WINDOW_API_CPU, sp<StubSurfaceListener>::make()));
     ASSERT_EQ(OK, mSTC->setMaxDequeuedBufferCount(256));
@@ -762,5 +761,4 @@ TEST_F(SurfaceTextureGLTest, TestUnlimitedSlots) {
         checkPixel(0, 0, i, i, i, i);
     }
 }
-#endif
 } // namespace android

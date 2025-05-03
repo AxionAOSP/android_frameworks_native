@@ -155,7 +155,6 @@ TEST_F(MultiDisplayTest, RenderLayerInMirroredVirtualDisplay) {
     sc->expectColor(Rect(0, 0, 9, 9), {0, 0, 0, 255});
 }
 
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
 TEST_F(MultiDisplayTest, rejectDuplicateLayerStacks) {
     // Setup
     sp<CpuConsumer> cpuConsumer1 = sp<CpuConsumer>::make(static_cast<size_t>(1));
@@ -197,7 +196,6 @@ TEST_F(MultiDisplayTest, rejectDuplicateLayerStacks) {
     ASSERT_EQ(NO_ERROR, cpuConsumer1->lockNextBuffer(&buffer1));
     ASSERT_NE(NO_ERROR, cpuConsumer2->lockNextBuffer(&buffer2));
 }
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
 } // namespace android
 
 // TODO(b/129481165): remove the #pragma below and fix conversion issues

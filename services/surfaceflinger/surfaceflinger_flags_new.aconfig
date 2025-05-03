@@ -4,6 +4,16 @@ package: "com.android.graphics.surfaceflinger.flags"
 container: "system"
 
 flag {
+  name: "adpf_cpu_effects_loadup"
+  namespace: "window_surfaces"
+  description: "Enables CPU loadup hints for effects using client composition"
+  bug: "409887260"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+} # adpf_cpu_effects_loadup
+
+flag {
   name: "adpf_fmq_sf"
   namespace: "game"
   description: "Guards use of the ADPF FMQ system specifically for SurfaceFlinger"

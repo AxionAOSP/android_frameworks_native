@@ -4031,7 +4031,6 @@ void SurfaceFlinger::processDisplayAdded(const wp<IBinder>& displayToken,
                  "adding a supported display, but rendering "
                  "surface is provided (%p), ignoring it",
                  state.surface.get());
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
         const auto frameBufferSurface =
                 sp<FramebufferSurface>::make(getHwComposer(), state.physical->id, bqProducer,
                                              bqConsumer,
@@ -4039,13 +4038,6 @@ void SurfaceFlinger::processDisplayAdded(const wp<IBinder>& displayToken,
                                              ui::Size(maxGraphicsWidth, maxGraphicsHeight));
         displaySurface = frameBufferSurface;
         producer = frameBufferSurface->getSurface()->getIGraphicBufferProducer();
-#else
-        displaySurface =
-                sp<FramebufferSurface>::make(getHwComposer(), state.physical->id, bqConsumer,
-                                             state.physical->activeMode->getResolution(),
-                                             ui::Size(maxGraphicsWidth, maxGraphicsHeight));
-        producer = bqProducer;
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
     }
 
     LOG_FATAL_IF(!displaySurface);

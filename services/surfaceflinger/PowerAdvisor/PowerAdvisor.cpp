@@ -807,7 +807,14 @@ void PowerAdvisor::setCommittedWorkload(ftl::Flags<Workload> workload) {
                                               ftl::truncated<20>(mCommittedWorkload.string()))
                                           .c_str());
 
-        // TODO(b/385028458) load up hint
+        // TODO(b/385028458) load up hint for other increased workloads.
+
+        // Provides a load up hint only for effects that require client
+        // composition, such as blur or shadows.
+        if (FlagManager::getInstance().adpf_cpu_effects_loadup() &&
+            mCommittedWorkload.any(adpf::Workload::EFFECTS)) {
+            notifyCpuLoadUp();
+        }
     }
 }
 

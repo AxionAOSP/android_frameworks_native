@@ -17,13 +17,20 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 #include <android-base/expected.h>
+#include <android-base/thread_annotations.h>
 #include <ftl/finalizer.h>
+#include <ui/DisplayId.h>
+#include <utils/Mutex.h>
 #include <utils/StrongPointer.h>
 
+#include "test_framework/core/DisplayConfiguration.h"
 #include "test_framework/surfaceflinger/PollFdThread.h"
 #include "test_framework/surfaceflinger/Surface.h"
 
@@ -45,7 +52,7 @@ namespace android::surfaceflinger::tests::end2end::test_framework::surfaceflinge
 class DisplayEventReceiver;
 class PollFdThread;
 
-class SFController final {
+class SFController final : public std::enable_shared_from_this<SFController> {
     struct Passkey;  // Uses the passkey idiom to restrict construction.
 
   public:
@@ -66,15 +73,26 @@ class SFController final {
     auto makeSurface(const Surface::CreationArgs& args)
             -> base::expected<std::shared_ptr<Surface>, std::string>;
 
+    void onDisplayConnectionChanged(PhysicalDisplayId displayId, bool connected);
+    auto mapPhysicalDisplayIdToTestDisplayId(PhysicalDisplayId displayId)
+            -> std::optional<core::DisplayConfiguration::Id>;
+
   private:
     [[nodiscard]] auto init() -> base::expected<void, std::string>;
     static void start();
     void stop();
+    void initializeDisplayIdMapping();
+    void addDisplayIdToMapping(PhysicalDisplayId displayId);
 
     std::shared_ptr<PollFdThread> mPollFdThread;
     sp<gui::ISurfaceComposer> mSurfaceComposerAidl;
     sp<gui::ISurfaceComposerClient> mSurfaceComposerClientAidl;
     sp<SurfaceComposerClient> mSurfaceComposerClient;
+    std::shared_ptr<DisplayEventReceiver> mDisplayEventReceiver;
+
+    mutable std::mutex mMutex;
+    std::unordered_map<PhysicalDisplayId, core::DisplayConfiguration::Id>
+            mPhysicalDisplayIdToTestDisplayId GUARDED_BY(mMutex);
 
     // Finalizers should be last so their destructors are invoked first.
     ftl::FinalizerFtl mCleanup;

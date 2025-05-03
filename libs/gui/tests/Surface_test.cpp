@@ -61,6 +61,7 @@
 
 #include "Constants.h"
 #include "MockConsumer.h"
+#include "hardware/gralloc.h"
 #include "testserver/TestServerClient.h"
 
 namespace android {
@@ -2283,8 +2284,6 @@ TEST_F(SurfaceTest, BatchIllegalOperations) {
     ASSERT_EQ(NO_ERROR, surface->disconnect(NATIVE_WINDOW_API_CPU));
 }
 
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_PLATFORM_API_IMPROVEMENTS)
-
 TEST_F(SurfaceTest, PlatformBufferMethods) {
     sp<CpuConsumer> cpuConsumer = sp<CpuConsumer>::make(1);
     sp<Surface> surface = cpuConsumer->getSurface();
@@ -2429,6 +2428,28 @@ TEST_F(SurfaceTest, QueueAcquireReleaseDequeue_CalledInStack_DoesNotDeadlock) {
     EXPECT_EQ(OK, surface->disconnect(NATIVE_WINDOW_API_CPU));
 }
 
+// See: b/414442592
+TEST_F(SurfaceTest, DequeueBuffer_WithDeadConsumer_DoesNotCrash) {
+    auto [consumer, surface] = BufferItemConsumer::create(GRALLOC_USAGE_SW_READ_OFTEN);
+
+    sp<SurfaceListener> surfaceListener = sp<StubSurfaceListener>::make();
+    EXPECT_EQ(OK, surface->connect(NATIVE_WINDOW_API_CPU, surfaceListener, false));
+
+    sp<GraphicBuffer> buffer;
+    sp<Fence> fence;
+    EXPECT_EQ(OK, surface->dequeueBuffer(&buffer, &fence));
+    EXPECT_EQ(OK, surface->queueBuffer(buffer, fence));
+
+    consumer->abandon();
+
+    auto beforeBuffer = buffer;
+    auto beforeFence = fence;
+
+    EXPECT_NE(OK, surface->dequeueBuffer(&buffer, &fence));
+    EXPECT_EQ(buffer, beforeBuffer);
+    EXPECT_EQ(fence, beforeFence);
+}
+
 TEST_F(SurfaceTest, ViewSurface_toString) {
     view::Surface surface{};
     EXPECT_EQ("", surface.toString());
@@ -2564,7 +2585,6 @@ TEST_F(SurfaceTest, QueueBufferOutput_TracksReplacements_Plural) {
     EXPECT_TRUE(outputs[0].bufferReplaced);
     EXPECT_TRUE(outputs[1].bufferReplaced);
 }
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_PLATFORM_API_IMPROVEMENTS)
 
 #if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_UNLIMITED_SLOTS)
 TEST_F(SurfaceTest, UnlimitedSlots_FailsOnIncompatibleConsumer) {

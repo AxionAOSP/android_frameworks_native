@@ -121,7 +121,6 @@ String16 Surface::readMaybeEmptyString16(const Parcel* parcel) {
     return str.value_or(String16());
 }
 
-#if WB_LIBCAMERASERVICE_WITH_DEPENDENCIES
 Surface Surface::fromSurface(const sp<android::Surface>& surface) {
     if (surface == nullptr) {
         ALOGE("%s: Error: view::Surface::fromSurface failed due to null surface.", __FUNCTION__);
@@ -156,7 +155,6 @@ status_t Surface::getUniqueId(uint64_t* out_id) const {
 bool Surface::isEmpty() const {
     return graphicBufferProducer == nullptr;
 }
-#endif
 
 std::string Surface::toString() const {
     std::stringstream out;

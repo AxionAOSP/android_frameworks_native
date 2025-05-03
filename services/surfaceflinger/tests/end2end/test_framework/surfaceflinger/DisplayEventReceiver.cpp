@@ -41,8 +41,10 @@
 #include <ui/DisplayId.h>
 #include <utils/StrongPointer.h>
 
+#include "test_framework/core/DisplayConfiguration.h"
 #include "test_framework/surfaceflinger/DisplayEventReceiver.h"
 #include "test_framework/surfaceflinger/PollFdThread.h"
+#include "test_framework/surfaceflinger/SFController.h"
 #include "test_framework/surfaceflinger/events/Hotplug.h"
 #include "test_framework/surfaceflinger/events/VSyncTiming.h"
 
@@ -50,7 +52,8 @@ namespace android::surfaceflinger::tests::end2end::test_framework::surfaceflinge
 
 struct DisplayEventReceiver::Passkey final {};
 
-auto DisplayEventReceiver::make(const sp<gui::ISurfaceComposer>& client, PollFdThread& pollFdThread,
+auto DisplayEventReceiver::make(std::weak_ptr<SFController> controller,
+                                const sp<gui::ISurfaceComposer>& client, PollFdThread& pollFdThread,
                                 gui::ISurfaceComposer::VsyncSource source,
                                 const sp<IBinder>& layerHandle,
                                 const ftl::Flags<gui::ISurfaceComposer::EventRegistration>& events)
@@ -61,7 +64,9 @@ auto DisplayEventReceiver::make(const sp<gui::ISurfaceComposer>& client, PollFdT
     if (instance == nullptr) {
         return base::unexpected("Failed to construct a DisplayEventReceiver"s);
     }
-    if (auto result = instance->init(client, pollFdThread, source, layerHandle, events); !result) {
+    if (auto result = instance->init(std::move(controller), client, pollFdThread, source,
+                                     layerHandle, events);
+        !result) {
         return base::unexpected("Failed to init a DisplayEventReceiver: " + result.error());
     }
     return std::move(instance);
@@ -72,7 +77,9 @@ DisplayEventReceiver::DisplayEventReceiver(Passkey passkey) {
 }
 
 [[nodiscard]] auto DisplayEventReceiver::init(
-        const sp<gui::ISurfaceComposer>& client, PollFdThread& pollFdThread,
+        std::weak_ptr<SFController> controller, const sp<gui::ISurfaceComposer>& client,
+        PollFdThread& pollFdThread,
+
         gui::ISurfaceComposer::VsyncSource source, const sp<IBinder>& layerHandle,
         const ftl::Flags<gui::ISurfaceComposer::EventRegistration>& events)
         -> base::expected<void, std::string> {
@@ -92,6 +99,7 @@ DisplayEventReceiver::DisplayEventReceiver(Passkey passkey) {
         return base::unexpected("failed to steal the receive channel"s);
     }
 
+    mController = std::move(controller);
     mPollFdThread = &pollFdThread;
     mDisplayEventConnection = std::move(displayEventConnection);
     mDataChannel = std::move(dataChannel);
@@ -195,14 +203,38 @@ void DisplayEventReceiver::processReceivedEvents(std::span<Event> events) {
     }
 }
 
+auto DisplayEventReceiver::mapPhysicalDisplayIdToTestDisplayId(PhysicalDisplayId displayId)
+        -> std::optional<core::DisplayConfiguration::Id> {
+    auto controller = mController.lock();
+    if (!controller) {
+        LOG(WARNING) << "Unable to map physical displayId " << displayId
+                     << " to a test display id. SFController gone.";
+        return {};
+    }
+
+    auto testDisplayId = controller->mapPhysicalDisplayIdToTestDisplayId(displayId);
+    if (!testDisplayId) {
+        LOG(WARNING) << "Unable to map physical displayId " << displayId << " to a test display id";
+        return {};
+    }
+
+    return testDisplayId;
+}
+
 void DisplayEventReceiver::onVsync(DisplayId displayId, Timestamp timestamp, uint32_t count,
                                    VsyncEventData vsyncData) {
     ftl::ignore(displayId, timestamp, count, vsyncData);
     LOG(VERBOSE) << "onVsync() display " << displayId << " timestamp "
                  << timestamp.time_since_epoch() << " count " << count;
 
+    auto testDisplayId = mapPhysicalDisplayIdToTestDisplayId(displayId);
+    if (!testDisplayId) {
+        return;
+    }
+
     mCallbacks.onVSyncTiming(events::VSyncTiming{
             .receiver = this,
+            .displayId = *testDisplayId,
             .sfEventAt = timestamp,
             .count = count,
             .data = vsyncData,
@@ -216,9 +248,19 @@ void DisplayEventReceiver::onHotplug(DisplayId displayId, Timestamp timestamp, b
                  << timestamp.time_since_epoch() << " connected " << connected
                  << " connectionError " << connectionError;
 
+    if (auto controller = mController.lock()) {
+        controller->onDisplayConnectionChanged(displayId, connected);
+    }
+
+    auto testDisplayId = mapPhysicalDisplayIdToTestDisplayId(displayId);
+    if (!testDisplayId) {
+        return;
+    }
+
     if (connectionError == 0) {
         mCallbacks.onHotplug(events::Hotplug{
                 .receiver = this,
+                .displayId = *testDisplayId,
                 .sfEventAt = timestamp,
                 .connected = connected,
         });

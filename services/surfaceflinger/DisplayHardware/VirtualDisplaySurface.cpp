@@ -53,11 +53,7 @@ VirtualDisplaySurface::VirtualDisplaySurface(HWComposer& hwc,
                                              const sp<IGraphicBufferProducer>& bqProducer,
                                              const sp<IGraphicBufferConsumer>& bqConsumer,
                                              const std::string& name)
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
       : ConsumerBase(bqProducer, bqConsumer),
-#else
-      : ConsumerBase(bqConsumer),
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
         mHwc(hwc),
         mVirtualIdVariant(virtualIdVariant),
         mDisplayName(name),

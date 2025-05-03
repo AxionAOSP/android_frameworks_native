@@ -97,7 +97,6 @@ public:
             __attribute((deprecated(
                     "Prefer create functions that create their own surface and consumer.")));
 
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
     GLConsumer(uint32_t tex, uint32_t textureTarget, bool useFenceSync, bool isControlledByApp);
 
     GLConsumer(uint32_t textureTarget, bool useFenceSync, bool isControlledByApp);
@@ -109,13 +108,6 @@ public:
     GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t textureTarget, bool useFenceSync,
                bool isControlledByApp)
             __attribute((deprecated("Prefer ctors that create their own surface and consumer.")));
-#else
-    GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t tex, uint32_t textureTarget,
-               bool useFenceSync, bool isControlledByApp);
-
-    GLConsumer(const sp<IGraphicBufferConsumer>& bq, uint32_t textureTarget, bool useFenceSync,
-               bool isControlledByApp);
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
 
     // updateTexImage acquires the most recently queued buffer, and sets the
     // image contents of the target texture to it.

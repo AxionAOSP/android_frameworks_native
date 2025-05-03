@@ -18,7 +18,6 @@
 
 #include <binder/RpcSession.h>
 
-#include <dlfcn.h>
 #include <inttypes.h>
 #include <netinet/tcp.h>
 #include <poll.h>
@@ -36,17 +35,13 @@
 
 #include "BuildFlags.h"
 #include "FdTrigger.h"
+#include "JvmUtils.h"
 #include "OS.h"
 #include "RpcSocketAddress.h"
 #include "RpcState.h"
 #include "RpcTransportUtils.h"
 #include "RpcWireFormat.h"
 #include "Utils.h"
-
-#if defined(__ANDROID__) && !defined(__ANDROID_RECOVERY__)
-#include <jni.h>
-extern "C" JavaVM* AndroidRuntimeGetJavaVM();
-#endif
 
 namespace android {
 
@@ -414,13 +409,6 @@ private:
     void operator=(const JavaThreadAttacher&) = delete;
 
     bool mAttached = false;
-
-    static JavaVM* getJavaVM() {
-        static auto fn = reinterpret_cast<decltype(&AndroidRuntimeGetJavaVM)>(
-                dlsym(RTLD_DEFAULT, "AndroidRuntimeGetJavaVM"));
-        if (fn == nullptr) return nullptr;
-        return fn();
-    }
 };
 #endif
 } // namespace

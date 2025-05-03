@@ -188,19 +188,11 @@ void BLASTBufferItemConsumer::resizeFrameEventHistory(size_t newSize) {
 void BLASTBufferQueue::initialize() {
     std::lock_guard _lock{mMutex};
     createBufferQueue(&mProducer, &mConsumer);
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
     mBufferItemConsumer =
             sp<BLASTBufferItemConsumer>::make(mProducer, mConsumer,
                                               GraphicBuffer::USAGE_HW_COMPOSER |
                                                       GraphicBuffer::USAGE_HW_TEXTURE,
                                               1, false, wp<BLASTBufferQueue>::fromExisting(this));
-#else
-    mBufferItemConsumer =
-            sp<BLASTBufferItemConsumer>::make(mConsumer,
-                                              GraphicBuffer::USAGE_HW_COMPOSER |
-                                                      GraphicBuffer::USAGE_HW_TEXTURE,
-                                              1, false, wp<BLASTBufferQueue>::fromExisting(this));
-#endif //  COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
     // since the adapter is in the client process, set dequeue timeout
     // explicitly so that dequeueBuffer will block
     mProducer->setDequeueTimeout(std::numeric_limits<int64_t>::max());

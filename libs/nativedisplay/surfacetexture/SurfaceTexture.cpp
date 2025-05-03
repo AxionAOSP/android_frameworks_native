@@ -35,7 +35,6 @@ namespace android {
 
 static const mat4 mtxIdentity;
 
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
 SurfaceTexture::SurfaceTexture(uint32_t tex, uint32_t texTarget, bool useFenceSync,
                                bool isControlledByApp)
       : ConsumerBase(isControlledByApp),
@@ -76,7 +75,6 @@ SurfaceTexture::SurfaceTexture(uint32_t texTarget, bool useFenceSync, bool isCon
         mOpMode(OpMode::detached) {
     initialize();
 }
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
 
 SurfaceTexture::SurfaceTexture(const sp<IGraphicBufferConsumer>& bq, uint32_t tex,
                                uint32_t texTarget, bool useFenceSync, bool isControlledByApp)

@@ -57,7 +57,6 @@ public:
             case RenderPath::VIRTUAL_DISPLAY:
                 sp<IBinder> vDisplay;
 
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
                 sp<BufferItemConsumer> itemConsumer = sp<BufferItemConsumer>::make(
                         // Sample usage bits from screenrecord
                         GRALLOC_USAGE_HW_VIDEO_ENCODER | GRALLOC_USAGE_SW_READ_OFTEN);
@@ -65,22 +64,6 @@ public:
                 itemConsumer->setFrameAvailableListener(listener);
                 itemConsumer->setName(String8("Virtual disp consumer (TransactionTest)"));
                 itemConsumer->setDefaultBufferSize(mBufferSize.width, mBufferSize.height);
-#else
-                sp<IGraphicBufferProducer> producer;
-                sp<IGraphicBufferConsumer> consumer;
-                sp<BufferItemConsumer> itemConsumer;
-                BufferQueue::createBufferQueue(&producer, &consumer);
-
-                consumer->setConsumerName(String8("Virtual disp consumer (TransactionTest)"));
-                consumer->setDefaultBufferSize(mBufferSize.width, mBufferSize.height);
-
-                itemConsumer = sp<BufferItemConsumer>::make(consumer,
-                                                            // Sample usage bits from screenrecord
-                                                            GRALLOC_USAGE_HW_VIDEO_ENCODER |
-                                                                    GRALLOC_USAGE_SW_READ_OFTEN);
-                sp<BufferListener> listener = sp<BufferListener>::make(this);
-                itemConsumer->setFrameAvailableListener(listener);
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
 
                 static const std::string kDisplayName("VirtualDisplay");
                 vDisplay = SurfaceComposerClient::createVirtualDisplay(kDisplayName,
@@ -92,12 +75,8 @@ public:
                         SurfaceComposerClient::getDefault()->mirrorDisplay(mDisplayId);
 
                 SurfaceComposerClient::Transaction t;
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
                 t.setDisplaySurface(vDisplay,
                                     itemConsumer->getSurface()->getIGraphicBufferProducer());
-#else
-                t.setDisplaySurface(vDisplay, producer);
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
                 t.setDisplayProjection(vDisplay, mRotation, Rect(getRotatedResolution()),
                                        Rect(getRotatedResolution()));
                 t.setDisplayLayerStack(vDisplay, layerStack);

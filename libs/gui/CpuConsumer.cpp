@@ -38,18 +38,9 @@ namespace android {
 std::tuple<sp<CpuConsumer>, sp<Surface>> CpuConsumer::create(size_t maxLockedBuffers,
                                                              bool controlledByApp,
                                                              bool isConsumerSurfaceFlinger) {
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
     sp<CpuConsumer> consumer =
             sp<CpuConsumer>::make(maxLockedBuffers, controlledByApp, isConsumerSurfaceFlinger);
     return {consumer, consumer->getSurface()};
-#else
-    sp<IGraphicBufferProducer> igbp;
-    sp<IGraphicBufferConsumer> igbc;
-    BufferQueue::createBufferQueue(&igbp, &igbc, isConsumerSurfaceFlinger);
-
-    return {sp<CpuConsumer>::make(igbc, maxLockedBuffers, controlledByApp),
-            sp<Surface>::make(igbp, controlledByApp)};
-#endif
 }
 
 sp<CpuConsumer> CpuConsumer::create(const sp<IGraphicBufferConsumer>& bq, size_t maxLockedBuffers,
@@ -57,7 +48,6 @@ sp<CpuConsumer> CpuConsumer::create(const sp<IGraphicBufferConsumer>& bq, size_t
     return sp<CpuConsumer>::make(bq, maxLockedBuffers, controlledByApp);
 }
 
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
 CpuConsumer::CpuConsumer(size_t maxLockedBuffers, bool controlledByApp,
                          bool isConsumerSurfaceFlinger)
       : ConsumerBase(controlledByApp, isConsumerSurfaceFlinger),
@@ -69,7 +59,6 @@ CpuConsumer::CpuConsumer(size_t maxLockedBuffers, bool controlledByApp,
     mConsumer->setConsumerUsageBits(GRALLOC_USAGE_SW_READ_OFTEN);
     mConsumer->setMaxAcquiredBufferCount(static_cast<int32_t>(maxLockedBuffers));
 }
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
 
 CpuConsumer::CpuConsumer(const sp<IGraphicBufferConsumer>& bq, size_t maxLockedBuffers,
                          bool controlledByApp)
