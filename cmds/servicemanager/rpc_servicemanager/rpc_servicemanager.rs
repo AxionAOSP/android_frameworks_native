@@ -22,7 +22,7 @@ use rpc_servicemanager_aidl::aidl::android::os::IRpcProvider::{
     IRpcProvider, ServiceConnectionInfo::ServiceConnectionInfo,
 };
 use rpcbinder::{FileDescriptorTransportMode, RpcServer};
-use rustutils::sockets::{android_get_control_socket, SocketError};
+use rustutils::sockets::android_get_control_socket;
 use servicemanager_aidl::aidl::android::os::IServiceManager::{
     BnServiceManager, CallerContext::CallerContext, IServiceManager,
 };
@@ -30,7 +30,6 @@ use servicemanager_aidl::aidl::android::os::{
     ConnectionInfo::ConnectionInfo, IClientCallback::IClientCallback,
     IServiceCallback::IServiceCallback, Service::Service, ServiceDebugInfo::ServiceDebugInfo,
 };
-use std::os::unix::io::OwnedFd;
 use vsock::VMADDR_CID_HOST;
 
 // Name of the socket that libbinder is expecting IServiceManager to be served from
@@ -152,33 +151,20 @@ impl RpcServiceManager {
     }
 }
 
-/// Get the Unix Domain Socket file descriptor for RPC_SERVICEMANAGER_UDS_NAME
-///
-/// A client might need to do this in order to get an FD with the FD_CLOEXEC flag set before
-/// it forks any other processes.
-pub fn get_default_rpc_servicemanager_uds_fd() -> Result<OwnedFd, SocketError> {
-    android_get_control_socket(RPC_SERVICEMANAGER_UDS_NAME)
-}
-
 /// Registers the `IServiceManager` service.
 ///
 /// servicemanager_fd is an optional argument to provide the Unix Domain Socked file
 /// descriptor to use for the server. If None is provided, then it will use the default
 /// of RPC_SERVICEMANAGER_UDS_NAME to get the FD.
-pub fn register_rpc_servicemanager(
-    provider_service: Strong<dyn IRpcProvider>,
-    servicemanager_fd: Option<OwnedFd>,
-) -> Result<()> {
+pub fn register_rpc_servicemanager(provider_service: Strong<dyn IRpcProvider>) -> Result<()> {
     let rpc_servicemanager_binder = BnServiceManager::new_binder(
         RpcServiceManager::new(provider_service),
         BinderFeatures::default(),
     );
-    let servicemanager_fd = match servicemanager_fd {
-        Some(fd) => fd,
-        None => android_get_control_socket(RPC_SERVICEMANAGER_UDS_NAME)?,
-    };
-    let server =
-        RpcServer::new_bound_socket(rpc_servicemanager_binder.as_binder(), servicemanager_fd)?;
+    let server = RpcServer::new_bound_socket(
+        rpc_servicemanager_binder.as_binder(),
+        android_get_control_socket(RPC_SERVICEMANAGER_UDS_NAME)?,
+    )?;
     // Required for the FD being passed through libbinder's accessor binder
     server.set_supported_file_descriptor_transport_modes(&[FileDescriptorTransportMode::Unix]);
 

@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <optional>
 #include <string>
 
 #include <compositionengine/DisplaySurface.h>
@@ -24,8 +23,6 @@
 #include <gui/ConsumerBase.h>
 #include <gui/IGraphicBufferProducer.h>
 #include <ui/DisplayId.h>
-
-#include <ui/DisplayIdentification.h>
 
 namespace android {
 

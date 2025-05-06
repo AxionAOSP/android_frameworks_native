@@ -17,12 +17,12 @@
 #pragma once
 
 // TODO(b/129481165): remove the #pragma below and fix conversion issues
-#include "ui/DisplayIdentification.h"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wconversion"
 #pragma clang diagnostic ignored "-Wextra"
 
 #include <type_traits>
+#include "Display/DisplayIdentification.h"
 #include "DisplayIdentificationTestHelpers.h"
 
 #include <binder/IPCThreadState.h>
@@ -190,9 +190,10 @@ struct DisplayIdGetter<PhysicalDisplayIdType<PhysicalDisplay>> {
                                                        ? LEGACY_DISPLAY_TYPE_PRIMARY
                                                        : LEGACY_DISPLAY_TYPE_EXTERNAL);
         }
-        const auto info = parseDisplayIdentificationData(PhysicalDisplay::PORT,
-                                                         PhysicalDisplay::GET_IDENTIFICATION_DATA(),
-                                                         android::ScreenPartStatus::UNSUPPORTED);
+        const auto info =
+                display::parseDisplayIdentificationData(PhysicalDisplay::PORT,
+                                                        PhysicalDisplay::GET_IDENTIFICATION_DATA(),
+                                                        android::ScreenPartStatus::UNSUPPORTED);
         return info ? info->id : PhysicalDisplayId::fromPort(PhysicalDisplay::PORT);
     }
 };

@@ -19,8 +19,8 @@
 #include <optional>
 
 #include <ui/DeviceProductInfo.h>
-#include <ui/DisplayIdentification.h>
 #include <ui/Rotation.h>
+#include <ui/ScreenPartStatus.h>
 
 namespace android::ui {
 

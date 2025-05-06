@@ -340,7 +340,7 @@ bool RpcServer::shutdown() {
     }
 
     while (mJoinThreadRunning || !mConnectingThreads.empty() || !mSessions.empty()) {
-        if (std::cv_status::timeout == mShutdownCv.wait_for(_l, std::chrono::seconds(1))) {
+        if (mShutdownCv.wait_for(_l, std::chrono::seconds(1)) == RpcCvStatus::timeout) {
             ALOGE("Waiting for RpcServer to shut down (1s w/o progress). Join thread running: %d, "
                   "Connecting threads: "
                   "%zu, Sessions: %zu. Is your server deadlocked?",

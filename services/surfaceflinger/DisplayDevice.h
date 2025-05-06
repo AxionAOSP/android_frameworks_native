@@ -30,7 +30,6 @@
 #include <renderengine/RenderEngine.h>
 #include <system/window.h>
 #include <ui/DisplayId.h>
-#include <ui/DisplayIdentification.h>
 #include <ui/DisplayState.h>
 #include <ui/GraphicTypes.h>
 #include <ui/HdrCapabilities.h>

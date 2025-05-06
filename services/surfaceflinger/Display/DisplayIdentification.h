@@ -25,12 +25,13 @@
 
 #include <ui/DeviceProductInfo.h>
 #include <ui/DisplayId.h>
+#include <ui/ScreenPartStatus.h>
 #include <ui/Size.h>
 
 #define LEGACY_DISPLAY_TYPE_PRIMARY 0
 #define LEGACY_DISPLAY_TYPE_EXTERNAL 1
 
-namespace android {
+namespace android::display {
 
 using DisplayIdentificationData = std::vector<uint8_t>;
 
@@ -38,33 +39,6 @@ struct DetailedTimingDescriptor {
     ui::Size pixelSizeCount;
     ui::Size physicalSizeInMm;
 };
-
-// These values must match the ones in ScreenPartStatus.aidl file in the composer HAL
-enum class ScreenPartStatus : uint8_t {
-    /**
-     * Device cannot differentiate an original screen from a replaced screen.
-     */
-    UNSUPPORTED = 0,
-    /**
-     * Device has the original screen it was manufactured with.
-     */
-    ORIGINAL = 1,
-    /**
-     * Device has a replaced screen.
-     */
-    REPLACED = 2,
-};
-
-inline std::string ScreenPartStatusToString(ScreenPartStatus screenPartStatus) {
-    switch (screenPartStatus) {
-        case ScreenPartStatus::ORIGINAL:
-            return "ORIGINAL";
-        case ScreenPartStatus::REPLACED:
-            return "REPLACED";
-        default:
-            return "UNSUPPORTED";
-    }
-}
 
 struct DisplayIdentificationInfo {
     PhysicalDisplayId id;
@@ -124,4 +98,4 @@ PhysicalDisplayId getVirtualDisplayId(uint32_t id);
 // display's parsed EDID fields.
 PhysicalDisplayId generateEdidDisplayId(const Edid& edid);
 
-} // namespace android
+} // namespace android::display

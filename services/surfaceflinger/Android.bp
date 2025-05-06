@@ -202,6 +202,7 @@ filegroup {
         "BackgroundExecutor.cpp",
         "Client.cpp",
         "ClientCache.cpp",
+        "Display/DisplayIdentification.cpp",
         "Display/DisplayModeController.cpp",
         "Display/DisplaySnapshot.cpp",
         "DisplayDevice.cpp",

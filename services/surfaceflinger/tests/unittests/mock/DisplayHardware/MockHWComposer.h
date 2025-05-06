@@ -18,8 +18,7 @@
 
 #include <gmock/gmock.h>
 
-#include <ui/DisplayIdentification.h>
-
+#include "Display/DisplayIdentification.h"
 #include "DisplayHardware/HWComposer.h"
 
 namespace android::mock {
@@ -34,7 +33,8 @@ public:
 
     MOCK_METHOD(void, setCallback, (HWC2::ComposerCallback&), (override));
     MOCK_METHOD(bool, getDisplayIdentificationData,
-                (HWDisplayId, uint8_t*, DisplayIdentificationData*, android::ScreenPartStatus*),
+                (HWDisplayId, uint8_t*, display::DisplayIdentificationData*,
+                 android::ScreenPartStatus*),
                 (const, override));
     MOCK_METHOD(bool, hasCapability, (aidl::android::hardware::graphics::composer3::Capability),
                 (const, override));
@@ -84,7 +84,7 @@ public:
     MOCK_METHOD(ftl::Future<status_t>, setDisplayBrightness,
                 (PhysicalDisplayId, float, float, const Hwc2::Composer::DisplayBrightnessOptions&),
                 (override));
-    MOCK_METHOD(std::optional<DisplayIdentificationInfo>, onHotplug,
+    MOCK_METHOD(std::optional<display::DisplayIdentificationInfo>, onHotplug,
                 (hal::HWDisplayId, HWComposer::HotplugEvent), (override));
     MOCK_METHOD(bool, updatesDeviceProductInfoOnHotplugReconnect, (), (const, override));
     MOCK_METHOD(std::optional<PhysicalDisplayId>, onVsync, (hal::HWDisplayId, int64_t));

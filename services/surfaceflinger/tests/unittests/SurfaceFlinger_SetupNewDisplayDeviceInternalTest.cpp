@@ -18,7 +18,7 @@
 #define LOG_TAG "LibSurfaceFlingerUnittests"
 
 #include <ftl/fake_guard.h>
-#include <ui/DisplayIdentification.h>
+#include <ui/ScreenPartStatus.h>
 
 #include "DisplayHardware/DisplayMode.h"
 

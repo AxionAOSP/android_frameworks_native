@@ -18,17 +18,18 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wextra"
 
-#include <functional>
 #include <string_view>
 
 #include <ftl/hash.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <ui/DisplayIdentification.h>
+#include <ui/ScreenPartStatus.h>
+
+#include "Display/DisplayIdentification.h"
 
 using ::testing::ElementsAre;
 
-namespace android {
+namespace android::display {
 
 namespace {
 
@@ -495,7 +496,7 @@ TEST(DisplayIdentificationTest, deviceProductInfo) {
     }
 }
 
-} // namespace android
+} // namespace android::display
 
 // TODO(b/129481165): remove the #pragma below and fix conversion issues
 #pragma clang diagnostic pop // ignored "-Wextra"

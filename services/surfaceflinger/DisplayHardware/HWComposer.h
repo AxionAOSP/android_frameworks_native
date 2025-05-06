@@ -27,10 +27,11 @@
 #include <android-base/thread_annotations.h>
 #include <ftl/expected.h>
 #include <ftl/future.h>
-#include <ui/DisplayIdentification.h>
 #include <ui/DisplayMap.h>
 #include <ui/FenceTime.h>
 #include <ui/PictureProfileHandle.h>
+
+#include "Display/DisplayIdentification.h"
 
 // TODO(b/129481165): remove the #pragma below and fix conversion issues
 #pragma clang diagnostic push
@@ -131,7 +132,7 @@ public:
     virtual void setCallback(HWC2::ComposerCallback&) = 0;
 
     virtual bool getDisplayIdentificationData(
-            hal::HWDisplayId, uint8_t* outPort, DisplayIdentificationData* outData,
+            hal::HWDisplayId, uint8_t* outPort, display::DisplayIdentificationData* outData,
             android::ScreenPartStatus* outScreenPartStatus) const = 0;
 
     virtual bool hasCapability(aidl::android::hardware::graphics::composer3::Capability) const = 0;
@@ -238,7 +239,8 @@ public:
     // Returns the stable display ID of the display for which the hotplug event was received, or
     // std::nullopt if hotplug event was ignored.
     // This function is called from SurfaceFlinger.
-    virtual std::optional<DisplayIdentificationInfo> onHotplug(hal::HWDisplayId, HotplugEvent) = 0;
+    virtual std::optional<display::DisplayIdentificationInfo> onHotplug(hal::HWDisplayId,
+                                                                        HotplugEvent) = 0;
 
     // If true we'll update the DeviceProductInfo on subsequent hotplug connected events.
     // TODO(b/157555476): Remove when the framework has proper support for headless mode
@@ -353,7 +355,7 @@ public:
     void setCallback(HWC2::ComposerCallback&) override;
 
     bool getDisplayIdentificationData(
-            hal::HWDisplayId, uint8_t* outPort, DisplayIdentificationData* outData,
+            hal::HWDisplayId, uint8_t* outPort, display::DisplayIdentificationData* outData,
             android::ScreenPartStatus* outScreenPartStatus) const override;
 
     bool hasCapability(aidl::android::hardware::graphics::composer3::Capability) const override;
@@ -441,7 +443,8 @@ public:
 
     // Events handling ---------------------------------------------------------
 
-    std::optional<DisplayIdentificationInfo> onHotplug(hal::HWDisplayId, HotplugEvent) override;
+    std::optional<display::DisplayIdentificationInfo> onHotplug(hal::HWDisplayId,
+                                                                HotplugEvent) override;
 
     bool updatesDeviceProductInfoOnHotplugReconnect() const override;
 
@@ -548,9 +551,10 @@ private:
         hal::Vsync vsyncEnabled GUARDED_BY(vsyncEnabledLock) = hal::Vsync::DISABLE;
     };
 
-    std::optional<DisplayIdentificationInfo> onHotplugConnect(hal::HWDisplayId);
-    std::optional<DisplayIdentificationInfo> onHotplugDisconnect(hal::HWDisplayId);
-    std::optional<DisplayIdentificationInfo> onHotplugLinkTrainingFailure(hal::HWDisplayId);
+    std::optional<display::DisplayIdentificationInfo> onHotplugConnect(hal::HWDisplayId);
+    std::optional<display::DisplayIdentificationInfo> onHotplugDisconnect(hal::HWDisplayId);
+    std::optional<display::DisplayIdentificationInfo> onHotplugLinkTrainingFailure(
+            hal::HWDisplayId);
     bool shouldIgnoreHotplugConnect(hal::HWDisplayId, uint8_t port,
                                     bool hasDisplayIdentificationData) const;
 

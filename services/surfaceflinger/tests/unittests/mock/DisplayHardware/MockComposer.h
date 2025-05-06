@@ -18,10 +18,11 @@
 
 #include <gmock/gmock.h>
 
+#include <ui/ScreenPartStatus.h>
+
 #include "DisplayHardware/ComposerHal.h"
 #include "DisplayHardware/HWC2.h"
 #include "DisplayHardware/Hal.h"
-#include "ui/DisplayIdentification.h"
 
 namespace android {
 

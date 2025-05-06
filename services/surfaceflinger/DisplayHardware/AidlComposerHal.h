@@ -19,8 +19,8 @@
 #include "ComposerHal.h"
 
 #include <ftl/shared_mutex.h>
-#include <ui/DisplayIdentification.h>
 #include <ui/DisplayMap.h>
+#include <ui/ScreenPartStatus.h>
 
 #include <functional>
 #include <optional>

@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-#include "ui/DisplayIdentification.h"
 #undef LOG_TAG
 #define LOG_TAG "LibSurfaceFlingerUnittests"
+
+#include <ui/ScreenPartStatus.h>
 
 #include "DisplayTransactionTestHelpers.h"
 

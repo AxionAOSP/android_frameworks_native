@@ -27,10 +27,10 @@
 #include <gui/BufferQueue.h>
 #include <gui/HdrMetadata.h>
 #include <math/mat4.h>
-#include <ui/DisplayIdentification.h>
 #include <ui/DisplayedFrameStats.h>
 #include <ui/GraphicBuffer.h>
 #include <ui/PictureProfileHandle.h>
+#include <ui/ScreenPartStatus.h>
 #include <utils/StrongPointer.h>
 
 #include "DisplayHardware/Hal.h"

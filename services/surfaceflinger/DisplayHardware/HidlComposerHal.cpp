@@ -34,7 +34,7 @@
 #include <hidl/HidlTransportSupport.h>
 #include <hidl/HidlTransportUtils.h>
 #include <log/log.h>
-#include <ui/DisplayIdentification.h>
+#include <ui/ScreenPartStatus.h>
 
 #include "HWC2.h"
 #include "Hal.h"

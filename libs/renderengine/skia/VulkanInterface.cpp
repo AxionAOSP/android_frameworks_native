@@ -534,7 +534,7 @@ void VulkanInterface::init(bool protectedContent) {
     mDevice = device;
     mQueue = graphicsQueue;
     mQueueIndex = graphicsQueueIndex;
-    mApiVersion = physicalDeviceApiVersion;
+    mApiVersion = std::min(physicalDeviceApiVersion, appInfo.apiVersion);
     // grExtensions already constructed
     // feature pointers already constructed
     mGrGetProc = sGetProc;

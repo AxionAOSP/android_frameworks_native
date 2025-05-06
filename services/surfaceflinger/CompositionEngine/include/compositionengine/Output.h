@@ -29,7 +29,6 @@
 
 #include <compositionengine/LayerFE.h>
 #include <renderengine/LayerSettings.h>
-#include <ui/DisplayIdentification.h>
 #include <ui/Fence.h>
 #include <ui/FenceTime.h>
 #include <ui/GraphicTypes.h>

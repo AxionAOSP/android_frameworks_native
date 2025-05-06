@@ -30,7 +30,7 @@
 #include <ftl/fake_guard.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <ui/DisplayIdentification.h>
+#include <ui/ScreenPartStatus.h>
 
 #define EXPECT_DISPLAY_MODE_REQUEST(expected, requestOpt)                               \
     ASSERT_TRUE(requestOpt);                                                            \

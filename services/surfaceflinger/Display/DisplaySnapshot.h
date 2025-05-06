@@ -21,8 +21,8 @@
 
 #include <ui/ColorMode.h>
 #include <ui/DisplayId.h>
+#include <ui/ScreenPartStatus.h>
 #include <ui/StaticDisplayInfo.h>
-#include <ui/DisplayIdentification.h>
 
 #include "DisplayHardware/DisplayMode.h"
 #include "Utils/Dumper.h"

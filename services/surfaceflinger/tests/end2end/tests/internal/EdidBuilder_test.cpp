@@ -17,11 +17,9 @@
 #include <algorithm>
 #include <array>
 #include <iterator>
-#include <string_view>
 
 #include <fmt/format.h>
 #include <gtest/gtest.h>
-#include <ui/DisplayIdentification.h>
 #include <ui/Size.h>
 
 #include "test_framework/core/EdidBuilder.h"
@@ -113,75 +111,6 @@ TEST(EdidBuilder, DefaultPrebuiltMatchesDefaultWhenBuilt) {
             prebuiltIndex, prebuiltIndex < prebuilt.size() ? prebuilt[prebuiltIndex] : 0,
             builtIndex, builtIndex < built.size() ? built[builtIndex] : 0);
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
-}
-
-TEST(EdidBuilder, ParsedDefault) {
-    constexpr auto kProductName = "test-product"sv;
-    const auto built = EdidBuilder()
-                               .set(EdidBuilder::Version1r4Required{})
-                               .addDisplayProductNameStringDescriptor(kProductName)
-                               .build();
-
-    const DisplayIdentificationData edid{built.begin(), built.end()};
-    EXPECT_TRUE(isEdid(edid));
-    const auto parsed = parseEdid(edid);
-    ASSERT_TRUE(parsed);
-    EXPECT_EQ(parsed->productId, EdidBuilder::Vendor{}.manufacturerProductCode);
-    EXPECT_EQ(std::string_view(parsed->pnpId.data(), 3),
-              std::string_view(EdidBuilder::Vendor{}.manufacturerId.data(), 3));
-    EXPECT_EQ(parsed->displayName, kProductName);
-    EXPECT_EQ(
-            parsed->physicalSizeInCm,
-            ui::Size(
-                    EdidBuilder::BasicDigitalDisplayParametersAndFeatures::kDefaultHorizontalSizeCm,
-                    EdidBuilder::BasicDigitalDisplayParametersAndFeatures::kDefaultVerticalSizeCm));
-    ASSERT_TRUE(parsed->preferredDetailedTimingDescriptor);
-    EXPECT_EQ(parsed->preferredDetailedTimingDescriptor->pixelSizeCount,
-              ui::Size(EdidBuilder::DigitalSeparateDetailedTimingDescriptor::k1920x1080x60HzStandard
-                               .horizontal.addressable,
-                       EdidBuilder::DigitalSeparateDetailedTimingDescriptor::k1920x1080x60HzStandard
-                               .vertical.addressable));
-    EXPECT_EQ(parsed->preferredDetailedTimingDescriptor->physicalSizeInMm,
-              ui::Size(EdidBuilder::DigitalSeparateDetailedTimingDescriptor::
-                               kDefaultHorizontalImageSizeMm,
-                       EdidBuilder::DigitalSeparateDetailedTimingDescriptor::
-                               kDefaultVerticalImageSizeMm));
-}
-
-TEST(EdidBuilder, Parsed1080p144hz) {
-    constexpr auto kProductName = "test-gaming"sv;
-    const auto timing = EdidBuilder::DigitalSeparateDetailedTimingDescriptor::Timing::synthesize(
-            {1920, 1080}, 144);
-    const auto built = EdidBuilder()
-                               .set(EdidBuilder::Version1r4Required{
-                                       .preferred =
-                                               {
-                                                       .timing = timing,
-                                               },
-                               })
-                               .addDisplayProductNameStringDescriptor(kProductName)
-                               .build();
-
-    const DisplayIdentificationData edid{built.begin(), built.end()};
-    EXPECT_TRUE(isEdid(edid));
-    const auto parsed = parseEdid(edid);
-    ASSERT_TRUE(parsed);
-    EXPECT_EQ(parsed->productId, EdidBuilder::Vendor{}.manufacturerProductCode);
-    EXPECT_EQ(std::string_view(parsed->pnpId.data(), 3),
-              std::string_view(EdidBuilder::Vendor{}.manufacturerId.data(), 3));
-    EXPECT_EQ(parsed->displayName, kProductName);
-    EXPECT_EQ(
-            parsed->physicalSizeInCm,
-            ui::Size(
-                    EdidBuilder::BasicDigitalDisplayParametersAndFeatures::kDefaultHorizontalSizeCm,
-                    EdidBuilder::BasicDigitalDisplayParametersAndFeatures::kDefaultVerticalSizeCm));
-    ASSERT_TRUE(parsed->preferredDetailedTimingDescriptor);
-    EXPECT_EQ(parsed->preferredDetailedTimingDescriptor->pixelSizeCount, ui::Size(1920, 1080));
-    EXPECT_EQ(parsed->preferredDetailedTimingDescriptor->physicalSizeInMm,
-              ui::Size(EdidBuilder::DigitalSeparateDetailedTimingDescriptor::
-                               kDefaultHorizontalImageSizeMm,
-                       EdidBuilder::DigitalSeparateDetailedTimingDescriptor::
-                               kDefaultVerticalImageSizeMm));
 }
 
 }  // namespace

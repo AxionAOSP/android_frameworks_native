@@ -17,6 +17,8 @@
 #undef LOG_TAG
 #define LOG_TAG "DisplayIdentification"
 
+#include "DisplayIdentification.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
@@ -29,10 +31,9 @@
 #include <ftl/concat.h>
 #include <ftl/hash.h>
 #include <log/log.h>
-#include <ui/DisplayIdentification.h>
 #include <ui/Size.h>
 
-namespace android {
+namespace android::display {
 namespace {
 
 using byte_view = std::span<const uint8_t>;
@@ -206,9 +207,10 @@ std::optional<Edid> parseEdid(const DisplayIdentificationData& edid) {
         ALOGE("Invalid EDID: block zero S/N is truncated.");
         return {};
     }
-    const uint32_t blockZeroSerialNumber = edid[kSerialNumberOffset] +
-            (edid[kSerialNumberOffset + 1] << 8) + (edid[kSerialNumberOffset + 2] << 16) +
-            (edid[kSerialNumberOffset + 3] << 24);
+    const uint32_t blockZeroSerialNumber = static_cast<uint32_t>(edid[kSerialNumberOffset]) |
+            (static_cast<uint32_t>(edid[kSerialNumberOffset + 1]) << 8) |
+            (static_cast<uint32_t>(edid[kSerialNumberOffset + 2]) << 16) |
+            (static_cast<uint32_t>(edid[kSerialNumberOffset + 3]) << 24);
     const auto hashedBlockZeroSNOpt = blockZeroSerialNumber == 0
             ? std::nullopt
             : ftl::stable_hash(std::string_view(std::to_string(blockZeroSerialNumber)));
@@ -449,4 +451,4 @@ PhysicalDisplayId generateEdidDisplayId(const Edid& edid) {
     return PhysicalDisplayId::fromValue(id);
 }
 
-} // namespace android
+} // namespace android::display

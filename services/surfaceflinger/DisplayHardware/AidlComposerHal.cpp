@@ -28,7 +28,7 @@
 #include <common/trace.h>
 #include <fmt/core.h>
 #include <log/log.h>
-#include <ui/DisplayIdentification.h>
+#include <ui/ScreenPartStatus.h>
 
 #include <aidl/android/hardware/graphics/composer3/BnComposerCallback.h>
 

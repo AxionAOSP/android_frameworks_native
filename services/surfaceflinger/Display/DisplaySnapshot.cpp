@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <functional>
 #include <utility>
-#include <ui/DisplayIdentification.h>
 
 #include <ftl/algorithm.h>
 #include <ftl/enum.h>

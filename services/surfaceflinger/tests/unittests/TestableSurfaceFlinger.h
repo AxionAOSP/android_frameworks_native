@@ -24,8 +24,8 @@
 #include <ftl/match.h>
 #include <gui/LayerMetadata.h>
 #include <gui/ScreenCaptureResults.h>
-#include <ui/DisplayIdentification.h>
 #include <ui/DynamicDisplayInfo.h>
+#include <ui/ScreenPartStatus.h>
 
 #include <compositionengine/Display.h>
 #include <compositionengine/LayerFECompositionState.h>
