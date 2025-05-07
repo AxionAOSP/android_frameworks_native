@@ -790,6 +790,55 @@ TEST_F(SchedulerTest, enablesLayerCachingTexturePoolForPacesetter) {
     mScheduler->setPacesetterDisplay(kDisplayId1);
 }
 
+TEST_F(SchedulerTest, pendingModeChangeSingleDisplay) {
+    SET_FLAG_FOR_TEST(flags::pacesetter_selection, true);
+
+    mScheduler->setDisplayPowerMode(kDisplayId1, hal::PowerMode::ON);
+
+    EXPECT_FALSE(mScheduler->layerHistoryModeChangePending());
+
+    mScheduler->setModeChangePending(kDisplayId1, true);
+    EXPECT_TRUE(mScheduler->layerHistoryModeChangePending());
+
+    mScheduler->setModeChangePending(kDisplayId1, false);
+    EXPECT_FALSE(mScheduler->layerHistoryModeChangePending());
+}
+
+TEST_F(SchedulerTest, pendingModeChangeMultiDisplay) {
+    SET_FLAG_FOR_TEST(flags::pacesetter_selection, true);
+    SET_FLAG_FOR_TEST(flags::pacesetter_selection, true);
+
+    mScheduler->registerDisplay(kDisplayId2,
+                                std::make_shared<RefreshRateSelector>(kDisplay2Modes,
+                                                                      kDisplay2Mode60->getId()));
+    mScheduler->setDisplayPowerMode(kDisplayId1, hal::PowerMode::ON);
+    mScheduler->setDisplayPowerMode(kDisplayId2, hal::PowerMode::ON);
+
+    EXPECT_FALSE(mScheduler->layerHistoryModeChangePending());
+
+    mScheduler->setModeChangePending(kDisplayId1, true);
+    EXPECT_TRUE(mScheduler->layerHistoryModeChangePending());
+
+    mScheduler->setModeChangePending(kDisplayId2, true);
+    EXPECT_TRUE(mScheduler->layerHistoryModeChangePending());
+
+    mScheduler->setModeChangePending(kDisplayId1, false);
+    EXPECT_TRUE(mScheduler->layerHistoryModeChangePending());
+
+    mScheduler->setModeChangePending(kDisplayId2, false);
+    EXPECT_FALSE(mScheduler->layerHistoryModeChangePending());
+}
+
+TEST_F(SchedulerTest, pendingModeChangeInvalidDisplay) {
+    SET_FLAG_FOR_TEST(flags::pacesetter_selection, true);
+
+    EXPECT_FALSE(mScheduler->layerHistoryModeChangePending());
+
+    PhysicalDisplayId invalidDisplayId = PhysicalDisplayId::fromPort(123);
+    mScheduler->setModeChangePending(invalidDisplayId, true);
+    EXPECT_FALSE(mScheduler->layerHistoryModeChangePending());
+}
+
 class AttachedChoreographerTest : public SchedulerTest {
 protected:
     void frameRateTestScenario(Fps layerFps, int8_t frameRateCompatibility, Fps displayFps,

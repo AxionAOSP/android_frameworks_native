@@ -1250,6 +1250,38 @@ VkJsonDevice VkJsonGetDevice(VkPhysicalDevice physical_device) {
     }
   }
 
+  if (HasExtension("VK_IMG_format_pvrtc", device.extensions)) {
+    for (VkFormat format = VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG;
+         // TODO(http://b/171403054): avoid hard-coding last value in the
+         // contiguous range
+         format <= VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG;
+         format = static_cast<VkFormat>(format + 1)) {
+      vkGetPhysicalDeviceFormatProperties(physical_device, format,
+                                          &format_properties);
+      if (format_properties.linearTilingFeatures ||
+          format_properties.optimalTilingFeatures ||
+          format_properties.bufferFeatures) {
+        device.formats.insert(std::make_pair(format, format_properties));
+      }
+    }
+  }
+
+  if (HasExtension("VK_NV_optical_flow", device.extensions)) {
+    for (VkFormat format = VK_FORMAT_R16G16_SFIXED5_NV;
+         // TODO(http://b/171403054): avoid hard-coding last value in the
+         // contiguous range
+         format <= VK_FORMAT_R16G16_SFIXED5_NV;
+         format = static_cast<VkFormat>(format + 1)) {
+      vkGetPhysicalDeviceFormatProperties(physical_device, format,
+                                          &format_properties);
+      if (format_properties.linearTilingFeatures ||
+          format_properties.optimalTilingFeatures ||
+          format_properties.bufferFeatures) {
+        device.formats.insert(std::make_pair(format, format_properties));
+      }
+    }
+  }
+
   if (device.properties.apiVersion >= VK_API_VERSION_1_1) {
     for (VkFormat format = VK_FORMAT_G8B8G8R8_422_UNORM;
          // TODO(http://b/171403054): avoid hard-coding last value in the
@@ -1339,7 +1371,48 @@ VkJsonDevice VkJsonGetDevice(VkPhysicalDevice physical_device) {
     f.write("""\
   }
 
-  if (device.properties.apiVersion >= VK_API_VERSION_1_3) {\n""")
+  if (device.properties.apiVersion >= VK_API_VERSION_1_3) {
+      for (VkFormat format = VK_FORMAT_G8_B8R8_2PLANE_444_UNORM;
+         // TODO(http://b/171403054): avoid hard-coding last value in the
+         // contiguous range
+         format <= VK_FORMAT_G16_B16R16_2PLANE_444_UNORM;
+         format = static_cast<VkFormat>(format + 1)) {
+      vkGetPhysicalDeviceFormatProperties(physical_device, format,
+                                          &format_properties);
+      if (format_properties.linearTilingFeatures ||
+          format_properties.optimalTilingFeatures ||
+          format_properties.bufferFeatures) {
+        device.formats.insert(std::make_pair(format, format_properties));
+      }
+    }
+
+    for (VkFormat format = VK_FORMAT_A4R4G4B4_UNORM_PACK16;
+         // TODO(http://b/171403054): avoid hard-coding last value in the
+         // contiguous range
+         format <= VK_FORMAT_A4B4G4R4_UNORM_PACK16;
+         format = static_cast<VkFormat>(format + 1)) {
+      vkGetPhysicalDeviceFormatProperties(physical_device, format,
+                                          &format_properties);
+      if (format_properties.linearTilingFeatures ||
+          format_properties.optimalTilingFeatures ||
+          format_properties.bufferFeatures) {
+        device.formats.insert(std::make_pair(format, format_properties));
+      }
+    }
+
+    for (VkFormat format = VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK;
+         // TODO(http://b/171403054): avoid hard-coding last value in the
+         // contiguous range
+         format <= VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK;
+         format = static_cast<VkFormat>(format + 1)) {
+      vkGetPhysicalDeviceFormatProperties(physical_device, format,
+                                          &format_properties);
+      if (format_properties.linearTilingFeatures ||
+          format_properties.optimalTilingFeatures ||
+          format_properties.bufferFeatures) {
+        device.formats.insert(std::make_pair(format, format_properties));
+      }
+    }\n""")
     f.write(cc_code_properties_13)
     f.write(f"vkGetPhysicalDeviceProperties2(physical_device, &properties);\n\n")
     f.write(cc_code_features_13)
@@ -1347,7 +1420,21 @@ VkJsonDevice VkJsonGetDevice(VkPhysicalDevice physical_device) {
     f.write("""\
   }
 
-  if (device.properties.apiVersion >= VK_API_VERSION_1_4) {\n""")
+  if (device.properties.apiVersion >= VK_API_VERSION_1_4) {
+    for (VkFormat format = VK_FORMAT_A1B5G5R5_UNORM_PACK16;
+         // TODO(http://b/171403054): avoid hard-coding last value in the
+         // contiguous range
+         format <= VK_FORMAT_A8_UNORM;
+         format = static_cast<VkFormat>(format + 1)) {
+      vkGetPhysicalDeviceFormatProperties(physical_device, format,
+                                          &format_properties);
+      if (format_properties.linearTilingFeatures ||
+          format_properties.optimalTilingFeatures ||
+          format_properties.bufferFeatures) {
+        device.formats.insert(std::make_pair(format, format_properties));
+      }
+    }
+    \n""")
     f.write(cc_code_properties_14)
     f.write(f"vkGetPhysicalDeviceProperties2(physical_device, &properties);\n\n")
 

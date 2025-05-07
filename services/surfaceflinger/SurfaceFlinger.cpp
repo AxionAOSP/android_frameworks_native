@@ -1398,7 +1398,7 @@ void SurfaceFlinger::setDesiredMode(display::DisplayModeRequest&& desiredMode) {
             mScheduler->modulateVsync(displayId, &VsyncModulator::onRefreshRateChangeInitiated);
 
             mScheduler->updatePhaseConfiguration(displayId, mode.fps);
-            mScheduler->setModeChangePending(true);
+            mScheduler->setModeChangePending(displayId, true);
 
             // The mode set to switch resolution is not initiated until the display transaction that
             // resizes the display. DM sends this transaction in response to a mode change event, so
@@ -1522,9 +1522,8 @@ bool SurfaceFlinger::finalizeDisplayModeChange(PhysicalDisplayId displayId) {
 
 void SurfaceFlinger::dropModeRequest(PhysicalDisplayId displayId) {
     mDisplayModeController.clearDesiredMode(displayId);
-    if (displayId == mFrontInternalDisplayId) {
-        // TODO(b/255635711): Check for pending mode changes on other displays.
-        mScheduler->setModeChangePending(false);
+    if (displayId == mFrontInternalDisplayId || FlagManager::getInstance().pacesetter_selection()) {
+        mScheduler->setModeChangePending(displayId, false);
     }
 }
 
@@ -5741,6 +5740,10 @@ void SurfaceFlinger::setPhysicalDisplayPowerMode(const sp<DisplayDevice>& displa
     } else if (mode == hal::PowerMode::OFF) {
         const bool currentModeNotDozeSuspend = (currentMode != hal::PowerMode::DOZE_SUSPEND);
         // Turn off the display
+        if (FlagManager::getInstance().pacesetter_selection()) {
+            mScheduler->setModeChangePending(displayId, false);
+        }
+
         if (displayId == mFrontInternalDisplayId) {
             if (const auto display = findFrontInternalDisplay()) {
                 const auto frontInternalDisplay = getFrontInternalDisplayLocked();
@@ -6411,7 +6414,6 @@ void SurfaceFlinger::dumpAll(const DumpArgs& args, const std::string& compositio
      * Dump the visible layer list
      */
     colorizer.bold(result);
-    StringAppendF(&result, "SurfaceFlinger New Frontend Enabled:%s\n", "true");
     StringAppendF(&result, "Active Layers - layers with client handles (count = %zu)\n",
                   mNumLayers.load());
     colorizer.reset(result);
@@ -8441,13 +8443,11 @@ void SurfaceFlinger::onNewFrontInternalDisplay(const DisplayDevice* oldFrontInte
         if (oldFrontInternalDisplayPtr) {
             oldFrontInternalDisplayPtr->getCompositionDisplay()->setLayerCachingTexturePoolEnabled(
                     false);
+            mScheduler->setModeChangePending(oldFrontInternalDisplayPtr->getPhysicalId(), false);
         }
 
         newFrontInternalDisplay.getCompositionDisplay()->setLayerCachingTexturePoolEnabled(true);
     }
-
-    // TODO(b/255635711): Check for pending mode changes on other displays.
-    mScheduler->setModeChangePending(false);
 
     mScheduler->setPacesetterDisplay(mFrontInternalDisplayId);
 
