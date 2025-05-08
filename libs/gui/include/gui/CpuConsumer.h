@@ -100,13 +100,6 @@ class CpuConsumer : public ConsumerBase
                                   bool controlledByApp = false)
             __attribute((deprecated("Prefer ctors that create their own surface and consumer.")));
 
-    CpuConsumer(size_t maxLockedBuffers, bool controlledByApp = false,
-                bool isConsumerSurfaceFlinger = false);
-
-    CpuConsumer(const sp<IGraphicBufferConsumer>& bq, size_t maxLockedBuffers,
-                bool controlledByApp = false)
-            __attribute((deprecated("Prefer ctors that create their own surface and consumer.")));
-
     // Gets the next graphics buffer from the producer and locks it for CPU use,
     // filling out the passed-in locked buffer structure with the native pointer
     // and metadata. Returns BAD_VALUE if no new buffer is available, and
@@ -125,6 +118,15 @@ class CpuConsumer : public ConsumerBase
     status_t unlockBuffer(const LockedBuffer &nativeBuffer);
 
   private:
+    friend class sp<CpuConsumer>;
+
+    CpuConsumer(size_t maxLockedBuffers, bool controlledByApp = false,
+                bool isConsumerSurfaceFlinger = false);
+
+    CpuConsumer(const sp<IGraphicBufferConsumer>& bq, size_t maxLockedBuffers,
+                bool controlledByApp = false)
+            __attribute((deprecated("Prefer ctors that create their own surface and consumer.")));
+
     // Maximum number of buffers that can be locked at a time
     const size_t mMaxLockedBuffers;
 
@@ -139,10 +141,7 @@ class CpuConsumer : public ConsumerBase
         sp<GraphicBuffer> mGraphicBuffer;
         uintptr_t mLockedBufferId;
 
-        AcquiredBuffer() :
-                mSlot(BufferQueue::INVALID_BUFFER_SLOT),
-                mLockedBufferId(kUnusedId) {
-        }
+        AcquiredBuffer() : mSlot(BufferQueue::INVALID_BUFFER_SLOT), mLockedBufferId(kUnusedId) {}
 
         void reset() {
             mSlot = BufferQueue::INVALID_BUFFER_SLOT;

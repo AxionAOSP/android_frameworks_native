@@ -47,6 +47,12 @@ class BufferItemConsumer: public ConsumerBase
     enum { INVALID_BUFFER_SLOT = BufferQueue::INVALID_BUFFER_SLOT };
     enum { NO_BUFFER_AVAILABLE = BufferQueue::NO_BUFFER_AVAILABLE };
 
+    // Create a new buffer item consumer. The consumerUsage parameter determines
+    // the consumer usage flags passed to the graphics allocator. The
+    // bufferCount parameter specifies how many buffers can be locked for user
+    // access at the same time.
+    // controlledByApp tells whether this consumer is controlled by the
+    // application.
     static std::tuple<sp<BufferItemConsumer>, sp<Surface>> create(
             uint64_t consumerUsage, int bufferCount = DEFAULT_MAX_BUFFERS,
             bool controlledByApp = false, bool isConsumerSurfaceFlinger = false);
@@ -55,18 +61,6 @@ class BufferItemConsumer: public ConsumerBase
                                          uint64_t consumerUsage,
                                          int bufferCount = DEFAULT_MAX_BUFFERS,
                                          bool controlledByApp = false)
-            __attribute((deprecated("Prefer ctors that create their own surface and consumer.")));
-
-    // Create a new buffer item consumer. The consumerUsage parameter determines
-    // the consumer usage flags passed to the graphics allocator. The
-    // bufferCount parameter specifies how many buffers can be locked for user
-    // access at the same time.
-    // controlledByApp tells whether this consumer is controlled by the
-    // application.
-    BufferItemConsumer(uint64_t consumerUsage, int bufferCount = DEFAULT_MAX_BUFFERS,
-                       bool controlledByApp = false, bool isConsumerSurfaceFlinger = false);
-    BufferItemConsumer(const sp<IGraphicBufferConsumer>& consumer, uint64_t consumerUsage,
-                       int bufferCount = DEFAULT_MAX_BUFFERS, bool controlledByApp = false)
             __attribute((deprecated("Prefer ctors that create their own surface and consumer.")));
 
     ~BufferItemConsumer() override;
@@ -116,7 +110,15 @@ protected:
                        const sp<IGraphicBufferConsumer>& consumer, uint64_t consumerUsage,
                        int bufferCount = DEFAULT_MAX_BUFFERS, bool controlledByApp = false);
 
+    BufferItemConsumer(uint64_t consumerUsage, int bufferCount = DEFAULT_MAX_BUFFERS,
+                       bool controlledByApp = false, bool isConsumerSurfaceFlinger = false);
+    BufferItemConsumer(const sp<IGraphicBufferConsumer>& consumer, uint64_t consumerUsage,
+                       int bufferCount = DEFAULT_MAX_BUFFERS, bool controlledByApp = false)
+            __attribute((deprecated("Prefer ctors that create their own surface and consumer.")));
+
 private:
+    friend sp<BufferItemConsumer>;
+
     void initialize(uint64_t consumerUsage, int bufferCount);
 
     status_t releaseBufferSlotLocked(int slotIndex, const sp<GraphicBuffer>& buffer,

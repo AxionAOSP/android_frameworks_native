@@ -20,7 +20,7 @@ int32_t = int
 uint64_t = ctypes.c_uint64
 VkBool32 = bool
 VkDeviceSize = ctypes.c_uint64
-size_t = int
+size_t = ctypes.c_uint64
 VkSampleCountFlags = ctypes.c_uint32
 VkFormatFeatureFlags = ctypes.c_uint32
 VkQueueFlags = ctypes.c_uint32
@@ -294,7 +294,7 @@ class VkPhysicalDeviceProperties:
   deviceID: uint32_t
   deviceType: VkPhysicalDeviceType
   deviceName: str
-  pipelineCacheUUID: uint8_t
+  pipelineCacheUUID: uint8_t*VK_UUID_SIZE
   limits: VkPhysicalDeviceLimits
   sparseProperties: VkPhysicalDeviceSparseProperties
 
@@ -716,7 +716,7 @@ class VkPhysicalDeviceVulkan14Properties:
   pCopySrcLayouts: List[VkImageLayout]
   copyDstLayoutCount: uint32_t
   pCopyDstLayouts: List[VkImageLayout]
-  optimalTilingLayoutUUID: uint8_t
+  optimalTilingLayoutUUID: uint8_t*VK_UUID_SIZE
   identicalMemoryTypeRequirements: VkBool32
 
 

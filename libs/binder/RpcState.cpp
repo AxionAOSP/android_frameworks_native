@@ -538,7 +538,16 @@ status_t RpcState::transact(const sp<RpcSession::RpcConnection>& connection,
     uint64_t address;
     if (status_t status = onBinderLeaving(session, binder, &address); status != OK) return status;
 
-    return transactAddress(connection, address, code, data, session, reply, flags);
+    if (status_t status = transactAddress(connection, address, code, data, session, reply, flags);
+        status != OK) {
+        // TODO(b/414720799): this log is added to debug this bug, but it could be a bit noisy, and
+        // we may only want to log it from some cases moving forward.
+        ALOGE("RPC protocol error during call to binder: %p code: %" PRIu32 " transaction: %s",
+              binder.get(), code, statusToString(status).c_str());
+        return status;
+    }
+
+    return OK;
 }
 
 status_t RpcState::transactAddress(const sp<RpcSession::RpcConnection>& connection,
@@ -833,7 +842,9 @@ status_t RpcState::processCommand(
     // to understand where the current command ends and the next one begins. We
     // also can't consider it a fatal error because this would allow any client
     // to kill us, so ending the session for misbehaving client.
-    ALOGE("Unknown RPC command %d - terminating session", command.command);
+    ALOGE("Unknown RPC command %d - terminating session. Header: %s. CommandType: %d. numFds: %zu",
+          command.command, HexString(&command, sizeof(command)).c_str(), static_cast<int>(type),
+          ancillaryFds.size());
     (void)session->shutdownAndWait(false);
     return DEAD_OBJECT;
 }
