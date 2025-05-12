@@ -185,8 +185,8 @@ TEST_F(SchedulerTest, chooseRefreshRateForContentIsNoopWhenModeSwitchingIsNotSup
     constexpr hal::PowerMode kPowerModeOn = hal::PowerMode::ON;
     FTL_FAKE_GUARD(kMainThreadContext, mScheduler->setDisplayPowerMode(kDisplayId1, kPowerModeOn));
 
-    constexpr uint32_t kDisplayArea = 999'999;
-    mScheduler->onActiveDisplayAreaChanged(kDisplayArea);
+    const ui::Size kDisplaySize = ui::Size(9, 111'111);
+    mScheduler->onPacesetterDisplaySizeChanged(kDisplaySize);
 
     EXPECT_CALL(mSchedulerCallback, requestDisplayModes(_)).Times(0);
     mScheduler->chooseRefreshRateForContent(/*LayerHierarchy*/ nullptr,
@@ -331,8 +331,8 @@ TEST_F(SchedulerTest, chooseRefreshRateForContentSelectsMaxRefreshRate) {
     constexpr hal::PowerMode kPowerModeOn = hal::PowerMode::ON;
     FTL_FAKE_GUARD(kMainThreadContext, mScheduler->setDisplayPowerMode(kDisplayId1, kPowerModeOn));
 
-    constexpr uint32_t kDisplayArea = 999'999;
-    mScheduler->onActiveDisplayAreaChanged(kDisplayArea);
+    const ui::Size kDisplaySize = ui::Size(9, 111'111);
+    mScheduler->onPacesetterDisplaySizeChanged(kDisplaySize);
 
     EXPECT_CALL(mSchedulerCallback, requestDisplayModes(Is120Hz())).Times(1);
     mScheduler->chooseRefreshRateForContent(/*LayerHierarchy*/ nullptr,

@@ -155,6 +155,7 @@ bool LayerSnapshot::isOpaqueFormat(PixelFormat format) {
         case PIXEL_FORMAT_BGRA_8888:
         case PIXEL_FORMAT_RGBA_FP16:
         case PIXEL_FORMAT_RGBA_1010102:
+        case PIXEL_FORMAT_RGBA_10101010:
         case PIXEL_FORMAT_R_8:
             return false;
     }

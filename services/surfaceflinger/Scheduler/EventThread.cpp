@@ -877,6 +877,16 @@ scheduler::VSyncCallbackRegistration EventThread::onNewVsyncScheduleInternal(
                                      .lastVsync = mLastVsyncCallbackTime.ns(),
                                      .committedVsyncOpt = mLastCommittedVsyncTime.ns()});
     }
+
+    // Hotplug disconnect causes mVSyncState to get nuked when the pacesetter display is
+    // disconnected. Without mVSyncState, all vsync events are ignored, and thus the apps freeze
+    // their transactions. The only way to revive the 'mVSyncState' right now is a new Hotplug
+    // connect event. We should also revive 'mVSyncState' here so that when a new pacesetter is
+    // selected, it can have a new vsync state.
+    if (FlagManager::getInstance().pacesetter_selection() && !mVSyncState) {
+        SFTRACE_FORMAT_INSTANT("OnNewVsyncScheduleInternalNewState");
+        mVSyncState.emplace();
+    }
     return oldRegistration;
 }
 

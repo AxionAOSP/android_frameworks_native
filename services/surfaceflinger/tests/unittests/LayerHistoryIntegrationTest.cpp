@@ -1771,7 +1771,7 @@ TEST_F(LayerHistoryIntegrationTest, updatingGeometryUpdatesWeight) {
                       renderengine::mock::FakeExternalTexture>(100U /*width*/, 100U /*height*/, 1,
                                                                HAL_PIXEL_FORMAT_RGBA_8888,
                                                                GRALLOC_USAGE_PROTECTED /*usage*/));
-    mFlinger.setLayerHistoryDisplayArea(100 * 100);
+    mFlinger.setLayerHistoryDisplaySize(ui::Size(100, 100));
     updateLayerSnapshotsAndLayerHistory(time);
     auto summary = summarizeLayerHistory(time);
     ASSERT_EQ(1u, summary.size());
@@ -1866,7 +1866,7 @@ protected:
         mappings.push_back(std::make_pair(kAppId1, kThreshold1));
         mappings.push_back(std::make_pair(kAppId2, kThreshold2));
 
-        mScheduler->onActiveDisplayAreaChanged(DISPLAY_WIDTH * DISPLAY_HEIGHT);
+        mScheduler->onPacesetterDisplaySizeChanged(ui::Size(DISPLAY_WIDTH, DISPLAY_HEIGHT));
         mScheduler->updateSmallAreaDetection(mappings);
     }
 

@@ -122,6 +122,10 @@ void LayerHistory::registerLayer(Layer* layer, bool contentDetectionEnabled,
     mInactiveLayerInfos.insert({layer->getSequence(), std::make_pair(layer, std::move(info))});
 }
 
+void LayerHistory::setDisplaySize(ui::Size displaySize) {
+    mDisplayArea = static_cast<uint32_t>(displaySize.width * displaySize.height);
+}
+
 void LayerHistory::deregisterLayer(Layer* layer) {
     std::lock_guard lock(mLock);
     if (!mActiveLayerInfos.erase(layer->getSequence())) {
@@ -405,9 +409,11 @@ void LayerHistory::clear() {
 
 std::string LayerHistory::dump() const {
     std::lock_guard lock(mLock);
-    return base::StringPrintf("{size=%zu, active=%zu}\n\tGameFrameRateOverrides=\n\t\t%s",
+    return base::StringPrintf("{size=%zu, active=%zu}\n\tdisplayArea=%" PRIu32
+                              "\n\tGameFrameRateOverrides=\n\t\t%s",
                               mActiveLayerInfos.size() + mInactiveLayerInfos.size(),
-                              mActiveLayerInfos.size(), dumpGameFrameRateOverridesLocked().c_str());
+                              mActiveLayerInfos.size(), mDisplayArea,
+                              dumpGameFrameRateOverridesLocked().c_str());
 }
 
 std::string LayerHistory::dumpGameFrameRateOverridesLocked() const {
@@ -442,7 +448,7 @@ auto LayerHistory::findLayer(int32_t id) -> std::pair<LayerStatus, LayerPair*> {
 }
 
 bool LayerHistory::isSmallDirtyArea(uint32_t dirtyArea, float threshold) const {
-    const float ratio = (float)dirtyArea / mDisplayArea;
+    const float ratio = static_cast<float>(dirtyArea) / mDisplayArea;
     const bool isSmallDirty = ratio <= threshold;
     SFTRACE_FORMAT_INSTANT("small dirty=%s, ratio=%.3f", isSmallDirty ? "true" : "false", ratio);
     return isSmallDirty;

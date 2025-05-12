@@ -661,12 +661,12 @@ public:
         }
     }
 
-    auto setLayerHistoryDisplayArea(uint32_t displayArea) {
-        return mFlinger->mScheduler->onActiveDisplayAreaChanged(displayArea);
-    };
+    auto setLayerHistoryDisplaySize(ui::Size displaySize) {
+        return mFlinger->mScheduler->onPacesetterDisplaySizeChanged(displaySize);
+    }
     auto updateLayerHistory(nsecs_t now) {
         return FTL_FAKE_GUARD(kMainThreadContext, mFlinger->updateLayerHistory(now));
-    };
+    }
     auto setDaltonizerType(ColorBlindnessType type) {
         mFlinger->mDaltonizer.setType(type);
         return mFlinger->updateColorMatrixLocked();

@@ -296,7 +296,7 @@ public:
     bool onCompositionPresented(nsecs_t presentTime);
 
     // Notifies the scheduler when the display size has changed. Called from SF's main thread
-    void onActiveDisplayAreaChanged(uint32_t displayArea);
+    void onPacesetterDisplaySizeChanged(ui::Size displaySize);
 
     // Stores the preferred refresh rate that an app should run at.
     // FrameRateOverride.refreshRateHz == 0 means no preference.
