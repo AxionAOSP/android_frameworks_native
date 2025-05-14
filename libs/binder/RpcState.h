@@ -251,9 +251,9 @@ private:
         // CASE A - local binder we are serving
         //
 
-        // async transaction queue, _only_ for local binder
         struct AsyncTodo {
-            sp<IBinder> ref;
+            // any transaction, including async, can only be on local binders
+            sp<BBinder> ref;
             CommandData data;
             std::vector<std::variant<binder::unique_fd, binder::borrowed_fd>> ancillaryFds;
             uint64_t asyncNumber = 0;

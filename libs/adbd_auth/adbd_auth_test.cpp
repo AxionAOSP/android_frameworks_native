@@ -21,16 +21,23 @@
 
 #include "adbd_auth.h"
 
+void start_wifi() {}
+void stop_wifi() {}
+
 class AdbAuthTest: public ::testing::Test {
    public:
     void SetUp() {
-        AdbdAuthCallbacks callbacks = {.version = 1};
+        AdbdAuthCallbacksV2 callbacks;
+        callbacks.version = 2;
+        callbacks.start_adbd_wifi = start_wifi;
+        callbacks.stop_adbd_wifi = stop_wifi;
         context = adbd_auth_new(&callbacks);
     }
 
     void TearDown() {
       adbd_auth_delete(context);
     }
+
  protected:
   AdbdAuthContext* context;
 };

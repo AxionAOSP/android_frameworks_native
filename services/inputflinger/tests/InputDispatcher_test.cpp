@@ -183,7 +183,8 @@ protected:
         mFakePolicy = std::make_unique<FakeInputDispatcherPolicy>();
         mDispatcher = std::make_unique<InputDispatcher>(*mFakePolicy,
                                                         std::make_unique<FakeInputTracingBackend>(
-                                                                mVerifyingTrace));
+                                                                mVerifyingTrace),
+                                                        /*env=*/nullptr);
 
         mDispatcher->setInputDispatchMode(/*enabled=*/true, /*frozen=*/false);
         // Start InputDispatcher thread

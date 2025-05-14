@@ -49,6 +49,14 @@ struct AdbdAuthCallbacksV1 : AdbdAuthCallbacks {
     void (*key_removed)(const char* public_key, size_t length);
 };
 
+struct AdbdAuthCallbacksV2 : AdbdAuthCallbacksV1 {
+    // The framework wants adbd to start adb wifi (TCP / TLS)
+    void (*start_adbd_wifi)();
+
+    // The framework wants adbd to stop adb wifi (TCP / TLS)
+    void (*stop_adbd_wifi)();
+};
+
 struct AdbdAuthContext;
 typedef struct AdbdAuthContext AdbdAuthContext;
 
@@ -177,6 +185,7 @@ void adbd_auth_tls_device_disconnected(AdbdAuthContext* ctx,
 uint32_t adbd_auth_get_max_version(void) __INTRODUCED_IN(30);
 
 enum AdbdAuthFeature : int32_t {
+  WifiLifeCycle, // Framework can request ADB Wifi TLS server to start/stop.
 };
 
 /**

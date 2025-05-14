@@ -102,7 +102,7 @@ static NotifyMotionArgs generateMotionArgs() {
 static void benchmarkNotifyMotion(benchmark::State& state) {
     // Create dispatcher
     FakeInputDispatcherPolicy fakePolicy;
-    auto dispatcher = std::make_unique<InputDispatcher>(fakePolicy);
+    auto dispatcher = std::make_unique<InputDispatcher>(fakePolicy, /*env=*/nullptr);
     dispatcher->setInputDispatchMode(/*enabled*/ true, /*frozen*/ false);
     dispatcher->start();
 
@@ -137,7 +137,7 @@ static void benchmarkNotifyMotion(benchmark::State& state) {
 static void benchmarkInjectMotion(benchmark::State& state) {
     // Create dispatcher
     FakeInputDispatcherPolicy fakePolicy;
-    auto dispatcher = std::make_unique<InputDispatcher>(fakePolicy);
+    auto dispatcher = std::make_unique<InputDispatcher>(fakePolicy, /*env=*/nullptr);
     dispatcher->setInputDispatchMode(/*enabled*/ true, /*frozen*/ false);
     dispatcher->start();
 
@@ -171,7 +171,7 @@ static void benchmarkInjectMotion(benchmark::State& state) {
 static void benchmarkOnWindowInfosChanged(benchmark::State& state) {
     // Create dispatcher
     FakeInputDispatcherPolicy fakePolicy;
-    auto dispatcher = std::make_unique<InputDispatcher>(fakePolicy);
+    auto dispatcher = std::make_unique<InputDispatcher>(fakePolicy, /*env=*/nullptr);
     dispatcher->setInputDispatchMode(/*enabled*/ true, /*frozen*/ false);
     dispatcher->start();
 

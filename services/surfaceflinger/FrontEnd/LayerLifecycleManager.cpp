@@ -221,7 +221,20 @@ void LayerLifecycleManager::applyTransactions(
             layer->merge(resolvedComposerState);
 
             if (layer->what & layer_state_t::eBackgroundColorChanged) {
-                if (layer->bgColorLayerId == UNASSIGNED_LAYER_ID && layer->bgColor.a != 0) {
+                RequestedLayerState* bgColorLayer = nullptr;
+                if (layer->bgColorLayerId != UNASSIGNED_LAYER_ID) {
+                    bgColorLayer = getLayerFromId(layer->bgColorLayerId);
+                    if (bgColorLayer == nullptr) {
+                        LLOG_ALWAYS_FATAL_WITH_TRACE_IF(!ignoreUnknownLayers,
+                                                        "%s Background color layer with layerid=%d "
+                                                        "not found",
+                                                        __func__, layer->bgColorLayerId);
+                        layer->bgColorLayerId = UNASSIGNED_LAYER_ID;
+                    }
+                }
+                if (bgColorLayer == nullptr && layer->bgColor.a != 0) {
+                    // Case 1: The background layer doesn't exist and the background color has a
+                    // non-zero alpha. Create a background layer.
                     LayerCreationArgs
                             backgroundLayerArgs(LayerCreationArgs::getInternalLayerId(
                                                         LayerCreationArgs::sInternalSequence++),
@@ -241,13 +254,15 @@ void LayerLifecycleManager::applyTransactions(
                     backgroundLayer->dataspace = layer->bgColorDataspace;
                     layer->bgColorLayerId = backgroundLayer->id;
                     addLayers({std::move(newLayers)});
-                } else if (layer->bgColorLayerId != UNASSIGNED_LAYER_ID && layer->bgColor.a == 0) {
-                    RequestedLayerState* bgColorLayer = getLayerFromId(layer->bgColorLayerId);
+                } else if (bgColorLayer != nullptr && layer->bgColor.a == 0) {
+                    // Case 2: The background layer exists and the background color has a zero
+                    // alpha (invisible). Destroy the background layer.
                     layer->bgColorLayerId = UNASSIGNED_LAYER_ID;
                     bgColorLayer->parentId = unlinkLayer(bgColorLayer->parentId, bgColorLayer->id);
                     onHandlesDestroyed({{bgColorLayer->id, bgColorLayer->debugName}});
-                } else if (layer->bgColorLayerId != UNASSIGNED_LAYER_ID) {
-                    RequestedLayerState* bgColorLayer = getLayerFromId(layer->bgColorLayerId);
+                } else if (bgColorLayer != nullptr && layer->bgColor.a != 0) {
+                    // Case 3: The background layer exists and the background color alpha might
+                    // have changed. Update the background layer.
                     bgColorLayer->color = layer->bgColor;
                     bgColorLayer->dataspace = layer->bgColorDataspace;
                     bgColorLayer->what |= layer_state_t::eColorChanged |

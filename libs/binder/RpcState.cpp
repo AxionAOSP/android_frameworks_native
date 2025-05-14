@@ -953,7 +953,8 @@ processTransactInternalTailCall:
                 // we need to process some other asynchronous transaction
                 // first
                 it->second.asyncTodo.push(BinderNode::AsyncTodo{
-                        .ref = target,
+                        // checked above
+                        .ref = sp<BBinder>::fromExisting(target->localBinder()),
                         .data = std::move(transactionData),
                         .ancillaryFds = std::move(ancillaryFds),
                         .asyncNumber = transaction->asyncNumber,
@@ -1205,8 +1206,9 @@ status_t RpcState::processDecStrong(const sp<RpcSession::RpcConnection>& connect
     RpcMutexUniqueLock _l(mNodeMutex);
     auto it = mNodeForAddress.find(addr);
     if (it == mNodeForAddress.end()) {
-        ALOGE("Unknown binder address %" PRIu64 " for dec strong.", addr);
-        return OK;
+        ALOGE("Unknown binder address %" PRIu64 " for dec strong. Terminating!", addr);
+        (void)session->shutdownAndWait(false);
+        return BAD_VALUE;
     }
 
     sp<IBinder> target = it->second.binder.promote();

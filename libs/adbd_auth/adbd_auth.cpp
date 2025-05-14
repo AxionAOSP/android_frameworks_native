@@ -27,6 +27,7 @@
 #include <chrono>
 #include <deque>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -45,7 +46,9 @@
 
 using android::base::unique_fd;
 
-static constexpr uint32_t kAuthVersion = 1;
+static constexpr uint32_t kAuthVersion = 2;
+
+static std::set<AdbdAuthFeature> supported_features = {AdbdAuthFeature::WifiLifeCycle};
 
 struct AdbdAuthPacketAuthenticated {
     std::string public_key;
@@ -86,8 +89,7 @@ struct AdbdAuthContext {
     static constexpr uint64_t kEpollConstFramework = 2;
 
 public:
-    explicit AdbdAuthContext(AdbdAuthCallbacksV1* callbacks) : next_id_(0), callbacks_(*callbacks) {
-        InitFrameworkHandlers();
+  explicit AdbdAuthContext(AdbdAuthCallbacksV1* callbacks) : next_id_(0), callbacks_(*callbacks) {
         epoll_fd_.reset(epoll_create1(EPOLL_CLOEXEC));
         if (epoll_fd_ == -1) {
             PLOG(FATAL) << "adbd_auth: failed to create epoll fd";
@@ -115,6 +117,8 @@ public:
             }
         }
     }
+
+    virtual ~AdbdAuthContext(){}
 
     AdbdAuthContext(const AdbdAuthContext& copy) = delete;
     AdbdAuthContext(AdbdAuthContext&& move) = delete;
@@ -502,7 +506,7 @@ public:
         }
     }
 
-    void InitFrameworkHandlers() {
+    virtual void InitFrameworkHandlers() {
         // Framework wants to disconnect from a secured wifi device
         framework_handlers_.emplace_back(
                 FrameworkPktHandler{
@@ -547,13 +551,58 @@ public:
     std::vector<FrameworkPktHandler> framework_handlers_;
 };
 
+class AdbdAuthContextV2 : public AdbdAuthContext {
+ public:
+  explicit AdbdAuthContextV2(AdbdAuthCallbacksV2* callbacks) : AdbdAuthContext(callbacks),
+                                                               callbacks_v2_(*callbacks) {}
+
+  virtual void InitFrameworkHandlers() {
+        AdbdAuthContext::InitFrameworkHandlers();
+        // Framework requires ADB Wifi to start
+        framework_handlers_.emplace_back(
+                FrameworkPktHandler{
+                    .code = "W1",
+                    .cb = std::bind(&AdbdAuthContextV2::StartAdbWifi, this, std::placeholders::_1)});
+
+        // Framework requires ADB Wifi to stop
+        framework_handlers_.emplace_back(
+                FrameworkPktHandler{
+                     .code = "W0",
+                     .cb = std::bind(&AdbdAuthContextV2::StopAdbWifi, this, std::placeholders::_1)});
+  }
+
+
+  void StartAdbWifi(std::string_view buf) EXCLUDES(mutex_) {
+        CHECK(buf.empty());
+        callbacks_v2_.start_adbd_wifi();
+    }
+
+    void StopAdbWifi(std::string_view buf) EXCLUDES(mutex_) {
+        CHECK(buf.empty());
+        callbacks_v2_.stop_adbd_wifi();
+    }
+
+ private:
+  AdbdAuthCallbacksV2 callbacks_v2_;
+};
+
 AdbdAuthContext* adbd_auth_new(AdbdAuthCallbacks* callbacks) {
-    if (callbacks->version == 1) {
-        return new AdbdAuthContext(reinterpret_cast<AdbdAuthCallbacksV1*>(callbacks));
-    } else {
+    switch (callbacks->version) {
+      case 1: {
+        AdbdAuthContext* ctx = new AdbdAuthContext (reinterpret_cast<AdbdAuthCallbacksV1*>(callbacks));
+        ctx->InitFrameworkHandlers();
+        return ctx;
+      }
+      case kAuthVersion: {
+        AdbdAuthContextV2* ctx2 = new AdbdAuthContextV2(reinterpret_cast<AdbdAuthCallbacksV2*>(callbacks));
+        ctx2->InitFrameworkHandlers();
+        return ctx2;
+      }
+      default : {
         LOG(ERROR) << "adbd_auth: received unknown AdbdAuthCallbacks version "
                    << callbacks->version;
         return nullptr;
+      }
     }
 }
 
@@ -607,8 +656,7 @@ uint32_t adbd_auth_get_max_version() {
 }
 
 bool adbd_auth_supports_feature(AdbdAuthFeature f) {
-    UNUSED(f);
-    return false;
+  return supported_features.contains(f);
 }
 
 void adbd_auth_send_tls_server_port(AdbdAuthContext* ctx, uint16_t port) {
