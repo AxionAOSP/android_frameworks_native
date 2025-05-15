@@ -82,6 +82,7 @@ public:
         uint64_t id = static_cast<uint64_t>(-1);
         std::vector<uint64_t> mergedTransactionIds;
         static_assert(0xffffffffffffffff == static_cast<uint64_t>(-1));
+        std::vector<gui::EarlyWakeupInfo> earlyWakeupInfos;
     };
 
     void checkEqual(TransactionInfo info, QueuedTransactionState state) {
@@ -116,7 +117,8 @@ public:
                                      transaction.applyToken, transaction.inputWindowCommands,
                                      transaction.desiredPresentTime, transaction.isAutoTimestamp,
                                      transaction.uncacheBuffers, mHasListenerCallbacks, mCallbacks,
-                                     transaction.id, transaction.mergedTransactionIds);
+                                     transaction.id, transaction.mergedTransactionIds,
+                                     transaction.earlyWakeupInfos);
 
         // If transaction is synchronous, SF applyTransactionState should time out (5s) wating for
         // SF to commit the transaction. If this is animation, it should not time out waiting.
@@ -143,7 +145,8 @@ public:
                                      transaction.applyToken, transaction.inputWindowCommands,
                                      transaction.desiredPresentTime, transaction.isAutoTimestamp,
                                      transaction.uncacheBuffers, mHasListenerCallbacks, mCallbacks,
-                                     transaction.id, transaction.mergedTransactionIds);
+                                     transaction.id, transaction.mergedTransactionIds,
+                                     transaction.earlyWakeupInfos);
 
         nsecs_t returnedTime = systemTime();
         EXPECT_LE(returnedTime, applicationSentTime + TRANSACTION_TIMEOUT);
@@ -174,7 +177,8 @@ public:
                                      transactionA.applyToken, transactionA.inputWindowCommands,
                                      transactionA.desiredPresentTime, transactionA.isAutoTimestamp,
                                      transactionA.uncacheBuffers, mHasListenerCallbacks, mCallbacks,
-                                     transactionA.id, transactionA.mergedTransactionIds);
+                                     transactionA.id, transactionA.mergedTransactionIds,
+                                     transactionA.earlyWakeupInfos);
 
         // This thread should not have been blocked by the above transaction
         // (5s is the timeout period that applyTransactionState waits for SF to
@@ -189,7 +193,8 @@ public:
                                      transactionB.applyToken, transactionB.inputWindowCommands,
                                      transactionB.desiredPresentTime, transactionB.isAutoTimestamp,
                                      transactionB.uncacheBuffers, mHasListenerCallbacks, mCallbacks,
-                                     transactionB.id, transactionB.mergedTransactionIds);
+                                     transactionB.id, transactionB.mergedTransactionIds,
+                                     transactionB.earlyWakeupInfos);
 
         // this thread should have been blocked by the above transaction
         // if this is an animation, this thread should be blocked for 5s
@@ -227,7 +232,7 @@ TEST_F(TransactionApplicationTest, AddToPendingQueue) {
                                  transactionA.inputWindowCommands, transactionA.desiredPresentTime,
                                  transactionA.isAutoTimestamp, transactionA.uncacheBuffers,
                                  mHasListenerCallbacks, mCallbacks, transactionA.id,
-                                 transactionA.mergedTransactionIds);
+                                 transactionA.mergedTransactionIds, transactionA.earlyWakeupInfos);
 
     auto& transactionQueue = mFlinger.getTransactionQueue();
     ASSERT_FALSE(transactionQueue.isEmpty());
@@ -248,7 +253,7 @@ TEST_F(TransactionApplicationTest, Flush_RemovesFromQueue) {
                                  transactionA.inputWindowCommands, transactionA.desiredPresentTime,
                                  transactionA.isAutoTimestamp, transactionA.uncacheBuffers,
                                  mHasListenerCallbacks, mCallbacks, transactionA.id,
-                                 transactionA.mergedTransactionIds);
+                                 transactionA.mergedTransactionIds, transactionA.earlyWakeupInfos);
 
     auto& transactionQueue = mFlinger.getTransactionQueue();
     ASSERT_FALSE(transactionQueue.isEmpty());
@@ -262,7 +267,7 @@ TEST_F(TransactionApplicationTest, Flush_RemovesFromQueue) {
                                  empty.applyToken, empty.inputWindowCommands,
                                  empty.desiredPresentTime, empty.isAutoTimestamp,
                                  empty.uncacheBuffers, mHasListenerCallbacks, mCallbacks, empty.id,
-                                 empty.mergedTransactionIds);
+                                 empty.mergedTransactionIds, empty.earlyWakeupInfos);
 
     // flush transaction queue should flush as desiredPresentTime has
     // passed
@@ -454,7 +459,8 @@ public:
                                                     transaction.isAutoTimestamp, {}, systemTime(),
                                                     mHasListenerCallbacks, mCallbacks, getpid(),
                                                     static_cast<int>(getuid()), transaction.id,
-                                                    transaction.mergedTransactionIds);
+                                                    transaction.mergedTransactionIds,
+                                                    transaction.earlyWakeupInfos);
             mFlinger.setTransactionStateInternal(transactionState);
         }
         mFlinger.flushTransactionQueues();

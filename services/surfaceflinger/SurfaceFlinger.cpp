@@ -2724,6 +2724,20 @@ bool SurfaceFlinger::commit(PhysicalDisplayId pacesetterId,
         mTimeStats->incrementMissedFrames();
     }
 
+    // SF::processHotplugDisconnect() does not immediately propagate the display removal to the
+    // Scheduler and CompositionEngine, but instead requires a call to processDisplayChangesLocked()
+    // to process the rest in the next commit. We should retry the commit with the new pacesetter
+    // after display transactions have been propagated.
+    {
+        const bool hasPacesetterDisplay =
+                FTL_FAKE_GUARD(mStateLock, mPhysicalDisplays.contains(pacesetterId));
+        if (FlagManager::getInstance().pacesetter_selection() && !hasPacesetterDisplay) {
+            FTL_FAKE_GUARD(mStateLock, processDisplayChangesLocked());
+            mScheduler->scheduleFrame();
+            return false;
+        }
+    }
+
     // If a mode set is pending and the fence hasn't fired yet, wait for the next commit.
     if (std::any_of(frameTargets.begin(), frameTargets.end(),
                     [this](const auto& pair) FTL_FAKE_GUARD(kMainThreadContext) {
@@ -4773,8 +4787,10 @@ uint32_t SurfaceFlinger::clearTransactionFlags(uint32_t mask) {
 }
 
 void SurfaceFlinger::setTransactionFlags(uint32_t mask, TransactionSchedule schedule,
-                                         const sp<IBinder>& applyToken, FrameHint frameHint) {
-    mScheduler->modulateVsync({}, &VsyncModulator::setTransactionSchedule, schedule, applyToken);
+                                         FrameHint frameHint,
+                                         std::vector<gui::EarlyWakeupInfo> earlyWakeupInfos) {
+    mScheduler->modulateVsync({}, &VsyncModulator::setTransactionSchedule, schedule,
+                              std::move(earlyWakeupInfos));
     uint32_t transactionFlags = mTransactionFlags.fetch_or(mask);
     SFTRACE_INT("mTransactionFlags", transactionFlags);
 
@@ -5042,7 +5058,8 @@ status_t SurfaceFlinger::setTransactionState(
         InputWindowCommands inputWindowCommands, int64_t desiredPresentTime, bool isAutoTimestamp,
         const std::vector<client_cache_t>& uncacheBuffers, bool hasListenerCallbacks,
         const std::vector<ListenerCallbacks>& listenerCallbacks, uint64_t transactionId,
-        const std::vector<uint64_t>& mergedTransactionIds) {
+        const std::vector<uint64_t>& mergedTransactionIds,
+        const std::vector<gui::EarlyWakeupInfo>& earlyWakeupInfos) {
     SFTRACE_CALL();
 
     IPCThreadState* ipc = IPCThreadState::self();
@@ -5152,7 +5169,8 @@ status_t SurfaceFlinger::setTransactionState(
                                  originPid,
                                  originUid,
                                  transactionId,
-                                 mergedTransactionIds};
+                                 mergedTransactionIds,
+                                 earlyWakeupInfos};
     state.workloadHint = queuedWorkload;
 
     if (mTransactionTracing) {
@@ -5166,6 +5184,7 @@ status_t SurfaceFlinger::setTransactionState(
     }(state.flags);
 
     const auto frameHint = state.isFrameActive() ? FrameHint::kActive : FrameHint::kNone;
+    // Copy fields of |state| needed after it is moved into queueTransaction
     {
         // Transactions are added via a lockless queue and does not need to be added from the main
         // thread.
@@ -5178,7 +5197,7 @@ status_t SurfaceFlinger::setTransactionState(
             scheduleNotifyExpectedPresentHint(displayId, VsyncId{frameTimelineInfo.vsyncId});
         }
     }
-    setTransactionFlags(eTransactionFlushNeeded, schedule, applyToken, frameHint);
+    setTransactionFlags(eTransactionFlushNeeded, schedule, frameHint, std::move(earlyWakeupInfos));
     return NO_ERROR;
 }
 

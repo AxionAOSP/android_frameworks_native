@@ -66,7 +66,8 @@ public:
             InputWindowCommands commands, int64_t desiredPresentTime, bool isAutoTimestamp,
             const std::vector<client_cache_t>& uncacheBuffers, bool hasListenerCallbacks,
             const std::vector<ListenerCallbacks>& listenerCallbacks, uint64_t transactionId,
-            const std::vector<uint64_t>& mergedTransactionIds) override {
+            const std::vector<uint64_t>& mergedTransactionIds,
+            const std::vector<gui::EarlyWakeupInfo>& earlyWakeupInfos) override {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
 
@@ -105,6 +106,11 @@ public:
         SAFE_PARCEL(data.writeUint32, static_cast<uint32_t>(mergedTransactionIds.size()));
         for (auto mergedTransactionId : mergedTransactionIds) {
             SAFE_PARCEL(data.writeUint64, mergedTransactionId);
+        }
+
+        SAFE_PARCEL(data.writeUint32, static_cast<uint32_t>(earlyWakeupInfos.size()));
+        for (const auto& e : earlyWakeupInfos) {
+            e.writeToParcel(&data);
         }
 
         if (flags & ISurfaceComposer::eOneWay) {
@@ -197,10 +203,21 @@ status_t BnSurfaceComposer::onTransact(
                 SAFE_PARCEL(data.readUint64, &mergedTransactions[i]);
             }
 
+            count = 0;
+            SAFE_PARCEL_READ_SIZE(data.readUint32, &count, data.dataSize());
+            std::vector<gui::EarlyWakeupInfo> earlyWakeupInfos;
+            state.setCapacity(count);
+            for (size_t i = 0; i < count; i++) {
+                gui::EarlyWakeupInfo e;
+                e.readFromParcel(&data);
+                earlyWakeupInfos.push_back(std::move(e));
+            }
+
             return setTransactionState(frameTimelineInfo, state, displays, stateFlags, applyToken,
                                        std::move(inputWindowCommands), desiredPresentTime,
                                        isAutoTimestamp, uncacheBuffers, hasListenerCallbacks,
-                                       listenerCallbacks, transactionId, mergedTransactions);
+                                       listenerCallbacks, transactionId, mergedTransactions,
+                                       earlyWakeupInfos);
         }
         case GET_SCHEDULING_POLICY: {
             gui::SchedulingPolicy policy;

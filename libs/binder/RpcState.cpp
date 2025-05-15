@@ -746,6 +746,7 @@ status_t RpcState::waitForReply(const sp<RpcSession::RpcConnection>& connection,
                   " sizeofHeader=%zu parcelSize=%" PRId32 " objectTableBytesSize=%zu. Terminating!",
                   command.bodySize, rpcReplyWireSize, rpcReply.parcelDataSize,
                   objectTableBytes->size);
+            (void)session->shutdownAndWait(false);
             return BAD_VALUE;
         }
         objectTableSpan = *maybeSpan;
@@ -1206,9 +1207,8 @@ status_t RpcState::processDecStrong(const sp<RpcSession::RpcConnection>& connect
     RpcMutexUniqueLock _l(mNodeMutex);
     auto it = mNodeForAddress.find(addr);
     if (it == mNodeForAddress.end()) {
-        ALOGE("Unknown binder address %" PRIu64 " for dec strong. Terminating!", addr);
-        (void)session->shutdownAndWait(false);
-        return BAD_VALUE;
+        ALOGE("Unknown binder address %" PRIu64 " for dec strong.", addr);
+        return OK;
     }
 
     sp<IBinder> target = it->second.binder.promote();

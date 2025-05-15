@@ -990,6 +990,8 @@ void Scheduler::dumpVsync(std::string& out) const {
         base::StringAppendF(&out, "VsyncSchedule for follower %s:\n", to_string(id).c_str());
         display.schedulePtr->dump(out);
     }
+
+    mVsyncModulator->dump(out);
 }
 
 #pragma clang diagnostic push

@@ -958,6 +958,7 @@ void SkiaRenderEngine::drawLayersInternal(
         }
 
         {
+            SFTRACE_NAME("OutsetRendering");
             SkRRect otherCrop;
             otherCrop.setRectXY(getSkRect(layer.geometry.otherCrop),
                                 layer.geometry.otherRoundedCornersRadius.x,
@@ -1009,6 +1010,9 @@ void SkiaRenderEngine::drawLayersInternal(
             // Similar to shadows, do the rendering before the clip is applied because even when the
             // layer is occluded it should have an outline.
             if (layer.borderSettings.strokeWidth > 0) {
+                SFTRACE_NAME("LayerBorder");
+                LOG_ALWAYS_FATAL_IF(layer.disableBlending,
+                                    "Cannot disableBlending with an outline");
                 SkRRect outlineRect = preferredOriginalBounds;
                 outlineRect.outset(layer.borderSettings.strokeWidth,
                                    layer.borderSettings.strokeWidth);
@@ -1021,6 +1025,9 @@ void SkiaRenderEngine::drawLayersInternal(
             }
 
             if (!layer.boxShadowSettings.boxShadows.empty()) {
+                SFTRACE_NAME("BoxShadows");
+                LOG_ALWAYS_FATAL_IF(layer.disableBlending,
+                                    "Cannot disableBlending with a box shadow");
                 for (const gui::BoxShadowSettings::BoxShadowParams& box :
                      layer.boxShadowSettings.boxShadows) {
                     SkRRect boxRect = preferredOriginalBounds;
@@ -1028,10 +1035,32 @@ void SkiaRenderEngine::drawLayersInternal(
                     boxRect.offset(box.offsetX, box.offsetY);
                     float sigma = convertBlurUserRadiusToSigma(box.blurRadius);
                     SkPaint blur;
-                    blur.setAntiAlias(true);
                     blur.setColor(box.color);
                     blur.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, sigma, false));
                     canvas->drawRRect(boxRect, blur);
+                }
+
+                const bool opaqueContent =
+                        (!layer.source.buffer.buffer || layer.source.buffer.isOpaque) &&
+                        layer.alpha == 1.0f;
+                if (opaqueContent && supportsForwardPixelKill()) {
+                    SFTRACE_NAME("FPKOptimization");
+                    // This optimization is just for Ganesh and can be removed once graphite is
+                    // enabled.
+                    SkRRect p = preferredOriginalBounds;
+                    // Assume corners are circles.
+                    SkScalar maxRadius = std::max({p.radii(SkRRect::kUpperLeft_Corner).fX,
+                                                   p.radii(SkRRect::kUpperRight_Corner).fX,
+                                                   p.radii(SkRRect::kLowerRight_Corner).fX,
+                                                   p.radii(SkRRect::kLowerLeft_Corner).fX});
+                    SkRect killRect = p.rect();
+                    killRect.inset(maxRadius, maxRadius);
+                    SkPaint paint;
+                    // Draw opaque rect to force FPK on mali results in 2x speedup.
+                    paint.setAntiAlias(false);
+                    paint.setColor(0);
+                    paint.setBlendMode(SkBlendMode::kSrc);
+                    canvas->drawRect(killRect, paint);
                 }
             }
         }

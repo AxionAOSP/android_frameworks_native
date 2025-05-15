@@ -89,12 +89,13 @@ cc_library_headers {
 filegroup {
     name: "guiconstants_aidl",
     srcs: [
+        "android/gui/BorderSettings.aidl",
+        "android/gui/BoxShadowSettings.aidl",
         "android/gui/DropInputMode.aidl",
+        "android/gui/EarlyWakeupInfo.aidl",
         "android/gui/StalledTransactionInfo.aidl",
         "android/**/TouchOcclusionMode.aidl",
         "android/gui/TrustedOverlay.aidl",
-        "android/gui/BorderSettings.aidl",
-        "android/gui/BoxShadowSettings.aidl",
     ],
 }
 

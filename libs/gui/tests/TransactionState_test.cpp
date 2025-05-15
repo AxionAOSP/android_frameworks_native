@@ -126,6 +126,7 @@ DisplayState createDisplayStateForTest(size_t i) {
 
 TransactionState createTransactionStateForTest() {
     static sp<BBinder> sApplyToken = sp<BBinder>::make();
+    static gui::EarlyWakeupInfo sEarlyWakeupInfo;
 
     TransactionState state;
     state.mId = 123;

@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+#include <bit>
 #include <chrono>
+#include <cstdint>
 #include <initializer_list>
 #include <map>
 #include <string>
@@ -42,11 +44,11 @@ using MultiDisplayRefreshEventGenerator = test_framework::hwc3::MultiDisplayRefr
 // Helper to compute a monotonic clock time point from a integer value for the count of
 // nanoseconds since the epoch.
 constexpr auto operator""_ticks(unsigned long long value) -> TimePoint {
-    return TimePoint{std::chrono::nanoseconds(value)};
+    return TimePoint{std::chrono::nanoseconds(std::bit_cast<int64_t>(value))};
 }
 
 constexpr auto operator""_ms(unsigned long long value) -> std::chrono::milliseconds {
-    return std::chrono::milliseconds(value);
+    return std::chrono::milliseconds(std::bit_cast<int64_t>(value));
 }
 
 auto toString(const SingleDisplayRefreshEventGenerator::GenerateResult& result) -> std::string {
@@ -62,64 +64,95 @@ auto toString(const MultiDisplayRefreshEventGenerator::GenerateResult& result) -
 }
 
 TEST(SingleDisplayRefreshSchedule, NextRefreshEventComputesNext) {
+    // Set up a fixed refresh schedule where events happen every 5ms, anchored to a clock time of
+    // 22ms. So refresh events happen at [..., 12ms, 17ms, 22ms, 27ms, 32ms, ...]
+    static constexpr SingleDisplayRefreshSchedule schedule{
+            .base = 22'000'000_ticks,
+            .period = 5_ms,
+    };
+
     struct TestCase {
-        TimePoint input;
-        TimePoint expected;
+        int64_t input;
+        int64_t expected;
     };
 
     // The implementation assumes that it is called with increasing input clock times.
     const auto testCases = std::initializer_list<TestCase>{
             // Clock times 1ms apart should always round up to an event time after the input time.
             // These values are to show that the rounding occurs to the 5ms refresh period.
-            {.input = 12'000'000_ticks, .expected = 17'000'000_ticks},
-            {.input = 13'000'000_ticks, .expected = 17'000'000_ticks},
-            {.input = 14'000'000_ticks, .expected = 17'000'000_ticks},
-            {.input = 15'000'000_ticks, .expected = 17'000'000_ticks},
-            {.input = 16'000'000_ticks, .expected = 17'000'000_ticks},
-            {.input = 17'000'000_ticks, .expected = 22'000'000_ticks},
-            {.input = 18'000'000_ticks, .expected = 22'000'000_ticks},
-            {.input = 19'000'000_ticks, .expected = 22'000'000_ticks},
-            {.input = 20'000'000_ticks, .expected = 22'000'000_ticks},
-            {.input = 21'000'000_ticks, .expected = 22'000'000_ticks},  // ^ Past events
-            {.input = 22'000'000_ticks, .expected = 27'000'000_ticks},  // = At Base tme
-            {.input = 23'000'000_ticks, .expected = 27'000'000_ticks},  // v Future events
-            {.input = 24'000'000_ticks, .expected = 27'000'000_ticks},
-            {.input = 25'000'000_ticks, .expected = 27'000'000_ticks},
-            {.input = 26'000'000_ticks, .expected = 27'000'000_ticks},
-            {.input = 27'000'000_ticks, .expected = 32'000'000_ticks},
-            {.input = 28'000'000_ticks, .expected = 32'000'000_ticks},
-            {.input = 29'000'000_ticks, .expected = 32'000'000_ticks},
-            {.input = 30'000'000_ticks, .expected = 32'000'000_ticks},
-            {.input = 31'000'000_ticks, .expected = 32'000'000_ticks},
+            {.input = 12'000'000, .expected = 17'000'000},
+            {.input = 13'000'000, .expected = 17'000'000},
+            {.input = 14'000'000, .expected = 17'000'000},
+            {.input = 15'000'000, .expected = 17'000'000},
+            {.input = 16'000'000, .expected = 17'000'000},
+            {.input = 17'000'000, .expected = 22'000'000},
+            {.input = 18'000'000, .expected = 22'000'000},
+            {.input = 19'000'000, .expected = 22'000'000},
+            {.input = 20'000'000, .expected = 22'000'000},
+            {.input = 21'000'000, .expected = 22'000'000},  // ^ Past events
+            {.input = 22'000'000, .expected = 27'000'000},  // = At Base tme
+            {.input = 23'000'000, .expected = 27'000'000},  // v Future events
+            {.input = 24'000'000, .expected = 27'000'000},
+            {.input = 25'000'000, .expected = 27'000'000},
+            {.input = 26'000'000, .expected = 27'000'000},
+            {.input = 27'000'000, .expected = 32'000'000},
+            {.input = 28'000'000, .expected = 32'000'000},
+            {.input = 29'000'000, .expected = 32'000'000},
+            {.input = 30'000'000, .expected = 32'000'000},
+            {.input = 31'000'000, .expected = 32'000'000},
 
             // Past clock times near the rounding point should correctly round up.
-            {.input = 11'999'000_ticks, .expected = 12'000'000_ticks},
-            {.input = 12'000'000_ticks, .expected = 17'000'000_ticks},
-            {.input = 12'001'000_ticks, .expected = 17'000'000_ticks},
+            {.input = 11'999'000, .expected = 12'000'000},
+            {.input = 12'000'000, .expected = 17'000'000},
+            {.input = 12'001'000, .expected = 17'000'000},
 
             // clock times near the base time should correctly round up.
-            {.input = 21'999'000_ticks, .expected = 22'000'000_ticks},
-            {.input = 22'000'000_ticks, .expected = 27'000'000_ticks},
-            {.input = 22'001'000_ticks, .expected = 27'000'000_ticks},
+            {.input = 21'999'000, .expected = 22'000'000},
+            {.input = 22'000'000, .expected = 27'000'000},
+            {.input = 22'001'000, .expected = 27'000'000},
 
             // Future clock times near the rounding point should correctly round up.
-            {.input = 31'999'000_ticks, .expected = 32'000'000_ticks},
-            {.input = 32'000'000_ticks, .expected = 37'000'000_ticks},
-            {.input = 32'001'000_ticks, .expected = 37'000'000_ticks},
+            {.input = 31'999'000, .expected = 32'000'000},
+            {.input = 32'000'000, .expected = 37'000'000},
+            {.input = 32'001'000, .expected = 37'000'000},
 
+            // TimePoint::min() (-9'223'372'036'854'775'808) should be accepted, and should compute
+            // a correct value.
+            {
+                    .input = TimePoint::min().time_since_epoch().count(),
+                    .expected = -9'223'372'036'853'000'000,
+            },
+            {
+                    .input = -9'223'372'036'853'000'001,
+                    .expected = -9'223'372'036'853'000'000,
+            },
+            {
+                    .input = -9'223'372'036'853'000'000,
+                    .expected = -9'223'372'036'848'000'000,
+            },
+
+            // The largest valid input value is one less than the last representable event time.
+            // Passing in the last representable event time would require returning an event time
+            // greater than TimePoint::max() (9'223'372'036'854'775'807), which is not possible.
+            {
+                    .input = 9'223'372'036'847'000'000,  // The second to last representable event.
+                    .expected = 9'223'372'036'852'000'000,  // The last representable event time.
+            },
+            {
+                    .input = 9'223'372'036'851'999'999,  // The last representable event time - 1.
+                    .expected = 9'223'372'036'852'000'000,  // The last representable event time.
+            },
+            // Note: The implementation asserts when the output value would not be representable,
+            // rather than returning a truncated value.
     };
 
-    // Set up a fixed refresh schedule where events happen every 5ms, anchored to a clock time of
-    // 22ms. So refresh events happen at [..., 12ms, 17ms, 22ms, 27ms, 32ms, ...]
-    static constexpr SingleDisplayRefreshSchedule schedule{.base = 22'000'000_ticks,
-                                                           .period = 5_ms};
-
     for (const auto& testCase : testCases) {
-        const auto actual = schedule.nextEvent(testCase.input);
+        const auto actual = schedule.nextEvent(TimePoint{std::chrono::nanoseconds(testCase.input)})
+                                    .time_since_epoch()
+                                    .count();
         if (actual != testCase.expected) {
-            FAIL() << fmt::format("For input: {} expected: {}, actual: {})",
-                                  testCase.input.time_since_epoch(),
-                                  testCase.expected.time_since_epoch(), actual.time_since_epoch());
+            FAIL() << fmt::format("For input: {:} expected: {}, actual: {})", testCase.input,
+                                  testCase.expected, actual);
         }
     }
 }

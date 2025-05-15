@@ -682,7 +682,8 @@ public:
             int64_t /*desiredPresentTime*/, bool /*isAutoTimestamp*/,
             const std::vector<client_cache_t>& /*cachedBuffer*/, bool /*hasListenerCallbacks*/,
             const std::vector<ListenerCallbacks>& /*listenerCallbacks*/, uint64_t /*transactionId*/,
-            const std::vector<uint64_t>& /*mergedTransactionIds*/) override {
+            const std::vector<uint64_t>& /*mergedTransactionIds*/,
+            const std::vector<gui::EarlyWakeupInfo>& /*earlyWakeupInfos*/) override {
         return NO_ERROR;
     }
 

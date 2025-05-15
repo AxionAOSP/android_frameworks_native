@@ -134,9 +134,9 @@ Surface Surface::fromSurface(const sp<android::Surface>& surface) {
     return s;
 }
 
-sp<android::Surface> Surface::toSurface() const {
+sp<android::Surface> Surface::toSurface(bool controlledByApp) const {
     if (graphicBufferProducer == nullptr) return nullptr;
-    return new android::Surface(graphicBufferProducer, false, surfaceControlHandle);
+    return new android::Surface(graphicBufferProducer, controlledByApp, surfaceControlHandle);
 }
 
 status_t Surface::getUniqueId(uint64_t* out_id) const {

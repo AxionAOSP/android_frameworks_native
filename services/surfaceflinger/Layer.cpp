@@ -644,9 +644,16 @@ void Layer::clearFrameStats() {
 void Layer::getFrameStats(FrameStats* outStats) const {
     if (FlagManager::getInstance().deprecate_frame_tracker()) {
         if (auto ftl = getTimeline()) {
-            float fps = ftl->get().computeFps({getSequence()});
+            nsecs_t refreshPeriod =
+                    Fps::fromValue(ftl->get().computeFps({getSequence()})).getPeriodNsecs();
+            // FPS computation requires some number of layer updates before the calculation can be
+            // made. If not enough frames are available return the projected FPS based on the
+            // pacesetter display's native refresh rate.
+            if (!refreshPeriod) {
+                refreshPeriod = mFlinger->mScheduler->getPacesetterVsyncPeriod().ns();
+            }
             ftl->get().generateFrameStats(getSequence(), mFrameStatsHistorySize, outStats);
-            outStats->refreshPeriodNano = Fps::fromValue(fps).getPeriodNsecs();
+            outStats->refreshPeriodNano = refreshPeriod;
         }
     } else {
         mDeprecatedFrameTracker.getStats(outStats);

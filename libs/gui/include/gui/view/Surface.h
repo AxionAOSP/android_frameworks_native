@@ -50,7 +50,7 @@ class Surface : public Parcelable {
 
     // functions used to convert to a parcelable Surface so it can be passed over binder.
     static Surface fromSurface(const sp<android::Surface>& surface);
-    sp<android::Surface> toSurface() const;
+    sp<android::Surface> toSurface(bool controlledByApp = false) const;
 
     status_t getUniqueId(/* out */ uint64_t* id) const;
 
