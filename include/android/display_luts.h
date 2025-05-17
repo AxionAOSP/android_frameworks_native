@@ -68,11 +68,20 @@ typedef struct ADisplayLuts ADisplayLuts;
  * \a ADisplayLutsEntry_create.
  *
  * 1D Lut(s) are treated as gain curves.
+ *
  * 3D Lut(s) are used for direct color manipulations.
- * The values of 3D Lut(s) data should be normalized to the range 0.0f
- * to 1.0f, inclusive. And 1.0f is the maximum panel luminance.
- * And 3D Lut(s) data is organized in RGB order
- * (R0, R1, R2, ..., RN, G0, G1, G2, ..., GN, B0, B1, B2, ..., BN) if N is the dimension.
+ * For 3D Lut(s), the values should be normalized to the range 0.0
+ * to 1.0 , inclusive. And 1.0 is the maximum panel luminance.
+ * And If N is the size of each dimension, the data is arranged in RGB order:
+ * R(0, 0, 0), R(0, 0, 1), ..., R(0, 0, N - 1),
+ * R(0, 1, 0), ..., R(0, 1, N - 1), ..., R(0, N - 1, N - 1),
+ * R(1, 0, 0), ..., R(1, 0, N - 1), ..., R(1, N - 1, N - 1), ..., R(N - 1, N - 1, N - 1),
+ * G(0, 0, 0), ..., G(N - 1, N - 1, N - 1),
+ * B(0, 0, 0), ..., B(N - 1, N - 1, N - 1).
+ *
+ * When a GPU shader samples 3D Lut data, it's accessed in a flat, one-dimensional arrangement.
+ * Assuming that we have a 3D array ORIGINAL[N][N][N],
+ * then ORIGINAL[x][y][z] is mapped to FLAT[z + N * (y + N * x)].
  *
  * @param buffer The lut raw buffer. The function creates a copy of it and does not need to
  * outlive the life of the ADisplayLutsEntry.
