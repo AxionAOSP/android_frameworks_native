@@ -3650,18 +3650,6 @@ void Dumpstate::MaybeSnapshotUiTraces() {
         {"cmd", "window", "shell", "tracing", "save-for-bugreport"},
     };
 
-    if (!android_tracing_perfetto_transition_tracing()) {
-        dumpTracesForBugReportCommands.push_back({"dumpsys", "activity", "service",
-                                                  "SystemUIService", "WMShell", "transitions",
-                                                  "tracing", "save-for-bugreport"});
-    }
-
-    if (!android_tracing_perfetto_protolog_tracing()) {
-        dumpTracesForBugReportCommands.push_back({"dumpsys", "activity", "service",
-                                                  "SystemUIService", "WMShell", "protolog",
-                                                  "save-for-bugreport"});
-    }
-
     for (const auto& command : dumpTracesForBugReportCommands) {
         RunCommand(
             // Empty name because it's not intended to be classified as a bugreport section.

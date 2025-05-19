@@ -28,6 +28,7 @@
 #include <utils/String8.h>
 #include <utils/Thread.h>
 
+#include "BinderObserver.h"
 #include "Static.h"
 #include "Utils.h"
 #include "binder_module.h"
@@ -636,6 +637,9 @@ ProcessState::ProcessState(const char* driver)
     if (opened.ok()) {
         mDriverFD = opened.release();
     }
+#ifdef BINDER_WITH_OBSERVERS
+    mBinderObserver = std::make_unique<BinderObserver>();
+#endif
 }
 
 ProcessState::~ProcessState()

@@ -230,6 +230,17 @@ filegroup {
     ],
 }
 
+filegroup {
+    name: "libbinder_observer_sources",
+    srcs: [
+        "BinderObserver.cpp",
+        "BinderStatsPusher.cpp",
+    ],
+    visibility: [
+        ":__subpackages__",
+    ],
+}
+
 cc_defaults {
     name: "libbinder_common_defaults",
     host_supported: true,
@@ -277,7 +288,11 @@ cc_defaults {
         // the code knows to export them.
         "-fvisibility=hidden",
         "-DBUILDING_LIBBINDER",
-    ],
+    ] + select(release_flag("RELEASE_LIBBINDER_BINDER_OBSERVER"), {
+        true: ["-DLIBBINDER_BINDER_OBSERVER"],
+        false: ["-DNO_LIBBINDER_BINDER_OBSERVER"],
+        default: ["-DNO_LIBBINDER_BINDER_OBSERVER"],
+    }),
 }
 
 cc_defaults {
@@ -465,28 +480,6 @@ cc_library_shared {
 }
 
 soong_config_module_type {
-    name: "release_libbinder_binder_observer_config",
-    module_type: "cc_defaults",
-    config_namespace: "libbinder",
-    bool_variables: ["release_libbinder_binder_observer"],
-    properties: [
-        "cflags",
-    ],
-}
-
-release_libbinder_binder_observer_config {
-    name: "release_libbinder_enable_binder_observer_flag",
-    soong_config_variables: {
-        release_libbinder_binder_observer: {
-            cflags: ["-DLIBBINDER_BINDER_OBSERVER"],
-            conditions_default: {
-                cflags: ["-DNO_LIBBINDER_BINDER_OBSERVER"],
-            },
-        },
-    },
-}
-
-soong_config_module_type {
     name: "libbinder_remove_cache_static_list_config",
     module_type: "cc_defaults",
     config_namespace: "libbinder",
@@ -558,7 +551,6 @@ cc_defaults {
         "libbinder_client_cache_flag",
         "libbinder_addservice_cache_flag",
         "libbinder_remove_cache_static_list_flag",
-        "release_libbinder_enable_binder_observer_flag",
     ],
     srcs: [
         "BufferedTextOutput.cpp",
@@ -572,6 +564,7 @@ cc_defaults {
         ":libbinder_accessor_aidl",
         ":libbinder_device_interface_sources",
         ":android-os-statsbootstrap-aidl",
+        ":libbinder_observer_sources",
     ],
     target: {
         vendor: {
@@ -605,7 +598,11 @@ cc_defaults {
     },
     cflags: [
         "-DBINDER_WITH_KERNEL_IPC",
-    ],
+    ] + select(release_flag("RELEASE_LIBBINDER_BINDER_OBSERVER"), {
+        true: ["-DLIBBINDER_BINDER_OBSERVER"],
+        false: ["-DNO_LIBBINDER_BINDER_OBSERVER"],
+        default: ["-DNO_LIBBINDER_BINDER_OBSERVER"],
+    }),
 }
 
 cc_library {

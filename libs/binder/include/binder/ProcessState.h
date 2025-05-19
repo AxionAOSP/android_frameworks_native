@@ -31,8 +31,14 @@
 // ---------------------------------------------------------------------------
 namespace android {
 
-class IPCThreadState;
+#if defined(LIBBINDER_BINDER_OBSERVER) && defined(BINDER_WITH_KERNEL_IPC)
+#define BINDER_WITH_OBSERVERS
+#endif
 
+class IPCThreadState;
+#ifdef BINDER_WITH_OBSERVERS
+class BinderObserver;
+#endif
 /**
  * Kernel binder process state. All operations here refer to kernel binder. This
  * object is allocated per process.
@@ -199,6 +205,9 @@ private:
     std::atomic_int32_t mThreadPoolSeq;
 
     CallRestriction mCallRestriction;
+#ifdef BINDER_WITH_OBSERVERS
+    std::unique_ptr<BinderObserver> mBinderObserver;
+#endif
 };
 
 } // namespace android

@@ -81,6 +81,9 @@ SensorFusion::SensorFusion()
 }
 
 void SensorFusion::process(const sensors_event_t& event) {
+    // sensor additional info is not currently used in fusion algorithm
+    if (event.type == SENSOR_TYPE_ADDITIONAL_INFO)
+        return;
 
     if (event.sensor == mGyro.getHandle()) {
         float dT;

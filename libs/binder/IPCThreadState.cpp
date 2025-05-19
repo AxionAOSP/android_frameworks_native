@@ -23,6 +23,7 @@
 #include <binder/TextOutput.h>
 
 #include <utils/CallStack.h>
+#include <utils/SystemClock.h>
 
 #include <atomic>
 #include <errno.h>
@@ -37,6 +38,9 @@
 
 #include "Utils.h"
 #include "binder_module.h"
+#include "BinderObserver.h"
+#include "BinderStatsSpscQueue.h"
+#include "BinderStatsUtils.h"
 
 #if (defined(__ANDROID__) || defined(__Fuchsia__)) && !defined(BINDER_WITH_KERNEL_IPC)
 #error Android and Fuchsia are expected to have BINDER_WITH_KERNEL_IPC
@@ -62,7 +66,6 @@
 #define LOG_ONEWAY(...) ALOG(LOG_DEBUG, "ipc", __VA_ARGS__)
 
 #endif
-
 // ---------------------------------------------------------------------------
 
 namespace android {
@@ -622,8 +625,7 @@ void IPCThreadState::clearCaller()
     mCallingUid = getuid();
 }
 
-void IPCThreadState::flushCommands()
-{
+void IPCThreadState::flushCommands() {
     if (mProcess->mDriverFD < 0)
         return;
 
@@ -1051,10 +1053,17 @@ IPCThreadState::IPCThreadState()
     mHasExplicitIdentity = false;
     mIn.setDataCapacity(256);
     mOut.setDataCapacity(256);
+#ifdef BINDER_WITH_OBSERVERS
+    mBinderStatsQueue = std::make_shared<BinderStatsSpscQueue>();
+    ProcessState::self()->mBinderObserver->registerQueue(mBinderStatsQueue);
+#endif
 }
 
 IPCThreadState::~IPCThreadState()
 {
+#ifdef BINDER_WITH_OBSERVERS
+    ProcessState::self()->mBinderObserver->deregisterQueue(mBinderStatsQueue);
+#endif
 }
 
 status_t IPCThreadState::sendReply(const Parcel& reply, uint32_t flags)
@@ -1477,13 +1486,22 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
                 std::string message = logStream.str();
                 ALOGI("%s", message.c_str());
             }
+#ifdef BINDER_WITH_OBSERVERS
+            int64_t startTimeNanos = uptimeNanos();
+            String16 interfaceDescriptor;
+            // TODO (b/299356196): collect aidl method name. Ensure this is performant.
+#endif
             if (tr.target.ptr) {
                 // We only have a weak reference on the target object, so we must first try to
                 // safely acquire a strong reference before doing anything else with it.
-                if (reinterpret_cast<RefBase::weakref_type*>(
-                        tr.target.ptr)->attemptIncStrong(this)) {
-                    error = reinterpret_cast<BBinder*>(tr.cookie)->transact(tr.code, buffer,
-                            &reply, tr.flags);
+                if (reinterpret_cast<RefBase::weakref_type*>(tr.target.ptr)
+                            ->attemptIncStrong(this)) {
+                    error = reinterpret_cast<BBinder*>(tr.cookie)->transact(tr.code, buffer, &reply,
+                                                                            tr.flags);
+#ifdef BINDER_WITH_OBSERVERS
+                    interfaceDescriptor =
+                            reinterpret_cast<BBinder*>(tr.cookie)->getInterfaceDescriptor();
+#endif
                     reinterpret_cast<BBinder*>(tr.cookie)->decStrong(this);
                 } else {
                     error = UNKNOWN_TRANSACTION;
@@ -1491,8 +1509,13 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
 
             } else {
                 error = the_context_object->transact(tr.code, buffer, &reply, tr.flags);
+#ifdef BINDER_WITH_OBSERVERS
+                interfaceDescriptor = the_context_object->getInterfaceDescriptor();
+#endif
             }
-
+#ifdef BINDER_WITH_OBSERVERS
+            int64_t endTimeNanos = uptimeNanos();
+#endif
             //ALOGI("<<<< TRANSACT from pid %d restore pid %d sid %s uid %d\n",
             //     mCallingPid, origPid, (origSid ? origSid : "<N/A>"), origUid);
 
@@ -1536,7 +1559,17 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
                 }
                 LOG_ONEWAY("NOT sending reply to %d!", mCallingPid);
             }
-
+#ifdef BINDER_WITH_OBSERVERS
+            BinderCallData observerData = {
+                    .interfaceDescriptor = interfaceDescriptor,
+                    .transactionCode = tr.code,
+                    .startTimeNanos = startTimeNanos,
+                    .endTimeNanos = endTimeNanos,
+                    .senderUid = tr.sender_euid,
+            };
+            ProcessState::self()->mBinderObserver->addStatMaybeFlush(mBinderStatsQueue,
+                                                                     observerData);
+#endif
             mServingStackPointer = origServingStackPointer;
             mCallingPid = origPid;
             mCallingSid = origSid;

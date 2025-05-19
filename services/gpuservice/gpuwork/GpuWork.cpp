@@ -479,7 +479,7 @@ void GpuWork::clearMapIfNeeded() {
     uint64_t numEntries = globalData.value().num_map_entries;
 
     // If the map is <=75% full, we do nothing.
-    if (numEntries <= (kMaxTrackedGpuIdUids / 4) * 3) {
+    if (numEntries <= (MAX_TRACKED_GPU_ID_UIDS / 4) * 3) {
         return;
     }
 
@@ -511,7 +511,7 @@ void GpuWork::clearMap() {
 
     base::Result<GpuIdUid> key = mGpuWorkMap.getFirstKey();
 
-    for (size_t i = 0; i < kMaxTrackedGpuIdUids; ++i) {
+    for (size_t i = 0; i < MAX_TRACKED_GPU_ID_UIDS; ++i) {
         if (!key.ok()) {
             break;
         }

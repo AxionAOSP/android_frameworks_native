@@ -29,6 +29,8 @@ typedef  int  uid_t;
 // ---------------------------------------------------------------------------
 namespace android {
 
+class BinderStatsSpscQueue;
+
 /**
  * Kernel binder thread state. All operations here refer to kernel binder. This
  * object is allocated per-thread.
@@ -255,6 +257,9 @@ private:
             int32_t             mStrictModePolicy;
             int32_t             mLastTransactionBinderFlags;
             CallRestriction     mCallRestriction;
+#ifdef BINDER_WITH_OBSERVERS
+            std::shared_ptr<BinderStatsSpscQueue> mBinderStatsQueue;
+#endif
 };
 
 } // namespace android

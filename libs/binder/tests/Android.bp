@@ -34,7 +34,10 @@ cc_defaults {
         "-Wsign-compare",
         "-Wunused-result",
         "-Wzero-as-null-pointer-constant",
-    ],
+    ] + select(release_flag("RELEASE_LIBBINDER_BINDER_OBSERVER"), {
+        true: ["-DLIBBINDER_BINDER_OBSERVER"],
+        default: [],
+    }),
 }
 
 cc_test {
@@ -79,6 +82,35 @@ cc_test {
     require_root: true,
 }
 
+cc_test {
+    name: "binderStatsPusherUnitTest",
+    target: {
+        darwin: {
+            enabled: false,
+        },
+    },
+    srcs: [
+        "binderStatsPusherTest.cpp",
+        ":libbinder_observer_sources",
+    ],
+    shared_libs: [
+        "liblog",
+        "libbinder",
+        "libcutils",
+        "libutils",
+    ],
+    static_libs: [
+        "libfakeservicemanager",
+        "libgmock",
+    ],
+    header_libs: [
+        "jni_headers",
+    ],
+    test_suites: ["general-tests"],
+    host_supported: false,
+    require_root: true,
+}
+
 // unit test only, which can run on host and doesn't use /dev/binder
 cc_test {
     name: "binderUnitTest",
@@ -95,11 +127,17 @@ cc_test {
         "binderMemoryHeapBaseUnitTest.cpp",
         "binderRecordedTransactionTest.cpp",
         "binderPersistableBundleTest.cpp",
+        "binderStatsSpscQueueTest.cpp",
     ],
     shared_libs: [
         "libbinder",
         "libcutils",
         "libutils",
+        "liblog",
+    ],
+    static_libs: [
+        "libgmock",
+        "libfakeservicemanager",
     ],
     test_suites: ["general-tests"],
 }
