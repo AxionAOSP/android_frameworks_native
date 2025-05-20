@@ -890,7 +890,7 @@ private:
         std::optional<uint32_t> rootLayerId{std::nullopt};
 
         // IDs of layers that will be excluded from the screenshot
-        std::unordered_set<uint32_t> excludeLayerIds{{}};
+        std::unordered_set<uint32_t> excludeLayerIds{};
 
         // If true, transform is inverted from the parent layer snapshot
         bool childrenOnly{false};
