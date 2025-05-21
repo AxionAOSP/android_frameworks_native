@@ -315,6 +315,13 @@ flag {
  } # vsync_predictor_recovery
 
 flag {
+  name: "wb_virtualdisplay2"
+  namespace: "core_graphics"
+  description: "When enabled, use VirtualDisplaySurface2 instead of the legacy one"
+  bug: "340933138"
+} # wb_virtualdisplay2
+
+flag {
   name: "window_blur_kawase2"
   namespace: "core_graphics"
   description: "Flag for using Kawase2 algorithm for window blur"

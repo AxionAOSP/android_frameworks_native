@@ -206,7 +206,7 @@ status_t BnSurfaceComposer::onTransact(
             count = 0;
             SAFE_PARCEL_READ_SIZE(data.readUint32, &count, data.dataSize());
             std::vector<gui::EarlyWakeupInfo> earlyWakeupInfos;
-            state.setCapacity(count);
+            earlyWakeupInfos.reserve(count);
             for (size_t i = 0; i < count; i++) {
                 gui::EarlyWakeupInfo e;
                 e.readFromParcel(&data);

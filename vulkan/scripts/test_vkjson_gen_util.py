@@ -22,9 +22,12 @@ TODO (b/416165162):
 * Temporary location for this file, pending CI/CD integration
 * Testing infrastructure (such as BaseMockCodeFileTest etc.) should ideally be hosted in dedicated files within the test folder
 """
+import ctypes
 import difflib
 import re
 import unittest
+from enum import Enum
+from typing import List
 from unittest.mock import Mock, patch
 
 import vkjson_gen_util as src
@@ -625,6 +628,357 @@ class TestGenerateMemsetStatements(BaseMockCodeFileTest):
 
         self.assertEqual([], src.generate_memset_statements(self.mock_file))
         self.assertCodeFileWrite("")
+
+
+class TestGenerateExtensionStructTemplate(BaseCodeAssertTest):
+
+    @patch('vkjson_gen_util.VK')
+    def test_extension_with_single_struct(self, mock_vk):
+        mock_vk.VULKAN_EXTENSIONS_AND_STRUCTS_MAPPING = {
+            "extensions": {
+                "VK_KHR_driver_state": [
+                    {"VkPhysicalDeviceDriverPropertiesKHR": "VK_STRUCT_DRIVER"}
+                ]
+            }
+        }
+
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, {src.get_vkjson_struct_name("VK_KHR_driver_state")}* structs) {{
+              return visitor->Visit("driverPropertiesKHR", &structs->{src.get_struct_name("VkPhysicalDeviceDriverPropertiesKHR")});
+            }}""",
+            src.generate_extension_struct_template()
+        )
+
+    # TODO (b/401184058)- Fix source code
+    @patch('vkjson_gen_util.VK')
+    def extension_with_multiple_structs(self, mock_vk):
+        mock_vk.VULKAN_EXTENSIONS_AND_STRUCTS_MAPPING = {
+            "extensions": {
+                "VK_KHR_variable_pointers": [
+                    {"VkPhysicalDeviceShader": "VK_STRUCT_SHADER",
+                     "SomeThingElse": "SOME_OTHER_STRUCT"},
+                    {"VkPhysicalDeviceVulkan11Properties": "VK_STRUCT_VULKAN"},
+                    {"VkPhysicalDevice16BitStorageFeaturesKHR": "VK_STRUCT_STORAGE"}
+                ]
+            }
+        }
+
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, {src.get_vkjson_struct_name("VK_KHR_variable_pointers")}* structs) {{
+              return visitor->Visit("shader", &structs->{src.get_struct_name("VkPhysicalDeviceShader")})&&
+                    visitor->Visit("someThingElse", &structs->{src.get_struct_name("SomeThingElse")})&&
+                    visitor->Visit("vulkan11Properties", &structs->{src.get_struct_name("VkPhysicalDeviceVulkan11Properties")})&&
+                    visitor->Visit("bit16StorageFeaturesKHR", &structs->{src.get_struct_name("VkPhysicalDevice16BitStorageFeaturesKHR")});
+            }}""",
+            src.generate_extension_struct_template()
+        )
+
+    @patch('vkjson_gen_util.VK')
+    def test_extension_without_structs(self, mock_vk):
+        mock_vk.VULKAN_EXTENSIONS_AND_STRUCTS_MAPPING = {
+            "extensions": {
+                "VK_EXT_image_2d_view_of_3d": []
+            }
+        }
+
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, {src.get_vkjson_struct_name("VK_EXT_image_2d_view_of_3d")}* structs) {{
+              return;
+            }}""",
+            src.generate_extension_struct_template()
+        )
+
+    @patch('vkjson_gen_util.VK')
+    def test_multiple_extensions(self, mock_vk):
+        mock_vk.VULKAN_EXTENSIONS_AND_STRUCTS_MAPPING = {
+            "extensions": {
+                "VK_EXT_custom_border_color": [
+                    {"VkPhysicalDeviceCustomBorderColorFeatsEXT": "VK_STRUCT_COLOR"}
+                ],
+                "VK_KHR_shader_float_controls": [
+                    {"VkPhysicalDeviceFloatControlsFeatsKHR": "VK_STRUCT_FLOAT"}
+                ]
+            }
+        }
+
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, {src.get_vkjson_struct_name("VK_EXT_custom_border_color")}* structs) {{
+              return visitor->Visit("customBorderColorFeatsEXT", &structs->{src.get_struct_name("VkPhysicalDeviceCustomBorderColorFeatsEXT")});
+            }}
+
+            template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, {src.get_vkjson_struct_name("VK_KHR_shader_float_controls")}* structs) {{
+              return visitor->Visit("floatControlsFeatsKHR", &structs->{src.get_struct_name("VkPhysicalDeviceFloatControlsFeatsKHR")});
+            }}""",
+            src.generate_extension_struct_template()
+        )
+
+    @patch('vkjson_gen_util.VK')
+    def test_empty_extensions(self, mock_vk):
+        mock_vk.VULKAN_EXTENSIONS_AND_STRUCTS_MAPPING = {
+            "extensions": {}
+        }
+
+        self.assertEqual("", src.generate_extension_struct_template())
+
+
+class TestGenerateCoreTemplate(BaseCodeAssertTest):
+
+    @patch('vkjson_gen_util.VK')
+    def test_core_with_single_struct(self, mock_vk):
+        mock_vk.VULKAN_CORES_AND_STRUCTS_MAPPING = {
+            "versions": {
+                "Core11": [
+                    {"VkVulkan11Properties": "VK_STRUCT_TYPE_VULKAN_1_1_PROPERTIES"}
+                ]
+            }
+        }
+
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, VkJsonCore11* core) {{
+              return visitor->Visit("properties", &core->properties);
+            }}""",
+            src.generate_core_template()
+        )
+
+    @patch('vkjson_gen_util.VK')
+    def test_core_with_multiple_structs(self, mock_vk):
+        mock_vk.VULKAN_CORES_AND_STRUCTS_MAPPING = {
+            "versions": {
+                "Core13": [
+                    {"VkVulkan13Features": "VK_STRUCT_TYPE_VULKAN_1_3_FEATURES",
+                     "VkVulkan13Properties": "VK_STRUCT_TYPE_VULKAN_1_3_PROPERTIES"}
+                ]
+            }
+        }
+
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, VkJsonCore13* core) {{
+              return visitor->Visit("features", &core->features) &&
+                    visitor->Visit("properties", &core->properties);
+            }}""",
+            src.generate_core_template()
+        )
+
+    @patch('vkjson_gen_util.VK')
+    def test_multiple_cores(self, mock_vk):
+        mock_vk.VULKAN_CORES_AND_STRUCTS_MAPPING = {
+            "versions": {
+                "Core11": [
+                    {"VkVulkan11Properties": "VK_STRUCT_TYPE_VULKAN_1_1_PROPERTIES"}
+                ],
+                "Core12": [
+                    {"VkVulkan12Features": "VK_STRUCT_TYPE_VULKAN_1_2_FEATURES"}
+                ]
+            }
+        }
+
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, VkJsonCore11* core) {{
+              return visitor->Visit("properties", &core->properties);
+            }}
+
+            template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, VkJsonCore12* core) {{
+              return visitor->Visit("features", &core->features);
+            }}""",
+            src.generate_core_template()
+        )
+
+    @patch('vkjson_gen_util.VK')
+    def test_core_without_structs(self, mock_vk):
+        mock_vk.VULKAN_CORES_AND_STRUCTS_MAPPING = {
+            "versions": {
+                "Core10": []
+            }
+        }
+
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, VkJsonCore10* core) {{
+              return;
+            }}""",
+            src.generate_core_template()
+        )
+
+
+# Testing custom field types
+test_uint8 = ctypes.c_uint8
+test_uint32 = ctypes.c_uint32
+VkTestBool = bool
+VkTestFlag = VkTestBool
+
+
+class VkTestEnum(Enum):
+    VK_TEST_TYPE_1D = 0
+    VK_TEST_TYPE_2D = 1
+    VK_IMAGE_TYPE_3D = 2
+
+
+class VkTestField:
+    pass
+
+
+class TestGenerateStructTemplate(BaseCodeAssertTest):
+    @dataclass
+    class SimpleProperties:
+        intField: int
+
+    @dataclass
+    class SimpleLimits:
+        strField: str
+
+    @dataclass
+    class TwoFieldFeatures:
+        boolField: bool
+        floatField: float
+
+    @dataclass
+    class MultiFieldProperties:
+        field1: test_uint32 * 2
+        field2: test_uint8
+        field3: VkTestBool
+        field4: VkTestFlag
+        field5: VkTestEnum
+        field6: VkTestField
+
+    @dataclass
+    class TestSomethingElse:
+        anyField: VkTestBool
+
+    @dataclass
+    class NoFieldLimits:
+        pass
+
+    @dataclass
+    class ListFieldFeatures:
+        listField: List[VkTestFlag]
+        anyField: VkTestFlag
+
+    # Testing struct aliases
+    SimplePropertiesAlias1 = SimpleProperties
+    SimplePropertiesAlias2 = SimplePropertiesAlias1
+
+    def test_struct_with_single_field(self):
+        mock_input = [self.SimpleProperties]
+
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, SimpleProperties* properties) {{
+              return visitor->Visit("intField", &properties->intField);
+            }}""",
+            src.generate_struct_template(mock_input)
+        )
+
+    def test_struct_with_multiple_fields(self):
+        mock_input = [self.MultiFieldProperties]
+
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, MultiFieldProperties* properties) {{
+              return visitor->Visit("field1", &properties->field1) &&
+                  visitor->Visit("field2", &properties->field2) &&
+                  visitor->Visit("field3", &properties->field3) &&
+                  visitor->Visit("field4", &properties->field4) &&
+                  visitor->Visit("field5", &properties->field5) &&
+                  visitor->Visit("field6", &properties->field6);
+            }}""",
+            src.generate_struct_template(mock_input)
+        )
+
+    @patch('vkjson_gen_util.VK')
+    def test_struct_with_list_field(self, mock_vk):
+        mock_vk.LIST_TYPE_FIELD_AND_SIZE_MAPPING = {
+            "listField": "copyListField"
+        }
+
+        mock_input = [self.ListFieldFeatures]
+
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, ListFieldFeatures* features) {{
+              return visitor->VisitArray("listField", features->copyListField, &features->listField) &&
+                    visitor->Visit("anyField", &features->anyField);
+            }}""",
+            src.generate_struct_template(mock_input)
+        )
+
+    def test_struct_without_fields(self):
+        mock_input = [self.NoFieldLimits]
+
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, NoFieldLimits* limits) {{
+              return;
+            }}""",
+            src.generate_struct_template(mock_input)
+        )
+
+    def test_multiple_known_structs(self):
+        mock_input = [
+            self.SimpleLimits,
+            self.TwoFieldFeatures,
+            self.SimpleProperties
+        ]
+
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, SimpleLimits* limits) {{
+              return visitor->Visit("strField", &limits->strField);
+            }}
+
+            template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, TwoFieldFeatures* features) {{
+              return visitor->Visit("boolField", &features->boolField) &&
+                    visitor->Visit("floatField", &features->floatField);
+            }}
+
+            template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, SimpleProperties* properties) {{
+              return visitor->Visit("intField", &properties->intField);
+            }}""",
+            src.generate_struct_template(mock_input)
+        )
+
+    # TODO (b/401184058): Fix source code
+    def disabled_test_filters_out_unknown_structs(self):
+        mock_input = [
+            self.TestSomethingElse,
+            self.SimpleLimits
+        ]
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, SimpleLimits* limits) {{
+              return visitor->Visit("strField", &limits->strField);
+            }}""",
+            src.generate_struct_template(mock_input)
+        )
+
+    def test_duplicate_structs(self):
+        mock_input = [
+            self.SimplePropertiesAlias1,
+            self.SimplePropertiesAlias2,
+            self.SimpleProperties
+        ]
+
+        self.assertCodeEqual(
+            f"""template <typename Visitor>
+            inline bool Iterate(Visitor* visitor, SimpleProperties* properties) {{
+              return visitor->Visit("intField", &properties->intField);
+            }}""",
+            src.generate_struct_template(mock_input)
+        )
+
+    def test_no_structs(self):
+        mock_input = []
+        self.assertCodeEqual("", src.generate_struct_template(mock_input))
 
 
 class TestEmitStructVisitsByVkVersion(BaseMockCodeFileTest):

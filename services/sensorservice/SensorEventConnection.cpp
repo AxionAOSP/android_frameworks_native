@@ -764,6 +764,11 @@ status_t SensorService::SensorEventConnection::setEventRate(int handle, nsecs_t 
 }
 
 void SensorService::SensorEventConnection::onMicSensorAccessChanged(bool isMicToggleOn) {
+     // TODO(b/398253250): Create a more robust way to allow VNDK and system clients to be exempted
+     if (mUid == AID_SYSTEM) {
+        return;
+    }
+
     if (isMicToggleOn) {
         capRates();
     } else {

@@ -478,8 +478,7 @@ public:
         ScreenCaptureResults captureResults;
         const auto& state = display->getCompositionDisplay()->getState();
 
-        SurfaceFlinger::ScreenshotArgs screenshotArgs{.captureTypeVariant = display,
-                                                      .displayIdVariant = std::nullopt,
+        SurfaceFlinger::ScreenshotArgs screenshotArgs{.displayIdVariant = std::nullopt,
                                                       .layers = layers,
                                                       .sourceCrop = sourceCrop,
                                                       .size = sourceCrop.getSize(),

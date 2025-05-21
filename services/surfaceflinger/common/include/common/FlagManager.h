@@ -112,6 +112,7 @@ public:
     bool use_known_refresh_rate_for_fps_consistency() const;
     bool vrr_config() const;
     bool vulkan_renderengine() const;
+    bool wb_virtualdisplay2() const;
     bool window_blur_kawase2() const;
     /// IMPORTANT - please keep alphabetize to reduce merge conflicts
 

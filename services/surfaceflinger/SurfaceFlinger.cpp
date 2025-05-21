@@ -7510,33 +7510,6 @@ void SurfaceFlinger::captureDisplay(const DisplayCaptureArgs& args,
         return;
     }
 
-    wp<const DisplayDevice> displayWeak;
-    ftl::Optional<DisplayIdVariant> displayIdVariantOpt;
-    ui::LayerStack layerStack;
-    ui::Size reqSize(args.width, args.height);
-    Rect layerStackSpaceRect;
-    bool displayIsSecure;
-
-    {
-        Mutex::Autolock lock(mStateLock);
-        sp<DisplayDevice> display = getDisplayDeviceLocked(args.displayToken);
-        if (!display) {
-            ALOGD("Unable to find display device for captureDisplay");
-            invokeScreenCaptureError(NAME_NOT_FOUND, captureListener);
-            return;
-        }
-        displayWeak = display;
-        displayIdVariantOpt = display->getDisplayIdVariant();
-        layerStack = display->getLayerStack();
-        displayIsSecure = display->isSecure();
-
-        layerStackSpaceRect = display->getLayerStackSpaceRect();
-        // set the requested width/height to the logical display layer stack rect size by default
-        if (args.width == 0 || args.height == 0) {
-            reqSize = layerStackSpaceRect.getSize();
-        }
-    }
-
     auto excludeLayerIds = getExcludeLayerIds(captureArgs.excludeHandles);
     if (!excludeLayerIds) {
         ALOGD("Invalid layer handle passed as excludeLayer to captureDisplay");
@@ -7544,27 +7517,21 @@ void SurfaceFlinger::captureDisplay(const DisplayCaptureArgs& args,
         return;
     }
 
-    ScreenshotArgs screenshotArgs{.captureTypeVariant = displayWeak,
-                                  .displayIdVariant = displayIdVariantOpt,
+    ScreenshotArgs screenshotArgs{.captureTypeVariant = args.displayToken,
                                   .snapshotRequest =
                                           SnapshotRequestArgs{.uid = gui::Uid{static_cast<uid_t>(
                                                                       captureArgs.uid)},
-                                                              .layerStack = layerStack,
                                                               .excludeLayerIds =
                                                                       excludeLayerIds.value()},
                                   .sourceCrop = gui::aidl_utils::fromARect(captureArgs.sourceCrop),
-                                  .size = reqSize,
+                                  .size = ui::Size(args.width, args.height),
                                   .dataspace = static_cast<ui::Dataspace>(captureArgs.dataspace),
                                   .disableBlur = false,
                                   .isGrayscale = captureArgs.grayscale,
-                                  .isSecure = captureArgs.captureSecureLayers && displayIsSecure,
+                                  .isSecure = captureArgs.captureSecureLayers,
                                   .includeProtected = captureArgs.allowProtected,
                                   .seamlessTransition = captureArgs.hintForSeamlessTransition,
                                   .debugName = "ScreenCapture"};
-
-    if (screenshotArgs.sourceCrop.isEmpty()) {
-        screenshotArgs.sourceCrop = layerStackSpaceRect;
-    }
 
     captureScreenCommon(screenshotArgs, static_cast<ui::PixelFormat>(captureArgs.pixelFormat),
                         captureListener);
@@ -7572,60 +7539,19 @@ void SurfaceFlinger::captureDisplay(const DisplayCaptureArgs& args,
 
 void SurfaceFlinger::captureDisplay(DisplayId displayId, const CaptureArgs& args,
                                     const sp<IScreenCaptureListener>& captureListener) {
-    ui::LayerStack layerStack;
-    wp<const DisplayDevice> displayWeak;
-    ftl::Optional<DisplayIdVariant> displayIdVariantOpt;
-    ui::Size size;
-    Rect layerStackSpaceRect;
-    bool displayIsSecure;
-
-    {
-        Mutex::Autolock lock(mStateLock);
-
-        const auto display = getDisplayDeviceLocked(displayId);
-        if (!display) {
-            ALOGD("Unable to find display device for captureDisplay");
-            invokeScreenCaptureError(NAME_NOT_FOUND, captureListener);
-            return;
-        }
-
-        displayWeak = display;
-        displayIdVariantOpt = display->getDisplayIdVariant();
-        layerStack = display->getLayerStack();
-        layerStackSpaceRect = display->getLayerStackSpaceRect();
-        size = display->getLayerStackSpaceRect().getSize();
-        displayIsSecure = display->isSecure();
-    }
-
-    size.width *= args.frameScaleX;
-    size.height *= args.frameScaleY;
-
-    // We could query a real value for this but it'll be a long, long time until we support
-    // displays that need upwards of 1GB per buffer so...
-    constexpr auto kMaxTextureSize = 16384;
-    if (size.width <= 0 || size.height <= 0 || size.width >= kMaxTextureSize ||
-        size.height >= kMaxTextureSize) {
-        ALOGD("captureDisplay resolved to invalid size %d x %d", size.width, size.height);
-        invokeScreenCaptureError(BAD_VALUE, captureListener);
-        return;
-    }
-
     if (captureListener == nullptr) {
         ALOGE("capture screen must provide a capture listener callback");
         invokeScreenCaptureError(BAD_VALUE, captureListener);
         return;
     }
 
-    ScreenshotArgs screenshotArgs{.captureTypeVariant = displayWeak,
-                                  .displayIdVariant = displayIdVariantOpt,
-                                  .snapshotRequest = SnapshotRequestArgs{.uid = gui::Uid::INVALID,
-                                                                         .layerStack = layerStack},
-                                  .sourceCrop = layerStackSpaceRect,
-                                  .size = size,
+    ScreenshotArgs screenshotArgs{.captureTypeVariant = displayId,
+                                  .snapshotRequest = SnapshotRequestArgs{.uid = gui::Uid::INVALID},
+                                  .size = ui::Size(args.frameScaleX, args.frameScaleY),
                                   .dataspace = static_cast<ui::Dataspace>(args.dataspace),
                                   .disableBlur = false,
                                   .isGrayscale = false,
-                                  .isSecure = args.captureSecureLayers && displayIsSecure,
+                                  .isSecure = args.captureSecureLayers,
                                   .includeProtected = false,
                                   .seamlessTransition = args.hintForSeamlessTransition,
                                   .debugName = "ScreenCapture"};
@@ -7775,13 +7701,14 @@ bool SurfaceFlinger::layersHasProtectedLayer(
 // Getting layer snapshots and accessing display state should take place on
 // main thread. Accessing display requires mStateLock, and contention for
 // this lock is reduced when grabbed from the main thread, thus also reducing
-// risk of deadlocks. Returns false if no display is found.
-bool SurfaceFlinger::getSnapshotsFromMainThread(ScreenshotArgs& args) {
+// risk of deadlocks. Returns an error status if no display is found.
+status_t SurfaceFlinger::setScreenshotSnapshotsAndDisplayState(ScreenshotArgs& args) {
     return mScheduler
             ->schedule([=, this, &args]() REQUIRES(kMainThreadContext) {
                 SFTRACE_NAME_FOR_TRACK(WorkloadTracer::TRACK_NAME, "Screenshot");
                 mPowerAdvisor->setScreenshotWorkload();
-                SFTRACE_NAME("getSnapshotsFromMainThread");
+                SFTRACE_NAME("setScreenshotSnapshotsAndDisplayState");
+                status_t status = setScreenshotDisplayState(args);
                 args.layers = getLayerSnapshotsForScreenshots(args.snapshotRequest);
                 // Non-threaded RenderEngine eventually returns to the main thread a 2nd time
                 // to complete the screenshot. Release fences should only be added during the 2nd
@@ -7793,7 +7720,7 @@ bool SurfaceFlinger::getSnapshotsFromMainThread(ScreenshotArgs& args) {
                                                         ui::UNASSIGNED_LAYER_STACK);
                     }
                 }
-                return getDisplayStateOnMainThread(args);
+                return status;
             })
             .get();
 }
@@ -7802,18 +7729,17 @@ void SurfaceFlinger::captureScreenCommon(ScreenshotArgs& args, ui::PixelFormat r
                                          const sp<IScreenCaptureListener>& captureListener) {
     SFTRACE_CALL();
 
+    status_t status = setScreenshotSnapshotsAndDisplayState(args);
+    if (status != OK) {
+        invokeScreenCaptureError(status, captureListener);
+    }
+
     if (exceedsMaxRenderTargetSize(args.size.getWidth(), args.size.getHeight())) {
         ALOGE("Attempted to capture screen with size (%" PRId32 ", %" PRId32
               ") that exceeds render target size limit.",
               args.size.getWidth(), args.size.getHeight());
         invokeScreenCaptureError(BAD_VALUE, captureListener);
         return;
-    }
-
-    bool hasDisplayState = getSnapshotsFromMainThread(args);
-    if (!hasDisplayState) {
-        ALOGD("Display state not found");
-        invokeScreenCaptureError(NO_MEMORY, captureListener);
     }
 
     const bool hasHdrLayer =
@@ -7892,55 +7818,112 @@ void SurfaceFlinger::captureScreenCommon(ScreenshotArgs& args, ui::PixelFormat r
     futureFence.get();
 }
 
-// Returns true if display is found and args was populated with display state
-// data. Otherwise, returns false.
-bool SurfaceFlinger::getDisplayStateOnMainThread(ScreenshotArgs& args) {
+// Returns OK if display is found and args was populated with display state
+// data. Otherwise, returns an error status.
+status_t SurfaceFlinger::setScreenshotDisplayState(ScreenshotArgs& args) {
+    Mutex::Autolock lock(mStateLock);
     sp<const DisplayDevice> display = nullptr;
-    {
-        Mutex::Autolock lock(mStateLock);
-        // Screenshot initiated through captureLayers
-        if (auto* layerSequence = std::get_if<int32_t>(&args.captureTypeVariant)) {
-            // LayerSnapshotBuilder should only be accessed from the main thread.
-            const frontend::LayerSnapshot* snapshot =
-                    mLayerSnapshotBuilder.getSnapshot(*layerSequence);
-            if (!snapshot) {
-                ALOGW("Couldn't find layer snapshot for %d", *layerSequence);
-            } else {
-                if (!args.snapshotRequest.childrenOnly) {
-                    args.transform = snapshot->localTransform.inverse();
-                }
-                if (args.sourceCrop.isEmpty()) {
-                    args.sourceCrop = snapshot->bufferSize;
-                }
-                display = findDisplay(
-                        [layerStack = snapshot->outputFilter.layerStack](const auto& display) {
-                            return display.getLayerStack() == layerStack;
-                        });
-                args.debugName.append(", ").append(snapshot->debugName);
+
+    // Screenshot initiated through captureLayers
+    if (auto* layerSequence = std::get_if<int32_t>(&args.captureTypeVariant)) {
+        // LayerSnapshotBuilder should only be accessed from the main thread.
+        const frontend::LayerSnapshot* snapshot = mLayerSnapshotBuilder.getSnapshot(*layerSequence);
+        if (!snapshot) {
+            ALOGW("Couldn't find layer snapshot for %d", *layerSequence);
+        } else {
+            if (!args.snapshotRequest.childrenOnly) {
+                args.transform = snapshot->localTransform.inverse();
             }
-
-            // Screenshot initiated through captureDisplay
-        } else if (auto* displayWeak =
-                           std::get_if<wp<const DisplayDevice>>(&args.captureTypeVariant)) {
-            display = displayWeak->promote();
+            if (args.sourceCrop.isEmpty()) {
+                args.sourceCrop = snapshot->bufferSize;
+            }
+            display = findDisplay(
+                    [layerStack = snapshot->outputFilter.layerStack](const auto& display) {
+                        return display.getLayerStack() == layerStack;
+                    });
+            args.debugName.append(", ").append(snapshot->debugName);
         }
 
-        if (display == nullptr) {
-            display = getPacesetterDisplayLocked();
+        // Screenshot initiated through captureDisplay by ID
+    } else if (auto* displayId = std::get_if<DisplayId>(&args.captureTypeVariant)) {
+        display = getDisplayDeviceLocked(*displayId);
+        if (!display) {
+            ALOGD("Unable to find display device for captureDisplay by ID");
+            return NAME_NOT_FOUND;
         }
 
-        if (display != nullptr) {
-            const auto& state = display->getCompositionDisplay()->getState();
-            args.displayBrightnessNits = state.displayBrightnessNits;
-            args.sdrWhitePointNits = state.sdrWhitePointNits;
-            args.renderIntent = state.renderIntent;
-            args.colorMode = state.colorMode;
-            args.debugName.append(", ").append(display->getDisplayName());
-            args.debugName.append(" (").append(to_string(display->getId())).append(")");
-            return true;
+        Rect layerStackSpaceRect = display->getLayerStackSpaceRect();
+        args.isSecure &= display->isSecure();
+        args.snapshotRequest.layerStack = display->getLayerStack();
+        args.sourceCrop = layerStackSpaceRect;
+        args.size.width *= layerStackSpaceRect.getWidth();
+        args.size.height *= layerStackSpaceRect.getHeight();
+
+        // We could query a real value for this but it'll be a long, long time until we support
+        // displays that need upwards of 1GB per buffer so...
+        constexpr auto kMaxTextureSize = 16384;
+        if (args.size.width <= 0 || args.size.height <= 0 || args.size.width >= kMaxTextureSize ||
+            args.size.height >= kMaxTextureSize) {
+            ALOGD("captureDisplay resolved to invalid size %d x %d", args.size.width,
+                  args.size.height);
+            return BAD_VALUE;
+        }
+
+        // Screenshot initiated through captureDisplay by displayToken
+    } else if (auto* displayToken = std::get_if<sp<IBinder>>(&args.captureTypeVariant)) {
+        display = getDisplayDeviceLocked(*displayToken);
+        if (!display) {
+            ALOGD("Unable to find display device for captureDisplay by displayToken");
+            return NAME_NOT_FOUND;
+        }
+
+        Rect layerStackSpaceRect = display->getLayerStackSpaceRect();
+        args.isSecure &= display->isSecure();
+        args.snapshotRequest.layerStack = display->getLayerStack();
+
+        if (args.sourceCrop.isEmpty()) {
+            args.sourceCrop = layerStackSpaceRect;
+        }
+        // Set the requested width/height to the logical display layer stack rect size by
+        // default
+        if (args.size.width == 0 || args.size.height == 0) {
+            args.size = layerStackSpaceRect.getSize();
+        }
+
+        // Screenshot initiated for region sampling
+    } else if (std::holds_alternative<std::monostate>(args.captureTypeVariant)) {
+        display = getFrontInternalDisplayLocked();
+        if (!display) {
+            ALOGD("Unable to find display device for region sampling");
+            return NAME_NOT_FOUND;
+        }
+
+        args.snapshotRequest.layerStack = display->getLayerStack();
+
+        if (args.sourceCrop.isEmpty()) {
+            Rect layerStackSpaceRect = display->getLayerStackSpaceRect();
+            args.sourceCrop = layerStackSpaceRect;
+            args.size = layerStackSpaceRect.getSize();
         }
     }
-    return false;
+
+    if (display == nullptr) {
+        display = getPacesetterDisplayLocked();
+    }
+
+    if (display != nullptr) {
+        const auto& state = display->getCompositionDisplay()->getState();
+        args.displayBrightnessNits = state.displayBrightnessNits;
+        args.sdrWhitePointNits = state.sdrWhitePointNits;
+        args.renderIntent = state.renderIntent;
+        args.colorMode = state.colorMode;
+        args.debugName.append(", ").append(display->getDisplayName());
+        args.debugName.append(" (").append(to_string(display->getId())).append(")");
+        args.displayIdVariant = display->getDisplayIdVariant();
+        return OK;
+    }
+    ALOGD("Display state not found");
+    return NO_MEMORY;
 }
 
 ftl::SharedFuture<FenceResult> SurfaceFlinger::captureScreenshot(

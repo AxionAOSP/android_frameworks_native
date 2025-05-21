@@ -29,14 +29,13 @@
 #include <android-base/strings.h>
 #include <android/dlext.h>
 #include <binder/IServiceManager.h>
+#include <bionic/dlext_namespaces.h>
 #include <com_android_graphics_graphicsenv_flags.h>
 #include <graphicsenv/IGpuService.h>
 #include <log/log.h>
-#include <nativeloader/dlext_namespaces.h>
 #include <sys/prctl.h>
 #include <utils/Trace.h>
 
-#include <memory>
 #include <string>
 #include <thread>
 
