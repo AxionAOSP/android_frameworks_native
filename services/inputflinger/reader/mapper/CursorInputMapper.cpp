@@ -517,11 +517,11 @@ void CursorInputMapper::configureOnChangePointerSpeed(const InputReaderConfigura
     bool disableAllScaling = config.displaysWithMouseScalingDisabled.count(
                                      mDisplayId.value_or(ui::LogicalDisplayId::INVALID)) != 0;
 
-    if (InputFlags::scaleCursorSpeedWithDisplayDensity() &&
-        mParameters.mode == Parameters::Mode::POINTER && !disableAllScaling) {
+    if (mParameters.mode == Parameters::Mode::POINTER) {
         // TODO(b/408170793): We use ACONFIGURATION_DENSITY_XHIGH as baseline for scale due to
         // legacy reasons, this need to be tuned with further UX testing.
-        mXScale = mYScale = isDensityValueSupportedForScaling(mViewportDensityDpi)
+        mXScale = mYScale = InputFlags::scaleCursorSpeedWithDisplayDensity() &&
+                        !disableAllScaling && isDensityValueSupportedForScaling(mViewportDensityDpi)
                 ? static_cast<float>(mViewportDensityDpi) /
                         static_cast<float>(ACONFIGURATION_DENSITY_XHIGH)
                 : 1.0;

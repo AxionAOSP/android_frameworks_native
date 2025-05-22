@@ -143,9 +143,7 @@ Layer::Layer(const surfaceflinger::LayerCreationArgs& args)
     mDrawingState.transform.set(0, 0);
     mDrawingState.frameNumber = 0;
     mDrawingState.previousFrameNumber = 0;
-    mDrawingState.barrierFrameNumber = 0;
     mDrawingState.producerId = 0;
-    mDrawingState.barrierProducerId = 0;
     mDrawingState.bufferTransform = 0;
     mDrawingState.transformToDisplayInverse = false;
     mDrawingState.acquireFence = sp<Fence>::make(-1);
@@ -902,12 +900,6 @@ bool Layer::setBuffer(std::shared_ptr<renderengine::ExternalTexture>& buffer,
         REQUIRES(mFlinger->mStateLock) {
     SFTRACE_FORMAT("setBuffer %s - hasBuffer=%s", getDebugName(), (buffer ? "true" : "false"));
 
-    const bool frameNumberChanged =
-            bufferData.flags.test(BufferData::BufferDataChange::frameNumberChanged);
-    const uint64_t frameNumber =
-            frameNumberChanged ? bufferData.frameNumber : mDrawingState.frameNumber + 1;
-    SFTRACE_FORMAT_INSTANT("setBuffer %s - %" PRIu64, getDebugName(), frameNumber);
-
     if (mDrawingState.buffer) {
         releasePreviousBuffer();
     } else if (buffer) {
@@ -933,22 +925,9 @@ bool Layer::setBuffer(std::shared_ptr<renderengine::ExternalTexture>& buffer,
         }
     }
 
-    if ((mDrawingState.producerId > bufferData.producerId) ||
-        ((mDrawingState.producerId == bufferData.producerId) &&
-         (mDrawingState.frameNumber > frameNumber))) {
-        ALOGE("Out of order buffers detected for %s producedId=%d frameNumber=%" PRIu64
-              " -> producedId=%d frameNumber=%" PRIu64,
-              getDebugName(), mDrawingState.producerId, mDrawingState.frameNumber,
-              bufferData.producerId, frameNumber);
-        TransactionTraceWriter::getInstance().invoke("out_of_order_buffers_", /*overwrite=*/false);
-    }
-
     mDrawingState.producerId = bufferData.producerId;
-    mDrawingState.barrierProducerId =
-            std::max(mDrawingState.producerId, mDrawingState.barrierProducerId);
-    mDrawingState.frameNumber = frameNumber;
-    mDrawingState.barrierFrameNumber =
-            std::max(mDrawingState.frameNumber, mDrawingState.barrierFrameNumber);
+    mDrawingState.frameNumber = bufferData.frameNumber;
+    SFTRACE_FORMAT_INSTANT("setBuffer %s - %" PRIu64, getDebugName(), bufferData.frameNumber);
 
     mDrawingState.releaseBufferListener = bufferData.releaseBufferListener;
     mDrawingState.previousBuffer = std::move(mDrawingState.buffer);
@@ -976,10 +955,10 @@ bool Layer::setBuffer(std::shared_ptr<renderengine::ExternalTexture>& buffer,
     if (bufferData.dequeueTime > 0) {
         const uint64_t bufferId = mDrawingState.buffer->getId();
         mFlinger->mFrameTracer->traceNewLayer(layerId, getName().c_str());
-        mFlinger->mFrameTracer->traceTimestamp(layerId, bufferId, frameNumber,
+        mFlinger->mFrameTracer->traceTimestamp(layerId, bufferId, bufferData.frameNumber,
                                                bufferData.dequeueTime,
                                                FrameTracer::FrameEvent::DEQUEUE);
-        mFlinger->mFrameTracer->traceTimestamp(layerId, bufferId, frameNumber, postTime,
+        mFlinger->mFrameTracer->traceTimestamp(layerId, bufferId, bufferData.frameNumber, postTime,
                                                FrameTracer::FrameEvent::QUEUE);
     }
 

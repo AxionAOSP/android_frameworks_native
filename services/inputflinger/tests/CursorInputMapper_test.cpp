@@ -1293,6 +1293,31 @@ TEST_F(DensityDependentCursorUnitTest,
                               WithRelativeMotion(rawRelativeX, rawRelativeY)))));
 }
 
+TEST_F(DensityDependentCursorUnitTest,
+       ResetScaleCursorMoveWithDisplayDensityWhenMouseScalingDisabled) {
+    // Create a medium density viewport.
+    DisplayViewport mediumDensityViewport =
+            createPrimaryViewport(ui::Rotation::Rotation0, ACONFIGURATION_DENSITY_MEDIUM);
+    mReaderConfiguration.setDisplayViewports({mediumDensityViewport});
+    EXPECT_CALL((*mDevice), getAssociatedViewport).WillRepeatedly(Return(mediumDensityViewport));
+    mMapper = createInputMapper<CursorInputMapper>(*mDeviceContext, mReaderConfiguration);
+
+    std::list<NotifyArgs> args;
+    // Disables scaling
+    mReaderConfiguration.displaysWithMouseScalingDisabled.emplace(DISPLAY_ID);
+    args += mMapper->reconfigure(ARBITRARY_TIME, mReaderConfiguration,
+                                 InputReaderConfiguration::Change::POINTER_SPEED);
+    args.clear();
+
+    const int32_t rawRelativeX = 10;
+    const int32_t rawRelativeY = 20;
+    args += processRelativeMove(rawRelativeX, rawRelativeY);
+    ASSERT_THAT(args,
+                ElementsAre(VariantWith<NotifyMotionArgs>(
+                        AllOf(WithMotionAction(HOVER_MOVE),
+                              WithRelativeMotion(rawRelativeX, rawRelativeY)))));
+}
+
 TEST_F(DensityDependentCursorUnitTest, DoesNotScaleCursorMoveWithPointerCaptureEnabled) {
     // Create a medium density viewport, that should have scaling enabled by default.
     DisplayViewport mediumDensityViewport =

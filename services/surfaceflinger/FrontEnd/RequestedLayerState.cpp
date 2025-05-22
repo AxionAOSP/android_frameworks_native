@@ -217,19 +217,18 @@ void RequestedLayerState::merge(const ResolvedComposerState& resolvedComposerSta
                     frameNumberChanged ? bufferData->frameNumber : oldFramenumber + 1;
             bufferData->frameNumber = frameNumber;
 
-            if ((barrierProducerId > bufferData->producerId) ||
-                ((barrierProducerId == bufferData->producerId) &&
-                 (barrierFrameNumber > bufferData->frameNumber))) {
-                ALOGE("Out of order buffers detected for %s producedId=%d frameNumber=%" PRIu64
+            if (isFrameBarrierNewer(barrierProducerId, barrierFrameNumber, bufferData->producerId,
+                                    bufferData->frameNumber)) {
+                ALOGE("Out-of-order buffers detected for %s producedId=%d frameNumber=%" PRIu64
                       " -> producedId=%d frameNumber=%" PRIu64,
                       getDebugString().c_str(), barrierProducerId, barrierFrameNumber,
                       bufferData->producerId, frameNumber);
                 TransactionTraceWriter::getInstance().invoke("out_of_order_buffers_",
                                                              /*overwrite=*/false);
+            } else {
+                barrierProducerId = bufferData->producerId;
+                barrierFrameNumber = bufferData->frameNumber;
             }
-
-            barrierProducerId = std::max(bufferData->producerId, barrierProducerId);
-            barrierFrameNumber = std::max(bufferData->frameNumber, barrierFrameNumber);
         }
 
         const bool newBufferFormatOpaque = LayerSnapshot::isOpaqueFormat(

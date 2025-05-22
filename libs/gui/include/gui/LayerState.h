@@ -626,6 +626,11 @@ static inline int compare_type(const DisplayState& lhs, const DisplayState& rhs)
     return compare_type(lhs.token, rhs.token);
 }
 
+static inline bool isFrameBarrierNewer(uint32_t producerIdA, uint64_t frameNumberA,
+                                       uint32_t producerIdB, uint64_t frameNumberB) {
+    return producerIdA > producerIdB || (producerIdA == producerIdB && frameNumberA > frameNumberB);
+}
+
 }; // namespace android
 
 #endif // ANDROID_SF_LAYER_STATE_H

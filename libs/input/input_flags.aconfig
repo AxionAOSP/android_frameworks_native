@@ -152,16 +152,6 @@ flag {
 }
 
 flag {
-  name: "disable_touch_input_mapper_pointer_usage"
-  namespace: "input"
-  description: "Disable the PointerUsage concept in TouchInputMapper since the old touchpad stack is no longer used."
-  bug: "281840344"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
   name: "keyboard_repeat_keys"
   namespace: "input"
   description: "Allow user to enable key repeats or configure timeout before key repeat and key repeat delay rates."
