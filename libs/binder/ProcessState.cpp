@@ -54,6 +54,12 @@ const char* kDefaultDriver = "/dev/vndbinder";
 const char* kDefaultDriver = "/dev/binder";
 #endif
 
+#ifdef BINDER_WITH_KERNEL_IPC
+static constexpr inline int schedPolicyMask(int policy, int priority) {
+    return (priority & FLAT_BINDER_FLAG_PRIORITY_MASK) | ((policy & 3) << FLAT_BINDER_FLAG_SCHED_POLICY_SHIFT);
+}
+#endif // BINDER_WITH_KERNEL_IPC
+
 // -------------------------------------------------------------------------
 
 namespace {
@@ -225,9 +231,14 @@ bool ProcessState::becomeContextManager()
 {
     std::unique_lock<std::mutex> _l(mLock);
 
+    int policy = SCHED_FIFO;
+    int minPriority = sched_get_priority_min(policy);
+
     flat_binder_object obj {
         .flags = FLAT_BINDER_FLAG_TXN_SECURITY_CTX,
     };
+    obj.flags |= schedPolicyMask(policy, minPriority);
+    obj.flags |= FLAT_BINDER_FLAG_INHERIT_RT;
 
     int result = ioctl(mDriverFD, BINDER_SET_CONTEXT_MGR_EXT, &obj);
 
