@@ -2793,7 +2793,7 @@ static void ShowUsage() {
             "  -s: write zipped file to control socket (for init)\n"
             "  -S: write file location to control socket (for init)\n"
             "  -q: disable vibrate\n"
-            "  -P: send broadcast when started and do progress updates\n"
+            "  -P: send broadcast when started and finished and do progress updates\n"
             "  -R: take bugreport in remote mode (shouldn't be used with -P)\n"
             "  -w: start binder service and make it wait for a call to startBugreport\n"
             "  -L: output limited information that is safe for submission in feedback reports\n"
@@ -3392,14 +3392,16 @@ Dumpstate::RunStatus Dumpstate::RunInternal(int32_t calling_uid,
         return ERROR;
     }
 
+
+    // clang-format off
+    std::vector<std::string> am_args = {
+            "--receiver-permission", "android.permission.DUMP",
+    };
+    // clang-format on
+
     // Interactive, wear & telephony modes are default to true.
     // and may enable from cli option or when using control socket
     if (options_->do_progress_updates) {
-        // clang-format off
-        std::vector<std::string> am_args = {
-                "--receiver-permission", "android.permission.DUMP",
-        };
-        // clang-format on
         // Send STARTED broadcast for apps that listen to bugreport generation events
         SendBroadcast("com.android.internal.intent.action.BUGREPORT_STARTED",
                       am_args, multiuser_get_user_id(calling_uid));
@@ -3553,6 +3555,14 @@ Dumpstate::RunStatus Dumpstate::RunInternal(int32_t calling_uid,
             }
         }
     }
+
+     if (options_->do_progress_updates) {
+        // Send COMPLETED broadcast to notify corresponding apps.
+        // Compare to the deprecated `BUGREPORT_FINISHED` action, this does not contain any
+        // bugreport information. This acts solely for notification only.
+        SendBroadcast("com.android.internal.intent.action.BUGREPORT_COMPLETED",
+                      am_args, multiuser_get_user_id(calling_uid));
+     }
 
     /* vibrate a few but shortly times to let user know it's finished */
     if (options_->do_vibrate) {
@@ -4716,7 +4726,7 @@ void Dumpstate::UpdateProgress(int32_t delta_sec) {
     // Always update progess so stats can be tuned...
     progress_->Inc(delta_sec);
 
-    // ...but only notifiy listeners when necessary.
+    // ...but only notify listeners when necessary.
     if (!options_->do_progress_updates) return;
 
     int progress = progress_->Get();
