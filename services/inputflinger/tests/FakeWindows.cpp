@@ -82,6 +82,13 @@ void FakeInputReceiver::sendTimeline(int32_t inputEventId,
 
 void FakeInputReceiver::consumeEvent(InputEventType expectedEventType, int32_t expectedAction,
                                      std::optional<ui::LogicalDisplayId> expectedDisplayId,
+                                     std::optional<ftl::Flags<MotionFlag>> expectedFlags) {
+    consumeEvent(expectedEventType, expectedAction, expectedDisplayId,
+                 expectedFlags ? std::make_optional(expectedFlags->get()) : std::nullopt);
+}
+
+void FakeInputReceiver::consumeEvent(InputEventType expectedEventType, int32_t expectedAction,
+                                     std::optional<ui::LogicalDisplayId> expectedDisplayId,
                                      std::optional<int32_t> expectedFlags) {
     std::unique_ptr<InputEvent> event = consume(CONSUME_TIMEOUT_EVENT_EXPECTED);
 
@@ -107,7 +114,8 @@ void FakeInputReceiver::consumeEvent(InputEventType expectedEventType, int32_t e
             const MotionEvent& motionEvent = static_cast<const MotionEvent&>(*event);
             ASSERT_THAT(motionEvent, WithMotionAction(expectedAction));
             if (expectedFlags.has_value()) {
-                EXPECT_EQ(expectedFlags.value(), motionEvent.getFlags());
+                EXPECT_EQ(expectedFlags.value(),
+                          static_cast<int32_t>(motionEvent.getFlags().get()));
             }
             break;
         }

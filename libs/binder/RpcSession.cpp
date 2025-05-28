@@ -429,8 +429,9 @@ void RpcSession::join(sp<RpcSession>&& session, PreJoinSetupResult&& setupResult
             }
         }
     } else {
-        ALOGE("Connection failed to init, closing with status %s",
+        ALOGE("Connection failed to init, closing with status %s. Terminating!",
               statusToString(setupResult.status).c_str());
+        (void)session->shutdownAndWait(false);
     }
 
     sp<RpcSession::EventListener> listener;
@@ -449,6 +450,12 @@ void RpcSession::join(sp<RpcSession>&& session, PreJoinSetupResult&& setupResult
         LOG_ALWAYS_FATAL_IF(!session->removeIncomingConnection(connection),
                             "bad state: connection object guaranteed to be in list");
     }
+
+    // If you are hitting this, it's likely because whatever caused the thread to exit
+    // in getAndExecuteCommand did not terminate the thread. We abort here, to make
+    // this discoverable instead of potentially causing a deadlock.
+    LOG_ALWAYS_FATAL_IF(!session->mShutdownTrigger->isTriggered(),
+                        "If a thread exits, we only support shutting down the entire RpcSession.");
 
     session = nullptr;
 

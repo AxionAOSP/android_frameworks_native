@@ -25,6 +25,7 @@
 
 #include "Constants.h"
 #include "Debug.h"
+#include "FdTrigger.h"
 #include "RpcWireFormat.h"
 #include "Utils.h"
 
@@ -389,8 +390,13 @@ status_t RpcState::rpcSend(const sp<RpcSession::RpcConnection>& connection,
                                                                   iovs, niovs, altPoll,
                                                                   ancillaryFds);
         status != OK) {
-        LOG_RPC_DETAIL("Failed to write %s (%d iovs) on RpcTransport %p, error: %s", what, niovs,
-                       connection->rpcTransport.get(), statusToString(status).c_str());
+        if (status == DEAD_OBJECT || status == -ECONNRESET) {
+            LOG_RPC_DETAIL("Failed to write %s (%d iovs) on RpcTransport %p, error: %s", what,
+                           niovs, connection->rpcTransport.get(), statusToString(status).c_str());
+        } else {
+            ALOGE("Failed to write %s (%d iovs) on RpcTransport %p, error: %s", what, niovs,
+                  connection->rpcTransport.get(), statusToString(status).c_str());
+        }
         (void)session->shutdownAndWait(false);
         return status;
     }
@@ -407,8 +413,13 @@ status_t RpcState::rpcRec(const sp<RpcSession::RpcConnection>& connection,
                                                                  iovs, niovs, std::nullopt,
                                                                  ancillaryFds);
         status != OK) {
-        LOG_RPC_DETAIL("Failed to read %s (%d iovs) on RpcTransport %p, error: %s", what, niovs,
-                       connection->rpcTransport.get(), statusToString(status).c_str());
+        if (status == DEAD_OBJECT || status == -ECONNRESET) {
+            LOG_RPC_DETAIL("Failed to read %s (%d iovs) on RpcTransport %p, error: %s", what, niovs,
+                           connection->rpcTransport.get(), statusToString(status).c_str());
+        } else {
+            ALOGE("Failed to read %s (%d iovs) on RpcTransport %p, error: %s", what, niovs,
+                  connection->rpcTransport.get(), statusToString(status).c_str());
+        }
         (void)session->shutdownAndWait(false);
         return status;
     }
@@ -866,24 +877,36 @@ status_t RpcState::processCommand(
     });
 #endif // BINDER_WITH_KERNEL_IPC
 
+    status_t result = NO_INIT;
+
     switch (command.command) {
         case RPC_COMMAND_TRANSACT:
             if (type != CommandType::ANY) return BAD_TYPE;
-            return processTransact(connection, session, command, std::move(ancillaryFds));
+            result = processTransact(connection, session, command, std::move(ancillaryFds));
+            break;
         case RPC_COMMAND_DEC_STRONG:
-            return processDecStrong(connection, session, command);
+            result = processDecStrong(connection, session, command);
+            break;
+        default:
+            // We should always know the version of the opposing side, and since the
+            // RPC-binder-level wire protocol is not self synchronizing, we have no way
+            // to understand where the current command ends and the next one begins. We
+            // also can't consider it a fatal error because this would allow any client
+            // to kill us, so ending the session for misbehaving client.
+            ALOGE("Unknown RPC command %d - terminating session. Header: %s. CommandType: %d. "
+                  "numFds: %zu",
+                  command.command, HexString(&command, sizeof(command)).c_str(),
+                  static_cast<int>(type), ancillaryFds.size());
+            (void)session->shutdownAndWait(false);
+            return DEAD_OBJECT;
     }
 
-    // We should always know the version of the opposing side, and since the
-    // RPC-binder-level wire protocol is not self synchronizing, we have no way
-    // to understand where the current command ends and the next one begins. We
-    // also can't consider it a fatal error because this would allow any client
-    // to kill us, so ending the session for misbehaving client.
-    ALOGE("Unknown RPC command %d - terminating session. Header: %s. CommandType: %d. numFds: %zu",
-          command.command, HexString(&command, sizeof(command)).c_str(), static_cast<int>(type),
-          ancillaryFds.size());
-    (void)session->shutdownAndWait(false);
-    return DEAD_OBJECT;
+    if (result != OK) {
+        LOG_ALWAYS_FATAL_IF(!session->mShutdownTrigger->isTriggered(),
+                            "Error during processing command must trigger shutdown! %s",
+                            statusToString(result).c_str());
+    }
+    return result;
 }
 
 // THIS FUNCTION MUST SHUTDOWN IF IT ERRORS, ACCORDING TO processCommand.
@@ -1162,7 +1185,7 @@ processTransactInternalTailCall:
 
         // done processing all the async commands on this binder that we can, so
         // write decstrongs on the binder
-        if (addr != 0 && replyStatus == OK) {
+        if (addr != 0) {
             return flushExcessBinderRefs(session, addr, target);
         }
 
@@ -1171,8 +1194,12 @@ processTransactInternalTailCall:
 
     // Binder refs are flushed for oneway calls only after all calls which are
     // built up are executed. Otherwise, they fill up the binder buffer.
-    if (addr != 0 && replyStatus == OK) {
-        replyStatus = flushExcessBinderRefs(session, addr, target);
+    if (addr != 0) {
+        // if this fails, we are broken out of the protocol, so just shutdown. There
+        // is no chance we could write the status to the other side.
+        if (status_t status = flushExcessBinderRefs(session, addr, target); status != OK) {
+            return status;
+        }
     }
 
     std::string errorMsg;
@@ -1181,6 +1208,12 @@ processTransactInternalTailCall:
         // Forward the error to the client of the transaction.
         reply.freeData();
         reply.markForRpc(session);
+
+        if (replyStatus != OK) {
+            ALOGE("Dropping error from transaction (%s) due to more serious error in "
+                  "validateParcel (%s)",
+                  statusToString(replyStatus).c_str(), statusToString(status).c_str());
+        }
         replyStatus = status;
     }
 

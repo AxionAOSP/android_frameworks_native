@@ -20,6 +20,7 @@
 #include "TestEventMatchers.h"
 
 #include <android-base/logging.h>
+#include <ftl/flags.h>
 #include <gtest/gtest.h>
 #include <input/Input.h>
 #include <input/InputConsumer.h>
@@ -77,6 +78,10 @@ public:
     void finishEvent(uint32_t consumeSeq, bool handled = true);
 
     void sendTimeline(int32_t inputEventId, std::array<nsecs_t, GraphicsTimeline::SIZE> timeline);
+
+    void consumeEvent(android::InputEventType expectedEventType, int32_t expectedAction,
+                      std::optional<ui::LogicalDisplayId> expectedDisplayId,
+                      std::optional<ftl::Flags<MotionFlag>> expectedFlags);
 
     void consumeEvent(android::InputEventType expectedEventType, int32_t expectedAction,
                       std::optional<ui::LogicalDisplayId> expectedDisplayId,
@@ -258,15 +263,15 @@ public:
 
     inline void consumeMotionCancel(
             ui::LogicalDisplayId expectedDisplayId = ui::LogicalDisplayId::DEFAULT,
-            int32_t expectedFlags = 0) {
+            ftl::Flags<MotionFlag> expectedFlags = {}) {
         consumeMotionEvent(testing::AllOf(WithMotionAction(AMOTION_EVENT_ACTION_CANCEL),
                                           WithDisplayId(expectedDisplayId),
-                                          WithFlags(expectedFlags | AMOTION_EVENT_FLAG_CANCELED)));
+                                          WithFlags(expectedFlags | MotionFlag::CANCELED)));
     }
 
     inline void consumeMotionMove(
             ui::LogicalDisplayId expectedDisplayId = ui::LogicalDisplayId::DEFAULT,
-            int32_t expectedFlags = 0) {
+            ftl::Flags<MotionFlag> expectedFlags = {}) {
         consumeMotionEvent(testing::AllOf(WithMotionAction(AMOTION_EVENT_ACTION_MOVE),
                                           WithDisplayId(expectedDisplayId),
                                           WithFlags(expectedFlags)));
@@ -274,13 +279,13 @@ public:
 
     inline void consumeMotionDown(
             ui::LogicalDisplayId expectedDisplayId = ui::LogicalDisplayId::DEFAULT,
-            int32_t expectedFlags = 0) {
+            ftl::Flags<MotionFlag> expectedFlags = {}) {
         consumeAnyMotionDown(expectedDisplayId, expectedFlags);
     }
 
     inline void consumeAnyMotionDown(
             std::optional<ui::LogicalDisplayId> expectedDisplayId = std::nullopt,
-            std::optional<int32_t> expectedFlags = std::nullopt) {
+            std::optional<ftl::Flags<MotionFlag>> expectedFlags = std::nullopt) {
         consumeMotionEvent(
                 testing::AllOf(WithMotionAction(AMOTION_EVENT_ACTION_DOWN),
                                testing::Conditional(expectedDisplayId.has_value(),
@@ -292,7 +297,7 @@ public:
     inline void consumeMotionPointerDown(
             int32_t pointerIdx,
             ui::LogicalDisplayId expectedDisplayId = ui::LogicalDisplayId::DEFAULT,
-            int32_t expectedFlags = 0) {
+            ftl::Flags<MotionFlag> expectedFlags = {}) {
         const int32_t action = AMOTION_EVENT_ACTION_POINTER_DOWN |
                 (pointerIdx << AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT);
         consumeMotionEvent(testing::AllOf(WithMotionAction(action),
@@ -316,7 +321,7 @@ public:
 
     inline void consumeMotionUp(
             ui::LogicalDisplayId expectedDisplayId = ui::LogicalDisplayId::DEFAULT,
-            int32_t expectedFlags = 0) {
+            ftl::Flags<MotionFlag> expectedFlags = {}) {
         consumeMotionEvent(testing::AllOf(WithMotionAction(AMOTION_EVENT_ACTION_UP),
                                           WithDisplayId(expectedDisplayId),
                                           WithFlags(expectedFlags)));
@@ -324,7 +329,7 @@ public:
 
     inline void consumeMotionOutside(
             ui::LogicalDisplayId expectedDisplayId = ui::LogicalDisplayId::DEFAULT,
-            int32_t expectedFlags = 0) {
+            ftl::Flags<MotionFlag> expectedFlags = {}) {
         consumeMotionEvent(testing::AllOf(WithMotionAction(AMOTION_EVENT_ACTION_OUTSIDE),
                                           WithDisplayId(expectedDisplayId),
                                           WithFlags(expectedFlags)));

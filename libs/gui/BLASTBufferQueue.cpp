@@ -939,11 +939,9 @@ public:
         auto gbp = getIGraphicBufferProducer();
         std::thread allocateThread([reqWidth, reqHeight, gbp = getIGraphicBufferProducer(),
                                     reqFormat = mReqFormat, reqUsage = mReqUsage]() {
-            if (com_android_graphics_libgui_flags_allocate_buffer_priority()) {
-                androidSetThreadName("allocateBuffers");
-                pid_t tid = gettid();
-                androidSetThreadPriority(tid, ANDROID_PRIORITY_DISPLAY);
-            }
+            androidSetThreadName("allocateBuffers");
+            pid_t tid = gettid();
+            androidSetThreadPriority(tid, ANDROID_PRIORITY_DISPLAY);
 
             gbp->allocateBuffers(reqWidth, reqHeight,
                                  reqFormat, reqUsage);

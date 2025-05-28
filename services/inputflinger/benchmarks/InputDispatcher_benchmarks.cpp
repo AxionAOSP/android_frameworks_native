@@ -63,7 +63,7 @@ static MotionEvent generateMotionEvent() {
     MotionEvent event;
     event.initialize(IInputConstants::INVALID_INPUT_EVENT_ID, DEVICE_ID, AINPUT_SOURCE_TOUCHSCREEN,
                      ui::LogicalDisplayId::DEFAULT, INVALID_HMAC, AMOTION_EVENT_ACTION_DOWN,
-                     /* actionButton */ 0, /* flags */ 0,
+                     /* actionButton */ 0, /* flags */ {},
                      /* edgeFlags */ 0, AMETA_NONE, /* buttonState */ 0, MotionClassification::NONE,
                      identityTransform, /* xPrecision */ 0,
                      /* yPrecision */ 0, AMOTION_EVENT_INVALID_CURSOR_POSITION,

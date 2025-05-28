@@ -635,7 +635,7 @@ TEST_F(UnwantedInteractionBlockerTest, TouchIsBlockedWhenMixedWithStylus) {
     args4.pointerProperties[1].toolType = ToolType::STYLUS;
     mBlocker->notifyMotion(args4);
     mTestListener.assertNotifyMotionWasCalled(
-            AllOf(WithMotionAction(POINTER_0_UP), WithFlags(FLAG_CANCELED)));
+            AllOf(WithMotionAction(POINTER_0_UP), WithFlags(MotionFlag::CANCELED)));
 
     NotifyMotionArgs args5 =
             generateMotionArgs(/*downTime=*/0, 4 * RESAMPLE_PERIOD, MOVE, {{12, 22, 30}});

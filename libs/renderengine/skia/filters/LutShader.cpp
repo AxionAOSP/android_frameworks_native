@@ -24,6 +24,7 @@
 #include <ui/ColorSpace.h>
 
 #include "include/core/SkColorSpace.h"
+#include "skia/ColorSpaces.h"
 
 using aidl::android::hardware::graphics::composer3::LutProperties;
 
@@ -44,7 +45,7 @@ static const SkString kShader = SkString(R"(
 
     vec4 main(vec2 xy) {
         float4 rgba = image.eval(xy);
-        float3 linear = toLinearSrgb(rgba.rgb) * normalizeScalar;
+        float3 linear = rgba.rgb * normalizeScalar;
         if (dimension == 1) {
             // RGB
             if (key == 0) {
@@ -131,7 +132,7 @@ static const SkString kShader = SkString(R"(
                 linear = mix(c0, c1, tx);
             }
         }
-        return float4(fromLinearSrgb(linear), rgba.a);
+        return float4(linear, rgba.a);
     })");
 
 // same as shader::toColorSpace function
@@ -157,6 +158,27 @@ static ColorSpace toColorSpace(ui::Dataspace dataspace) {
         default:
             return ColorSpace::sRGB();
     }
+}
+
+static float computeHlgScale() {
+    static constexpr auto input = 0.7498773651;
+    static constexpr auto a = 0.17883277;
+    static constexpr auto b = 1 - 4 * a;
+    const static auto c = 0.5 - a * std::log(4 * a);
+    // Returns about 265 nits -- After the typical HLG OOTF this would map to 203 nits under ideal
+    // conditions.
+    return (exp((input - c) / a) + b) / 12;
+}
+
+static float computePqScale() {
+    static constexpr auto input = 0.58068888104;
+    static constexpr auto m1 = 0.1593017578125;
+    static constexpr auto m2 = 78.84375;
+    static constexpr auto c1 = 0.8359375;
+    static constexpr auto c2 = 18.8515625;
+    static constexpr auto c3 = 18.6875;
+    // This should essetially return 203 nits
+    return pow((pow(input, 1 / m2) - c1) / (c2 - c3 * pow(input, 1 / m2)), 1 / m1);
 }
 
 sk_sp<SkShader> LutShader::generateLutShader(sk_sp<SkShader> input,
@@ -226,10 +248,10 @@ sk_sp<SkShader> LutShader::generateLutShader(sk_sp<SkShader> input,
     float normalizeScalar = 1.0;
     switch (srcDataspace & HAL_DATASPACE_TRANSFER_MASK) {
         case HAL_DATASPACE_TRANSFER_HLG:
-            normalizeScalar = 0.203;
+            normalizeScalar = computeHlgScale();
             break;
         case HAL_DATASPACE_TRANSFER_ST2084:
-            normalizeScalar = 0.0203;
+            normalizeScalar = computePqScale();
             break;
         default:
             normalizeScalar = 1.0;
@@ -251,7 +273,10 @@ sk_sp<SkShader> LutShader::generateLutShader(sk_sp<SkShader> input,
     mBuilder->uniform("key") = uKey;
     mBuilder->uniform("dimension") = uDimension;
     mBuilder->uniform("normalizeScalar") = uNormalizeScalar;
-    return mBuilder->makeShader();
+
+    // de-gamma the image without changing the primaries
+    return mBuilder->makeShader()->makeWithWorkingColorSpace(
+            toSkColorSpace(srcDataspace)->makeLinearGamma());
 }
 
 sk_sp<SkShader> LutShader::lutShader(sk_sp<SkShader>& input,
@@ -265,14 +290,6 @@ sk_sp<SkShader> LutShader::lutShader(sk_sp<SkShader>& input,
 
     auto& fd = displayLuts->getLutFileDescriptor();
     if (fd.ok()) {
-        // de-gamma the image without changing the primaries
-        SkImage* baseImage = input->isAImage((SkMatrix*)nullptr, (SkTileMode*)nullptr);
-        sk_sp<SkColorSpace> baseColorSpace = baseImage && baseImage->colorSpace()
-                ? baseImage->refColorSpace()
-                : SkColorSpace::MakeSRGB();
-        sk_sp<SkColorSpace> lutMathColorSpace = baseColorSpace->makeLinearGamma();
-        input = input->makeWithWorkingColorSpace(lutMathColorSpace);
-
         auto& offsets = displayLuts->offsets;
         auto& lutProperties = displayLuts->lutProperties;
         std::vector<float> buffers;
@@ -307,8 +324,6 @@ sk_sp<SkShader> LutShader::lutShader(sk_sp<SkShader>& input,
                                       lutProperties[i].dimension, lutProperties[i].size,
                                       lutProperties[i].samplingKey, srcDataspace);
         }
-
-        input = input->makeWithWorkingColorSpace(outColorSpace);
     }
     return input;
 }

@@ -300,7 +300,7 @@ void VelocityTracker::addMovement(const MotionEvent& event) {
             axesToProcess.insert(PLANAR_AXES.begin(), PLANAR_AXES.end());
             break;
         case AMOTION_EVENT_ACTION_POINTER_UP:
-            if (event.getFlags() & AMOTION_EVENT_FLAG_CANCELED) {
+            if (event.getFlags().test(MotionFlag::CANCELED)) {
                 clearPointer(event.getPointerId(event.getActionIndex()));
                 return;
             }

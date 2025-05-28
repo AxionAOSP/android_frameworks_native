@@ -502,7 +502,8 @@ TEST_F(CursorInputMapperUnitTest, ProcessShouldSetAllFieldsAndIncludeGlobalMetaS
     EXPECT_THAT(args,
                 Each(VariantWith<NotifyMotionArgs>(
                         AllOf(WithEventTime(ARBITRARY_TIME), WithDeviceId(DEVICE_ID),
-                              WithSource(AINPUT_SOURCE_TRACKBALL), WithFlags(0), WithEdgeFlags(0),
+                              WithSource(AINPUT_SOURCE_TRACKBALL),
+                              WithFlags(ftl::Flags<MotionFlag>()), WithEdgeFlags(0),
                               WithPolicyFlags(0),
                               WithMetaState(AMETA_SHIFT_LEFT_ON | AMETA_SHIFT_ON),
                               WithButtonState(AMOTION_EVENT_BUTTON_PRIMARY), WithPointerCount(1),
@@ -522,7 +523,8 @@ TEST_F(CursorInputMapperUnitTest, ProcessShouldSetAllFieldsAndIncludeGlobalMetaS
     EXPECT_THAT(args,
                 Each(VariantWith<NotifyMotionArgs>(
                         AllOf(WithEventTime(ARBITRARY_TIME + 1), WithDeviceId(DEVICE_ID),
-                              WithSource(AINPUT_SOURCE_TRACKBALL), WithFlags(0), WithEdgeFlags(0),
+                              WithSource(AINPUT_SOURCE_TRACKBALL),
+                              WithFlags(ftl::Flags<MotionFlag>()), WithEdgeFlags(0),
                               WithPolicyFlags(0),
                               WithMetaState(AMETA_SHIFT_LEFT_ON | AMETA_SHIFT_ON),
                               WithButtonState(0), WithPointerCount(1), WithPointerId(0, 0),

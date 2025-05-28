@@ -97,13 +97,14 @@ std::unique_ptr<MotionEvent> createMotionEvent(const InputMessage& msg) {
                           0, 0, 1});
     event->initialize(msg.body.motion.eventId, msg.body.motion.deviceId, msg.body.motion.source,
                       ui::LogicalDisplayId{msg.body.motion.displayId}, msg.body.motion.hmac,
-                      msg.body.motion.action, msg.body.motion.actionButton, msg.body.motion.flags,
-                      msg.body.motion.edgeFlags, msg.body.motion.metaState,
-                      msg.body.motion.buttonState, msg.body.motion.classification, transform,
-                      msg.body.motion.xPrecision, msg.body.motion.yPrecision,
-                      msg.body.motion.xCursorPosition, msg.body.motion.yCursorPosition,
-                      displayTransform, msg.body.motion.downTime, msg.body.motion.eventTime,
-                      pointerCount, pointerProperties.data(), pointerCoords.data());
+                      msg.body.motion.action, msg.body.motion.actionButton,
+                      ftl::Flags<MotionFlag>(msg.body.motion.flags), msg.body.motion.edgeFlags,
+                      msg.body.motion.metaState, msg.body.motion.buttonState,
+                      msg.body.motion.classification, transform, msg.body.motion.xPrecision,
+                      msg.body.motion.yPrecision, msg.body.motion.xCursorPosition,
+                      msg.body.motion.yCursorPosition, displayTransform, msg.body.motion.downTime,
+                      msg.body.motion.eventTime, pointerCount, pointerProperties.data(),
+                      pointerCoords.data());
     return event;
 }
 

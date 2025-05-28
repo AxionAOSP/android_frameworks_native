@@ -119,14 +119,3 @@ flag {
   bug: "340934031"
   is_fixed_read_only: true
 } # wb_media_migration
-
-flag {
-  name: "allocate_buffer_priority"
-  namespace: "wear_system_health"
-  description: "Boost priority for buffer allocation"
-  bug: "399701430"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-  is_fixed_read_only: true
-} # allocate_buffer_priority

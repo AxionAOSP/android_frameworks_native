@@ -15,8 +15,6 @@
  */
 #pragma once
 
-#include <pthread.h>
-
 #include <functional>
 #include <memory>
 #include <tuple>

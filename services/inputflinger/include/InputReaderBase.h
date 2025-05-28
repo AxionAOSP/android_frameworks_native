@@ -155,82 +155,11 @@ struct InputReaderConfiguration {
     // speed setting still affects the scaling factor.
     bool touchpadAccelerationEnabled;
 
-    // Velocity control parameters for touchpad pointer movements on the old touchpad stack (based
-    // on TouchInputMapper).
-    //
-    // For mice, these are ignored and the values of mousePointerSpeed and
-    // mousePointerAccelerationEnabled used instead.
-    //
-    // TODO(b/281840344): remove, and check if other fields beginning with pointer… are still used.
-    VelocityControlParameters pointerVelocityControlParameters;
-
     // Velocity control parameters for mouse wheel movements.
     VelocityControlParameters wheelVelocityControlParameters;
 
     // True if pointer gestures are enabled.
     bool pointerGesturesEnabled;
-
-    // Quiet time between certain pointer gesture transitions.
-    // Time to allow for all fingers or buttons to settle into a stable state before
-    // starting a new gesture.
-    nsecs_t pointerGestureQuietInterval;
-
-    // The minimum speed that a pointer must travel for us to consider switching the active
-    // touch pointer to it during a drag.  This threshold is set to avoid switching due
-    // to noise from a finger resting on the touch pad (perhaps just pressing it down).
-    float pointerGestureDragMinSwitchSpeed; // in pixels per second
-
-    // Tap gesture delay time.
-    // The time between down and up must be less than this to be considered a tap.
-    nsecs_t pointerGestureTapInterval;
-
-    // Tap drag gesture delay time.
-    // The time between the previous tap's up and the next down must be less than
-    // this to be considered a drag.  Otherwise, the previous tap is finished and a
-    // new tap begins.
-    //
-    // Note that the previous tap will be held down for this entire duration so this
-    // interval must be shorter than the long press timeout.
-    nsecs_t pointerGestureTapDragInterval;
-
-    // The distance in pixels that the pointer is allowed to move from initial down
-    // to up and still be called a tap.
-    float pointerGestureTapSlop; // in pixels
-
-    // Time after the first touch points go down to settle on an initial centroid.
-    // This is intended to be enough time to handle cases where the user puts down two
-    // fingers at almost but not quite exactly the same time.
-    nsecs_t pointerGestureMultitouchSettleInterval;
-
-    // The transition from PRESS to SWIPE or FREEFORM gesture mode is made when
-    // at least two pointers have moved at least this far from their starting place.
-    float pointerGestureMultitouchMinDistance; // in pixels
-
-    // The transition from PRESS to SWIPE gesture mode can only occur when the
-    // cosine of the angle between the two vectors is greater than or equal to than this value
-    // which indicates that the vectors are oriented in the same direction.
-    // When the vectors are oriented in the exactly same direction, the cosine is 1.0.
-    // (In exactly opposite directions, the cosine is -1.0.)
-    float pointerGestureSwipeTransitionAngleCosine;
-
-    // The transition from PRESS to SWIPE gesture mode can only occur when the
-    // fingers are no more than this far apart relative to the diagonal size of
-    // the touch pad.  For example, a ratio of 0.5 means that the fingers must be
-    // no more than half the diagonal size of the touch pad apart.
-    float pointerGestureSwipeMaxWidthRatio;
-
-    // The gesture movement speed factor relative to the size of the display.
-    // Movement speed applies when the fingers are moving in the same direction.
-    // Without acceleration, a full swipe of the touch pad diagonal in movement mode
-    // will cover this portion of the display diagonal.
-    float pointerGestureMovementSpeedRatio;
-
-    // The gesture zoom speed factor relative to the size of the display.
-    // Zoom speed applies when the fingers are mostly moving relative to each other
-    // to execute a scale gesture or similar.
-    // Without acceleration, a full swipe of the touch pad diagonal in zoom mode
-    // will cover this portion of the display diagonal.
-    float pointerGestureZoomSpeedRatio;
 
     // The latest request to enable or disable Pointer Capture.
     PointerCaptureRequest pointerCaptureRequest;
@@ -290,26 +219,11 @@ struct InputReaderConfiguration {
             displaysWithMouseScalingDisabled(),
             mousePointerAccelerationEnabled(true),
             touchpadAccelerationEnabled(true),
-            pointerVelocityControlParameters(1.0f, 500.0f, 3000.0f,
-                                             static_cast<float>(
-                                                     android::os::IInputConstants::
-                                                             DEFAULT_POINTER_ACCELERATION)),
             wheelVelocityControlParameters(1.0f, 15.0f, 50.0f,
                                            static_cast<float>(
                                                    android::os::IInputConstants::
                                                            DEFAULT_MOUSE_WHEEL_ACCELERATION)),
             pointerGesturesEnabled(true),
-            pointerGestureQuietInterval(100 * 1000000LL),            // 100 ms
-            pointerGestureDragMinSwitchSpeed(50),                    // 50 pixels per second
-            pointerGestureTapInterval(150 * 1000000LL),              // 150 ms
-            pointerGestureTapDragInterval(150 * 1000000LL),          // 150 ms
-            pointerGestureTapSlop(10.0f),                            // 10 pixels
-            pointerGestureMultitouchSettleInterval(100 * 1000000LL), // 100 ms
-            pointerGestureMultitouchMinDistance(15),                 // 15 pixels
-            pointerGestureSwipeTransitionAngleCosine(0.2588f),       // cosine of 75 degrees
-            pointerGestureSwipeMaxWidthRatio(0.25f),
-            pointerGestureMovementSpeedRatio(0.8f),
-            pointerGestureZoomSpeedRatio(0.3f),
             pointerCaptureRequest(),
             touchpadPointerSpeed(0),
             touchpadNaturalScrollingEnabled(true),
