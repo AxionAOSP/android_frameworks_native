@@ -19,11 +19,12 @@
 #include <SkTileMode.h>
 #include <common/trace.h>
 #include <cutils/ashmem.h>
+#include <include/core/SkColorSpace.h>
 #include <math/half.h>
 #include <sys/mman.h>
 #include <ui/ColorSpace.h>
 
-#include "include/core/SkColorSpace.h"
+#include "RuntimeEffectManager.h"
 #include "skia/ColorSpaces.h"
 
 using aidl::android::hardware::graphics::composer3::LutProperties;
@@ -181,6 +182,11 @@ static float computePqScale() {
     return pow((pow(input, 1 / m2) - c1) / (c2 - c3 * pow(input, 1 / m2)), 1 / m1);
 }
 
+LutShader::LutShader(RuntimeEffectManager& effectManager) {
+    mEffect = effectManager.createAndStoreRuntimeEffect(RuntimeEffectManager::KnownId::kLutEffect,
+                                                        "LutEffect", kShader);
+}
+
 sk_sp<SkShader> LutShader::generateLutShader(sk_sp<SkShader> input,
                                              const std::vector<float>& buffers,
                                              const int32_t offset, const int32_t length,
@@ -284,8 +290,7 @@ sk_sp<SkShader> LutShader::lutShader(sk_sp<SkShader>& input,
                                      ui::Dataspace srcDataspace,
                                      sk_sp<SkColorSpace> outColorSpace) {
     if (mBuilder == nullptr) {
-        const static SkRuntimeEffect::Result instance = SkRuntimeEffect::MakeForShader(kShader);
-        mBuilder = std::make_unique<SkRuntimeShaderBuilder>(instance.effect);
+        mBuilder = std::make_unique<SkRuntimeShaderBuilder>(mEffect);
     }
 
     auto& fd = displayLuts->getLutFileDescriptor();

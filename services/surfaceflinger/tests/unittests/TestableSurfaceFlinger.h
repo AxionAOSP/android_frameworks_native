@@ -534,18 +534,18 @@ public:
             bool hasListenerCallbacks, std::vector<ListenerCallbacks>& listenerCallbacks,
             uint64_t transactionId, const std::vector<uint64_t>& mergedTransactionIds,
             const std::vector<gui::EarlyWakeupInfo>& earlyWakeupInfos) {
-        return mFlinger
-                ->setTransactionState(SimpleTransactionState(transactionId, flags,
-                                                             desiredPresentTime, isAutoTimestamp,
-                                                             InputWindowCommands(
-                                                                     inputWindowCommands)),
-                                      frameTimelineInfo, states, displays, applyToken,
-                                      uncacheBuffers,
-                                      TransactionListenerCallbacks{.mFlattenedListenerCallbacks =
-                                                                           listenerCallbacks,
-                                                                   .mHasListenerCallbacks =
-                                                                           hasListenerCallbacks},
-                                      mergedTransactionIds, earlyWakeupInfos);
+        ComplexTransactionState complexState;
+        complexState.mFrameTimelineInfo = frameTimelineInfo;
+        complexState.mUncacheBuffers = uncacheBuffers;
+        complexState.mMergedTransactionIds = mergedTransactionIds;
+        complexState.mCallbacks.mHasListenerCallbacks = hasListenerCallbacks;
+        complexState.mCallbacks.mFlattenedListenerCallbacks = listenerCallbacks;
+        complexState.mInputWindowCommands = inputWindowCommands;
+        complexState.mEarlyWakeupInfos = earlyWakeupInfos;
+        return mFlinger->setTransactionState(SimpleTransactionState(transactionId, flags,
+                                                                    desiredPresentTime,
+                                                                    isAutoTimestamp),
+                                             complexState, states, displays, applyToken);
     }
 
     auto setTransactionStateInternal(QueuedTransactionState& transaction) {

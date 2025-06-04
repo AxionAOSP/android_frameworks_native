@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "binderRpcTest"
+#define LOG_TAG "libbinder.binderRpcTest"
 
 #include <binder/RpcTransportTipcTrusty.h>
 #include <trusty-gtest.h>

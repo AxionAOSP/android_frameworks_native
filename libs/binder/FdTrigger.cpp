@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "FdTrigger"
+#define LOG_TAG "libbinder.FdTrigger"
 #include <log/log.h>
 
 #include "FdTrigger.h"

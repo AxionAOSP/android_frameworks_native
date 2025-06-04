@@ -81,8 +81,9 @@
 #include "filters/GaussianBlurFilter.h"
 #include "filters/KawaseBlurDualFilter.h"
 #include "filters/KawaseBlurFilter.h"
-#include "filters/LinearEffect.h"
+#include "filters/LutShader.h"
 #include "filters/MouriMap.h"
+#include "filters/RuntimeEffectManager.h"
 #include "log/log_main.h"
 #include "skia/compat/SkiaBackendTexture.h"
 #include "skia/debug/SkiaCapture.h"
@@ -292,17 +293,17 @@ SkiaRenderEngine::SkiaRenderEngine(Threaded threaded, PixelFormat pixelFormat,
     switch (blurAlgorithm) {
         case BlurAlgorithm::GAUSSIAN: {
             ALOGD("Background Blurs Enabled (Gaussian algorithm)");
-            mBlurFilter = new GaussianBlurFilter();
+            mBlurFilter = new GaussianBlurFilter(mRuntimeEffectManager);
             break;
         }
         case BlurAlgorithm::KAWASE: {
             ALOGD("Background Blurs Enabled (Kawase algorithm)");
-            mBlurFilter = new KawaseBlurFilter();
+            mBlurFilter = new KawaseBlurFilter(mRuntimeEffectManager);
             break;
         }
         case BlurAlgorithm::KAWASE_DUAL_FILTER: {
             ALOGD("Background Blurs Enabled (Kawase dual-filtering algorithm)");
-            mBlurFilter = new KawaseBlurDualFilter();
+            mBlurFilter = new KawaseBlurDualFilter(mRuntimeEffectManager);
             break;
         }
         default: {
@@ -525,6 +526,7 @@ void SkiaRenderEngine::cleanupPostRender() {
 
 sk_sp<SkShader> SkiaRenderEngine::createRuntimeEffectShader(
         const RuntimeEffectShaderParameters& parameters) {
+    SFTRACE_CALL();
     // The given surface will be stretched by HWUI via matrix transformation
     // which gets similar results for most surfaces
     // Determine later on if we need to leverage the stretch shader within
@@ -585,14 +587,8 @@ sk_sp<SkShader> SkiaRenderEngine::createRuntimeEffectShader(
                                       .undoPremultipliedAlpha = parameters.undoPremultipliedAlpha,
                                       .fakeOutputDataspace = parameters.fakeOutputDataspace};
 
-        auto effectIter = mRuntimeEffects.find(effect);
-        sk_sp<SkRuntimeEffect> runtimeEffect = nullptr;
-        if (effectIter == mRuntimeEffects.end()) {
-            runtimeEffect = buildRuntimeEffect(effect);
-            mRuntimeEffects.insert({effect, runtimeEffect});
-        } else {
-            runtimeEffect = effectIter->second;
-        }
+        sk_sp<SkRuntimeEffect> runtimeEffect =
+                mRuntimeEffectManager.getOrCreateLinearRuntimeEffect(effect);
 
         mat4 colorTransform = parameters.layer.colorTransform;
 
@@ -603,19 +599,23 @@ sk_sp<SkShader> SkiaRenderEngine::createRuntimeEffectShader(
         }
 
         const auto hardwareBuffer = graphicBuffer ? graphicBuffer->toAHardwareBuffer() : nullptr;
-        return createLinearEffectShader(shader, effect, runtimeEffect, std::move(colorTransform),
-                                        parameters.display.maxLuminance,
-                                        parameters.display.currentLuminanceNits,
-                                        parameters.layer.source.buffer.maxLuminanceNits,
-                                        hardwareBuffer, parameters.display.renderIntent);
+        return RuntimeEffectManager::createLinearEffectShader(shader, effect, runtimeEffect,
+                                                              std::move(colorTransform),
+                                                              parameters.display.maxLuminance,
+                                                              parameters.display
+                                                                      .currentLuminanceNits,
+                                                              parameters.layer.source.buffer
+                                                                      .maxLuminanceNits,
+                                                              hardwareBuffer,
+                                                              parameters.display.renderIntent);
     }
     return shader;
 }
 
 sk_sp<SkShader> SkiaRenderEngine::localTonemap(sk_sp<SkShader> shader, float inputMultiplier,
                                                float targetHdrSdrRatio) {
-    static MouriMap kMapper;
-    return kMapper.mouriMap(getActiveContext(), shader, inputMultiplier, targetHdrSdrRatio);
+    return mLocalTonemapper.mouriMap(getActiveContext(), shader, inputMultiplier,
+                                     targetHdrSdrRatio);
 }
 
 void SkiaRenderEngine::initCanvas(SkCanvas* canvas, const DisplaySettings& display) {
@@ -1353,9 +1353,8 @@ void SkiaRenderEngine::tonemapAndDrawGainmapInternal(
 
     const auto tonemappedShader = localTonemap(hdrShader, 1.0f, 1.0f);
 
-    static GainmapFactory kGainmapFactory;
     const auto gainmapShader =
-            kGainmapFactory.createSkShader(tonemappedShader, hdrShader, hdrSdrRatio);
+            mGainmapFactory.createSkShader(tonemappedShader, hdrShader, hdrSdrRatio);
 
     sp<Fence> drawFence;
 
@@ -1501,19 +1500,7 @@ void SkiaRenderEngine::dump(std::string& result) {
         gpuProtectedReporter.logOutput(result, true);
 
         StringAppendF(&result, "\n");
-        StringAppendF(&result, "RenderEngine runtime effects: %zu\n", mRuntimeEffects.size());
-        for (const auto& [linearEffect, unused] : mRuntimeEffects) {
-            StringAppendF(&result, "- inputDataspace: %s\n",
-                          dataspaceDetails(
-                                  static_cast<android_dataspace>(linearEffect.inputDataspace))
-                                  .c_str());
-            StringAppendF(&result, "- outputDataspace: %s\n",
-                          dataspaceDetails(
-                                  static_cast<android_dataspace>(linearEffect.outputDataspace))
-                                  .c_str());
-            StringAppendF(&result, "undoPremultipliedAlpha: %s\n",
-                          linearEffect.undoPremultipliedAlpha ? "true" : "false");
-        }
+        mRuntimeEffectManager.dump(result);
     }
     StringAppendF(&result, "\n");
 }

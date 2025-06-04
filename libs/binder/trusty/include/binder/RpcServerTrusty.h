@@ -114,7 +114,19 @@ private:
                                                                                 char*),
                                                                 char*, void (*)(char*));
     friend void ::ARpcServerTrusty_delete(::ARpcServerTrusty*);
-    friend int ::ARpcServerTrusty_handleConnect(::ARpcServerTrusty*, handle_t, const uuid*, void**);
+    /**
+     * @brief Handle the binder RPC connection.
+     *
+     * @param rstr  - RpcServer object
+     * @param chan - handle to the connection
+     * @param clientId - identifier of the client as tagged data
+     * @param clientIdLen - length of the client identifier
+     * @param ctx_p - connection context
+     * @return int - error code
+     */
+    friend int ::ARpcServerTrusty_handleConnect(struct ARpcServerTrusty* rstr, handle_t chan,
+                                                const void* clientId, size_t clientIdLen,
+                                                void** ctx_p);
     friend int ::ARpcServerTrusty_handleMessage(void*);
     friend void ::ARpcServerTrusty_handleDisconnect(void*);
     friend void ::ARpcServerTrusty_handleChannelCleanup(void*);
@@ -130,8 +142,8 @@ private:
     static void handleDisconnect(const tipc_port* port, handle_t chan, void* ctx);
     static void handleChannelCleanup(void* ctx);
 
-    static int handleConnectInternal(RpcServer* rpcServer, handle_t chan, const uuid* peer,
-                                     void** ctx_p);
+    static int handleConnectInternal(RpcServer* rpcServer, handle_t chan, const void* addrData,
+                                     size_t addrDataLen, void** ctx_p);
     static int handleMessageInternal(void* ctx);
     static void handleDisconnectInternal(void* ctx);
 

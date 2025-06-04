@@ -908,67 +908,13 @@ VkJsonDevice VkJsonGetDevice(VkPhysicalDevice physical_device) {
         physical_device, &queue_family_count, device.queues.data());
   }
 
-  VkFormatProperties format_properties = {};
-  for (VkFormat format = VK_FORMAT_R4G4_UNORM_PACK8;
-       // TODO(http://b/171403054): avoid hard-coding last value in the
-       // contiguous range
-       format <= VK_FORMAT_ASTC_12x12_SRGB_BLOCK;
-       format = static_cast<VkFormat>(format + 1)) {
-    vkGetPhysicalDeviceFormatProperties(physical_device, format,
-                                        &format_properties);
-    if (format_properties.linearTilingFeatures ||
-        format_properties.optimalTilingFeatures ||
-        format_properties.bufferFeatures) {
-      device.formats.insert(std::make_pair(format, format_properties));
-    }
-  }
-
-  if (HasExtension("VK_IMG_format_pvrtc", device.extensions)) {
-    for (VkFormat format = VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG;
-         // TODO(http://b/171403054): avoid hard-coding last value in the
-         // contiguous range
-         format <= VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG;
-         format = static_cast<VkFormat>(format + 1)) {
-      vkGetPhysicalDeviceFormatProperties(physical_device, format,
-                                          &format_properties);
-      if (format_properties.linearTilingFeatures ||
-          format_properties.optimalTilingFeatures ||
-          format_properties.bufferFeatures) {
-        device.formats.insert(std::make_pair(format, format_properties));
-      }
-    }
-  }
-
-  if (HasExtension("VK_NV_optical_flow", device.extensions)) {
-    for (VkFormat format = VK_FORMAT_R16G16_SFIXED5_NV;
-         // TODO(http://b/171403054): avoid hard-coding last value in the
-         // contiguous range
-         format <= VK_FORMAT_R16G16_SFIXED5_NV;
-         format = static_cast<VkFormat>(format + 1)) {
-      vkGetPhysicalDeviceFormatProperties(physical_device, format,
-                                          &format_properties);
-      if (format_properties.linearTilingFeatures ||
-          format_properties.optimalTilingFeatures ||
-          format_properties.bufferFeatures) {
-        device.formats.insert(std::make_pair(format, format_properties));
-      }
-    }
-  }
-
-  if (device.properties.apiVersion >= VK_API_VERSION_1_1) {
-    for (VkFormat format = VK_FORMAT_G8B8G8R8_422_UNORM;
-         // TODO(http://b/171403054): avoid hard-coding last value in the
-         // contiguous range
-         format <= VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM;
-         format = static_cast<VkFormat>(format + 1)) {
-      vkGetPhysicalDeviceFormatProperties(physical_device, format,
-                                          &format_properties);
-      if (format_properties.linearTilingFeatures ||
-          format_properties.optimalTilingFeatures ||
-          format_properties.bufferFeatures) {
-        device.formats.insert(std::make_pair(format, format_properties));
-      }
-    }\n\n""")
+  VkFormatProperties format_properties = {};\n""")
+    util.generate_format_range_map()
+    f.write(util.generate_vk_format_init_code("VK_VERSION_1_0"))
+    f.write(util.generate_vk_format_init_code())
+    f.write("""\
+    if (device.properties.apiVersion >= VK_API_VERSION_1_1) {\n""")
+    f.write(util.generate_vk_format_init_code("VK_VERSION_1_1"))
 
     # Vulkan version data for VK_VERSION_1_1
     vk_version_data = VK.VULKAN_VERSIONS_AND_STRUCTS_MAPPING["VK_VERSION_1_1"]
@@ -1029,7 +975,7 @@ VkJsonDevice VkJsonGetDevice(VkPhysicalDevice physical_device) {
   }
 
   if (device.properties.apiVersion >= VK_API_VERSION_1_2) {\n""")
-
+    f.write(util.generate_vk_format_init_code("VK_VERSION_1_2"))
     cc_code_properties_11, cc_code_features_11 = util.generate_vk_core_structs_init_code("Core11")
     cc_code_properties_12, cc_code_features_12 = util.generate_vk_core_structs_init_code("Core12")
     # Vulkan version data for VK_VERSION_1_2
@@ -1049,48 +995,8 @@ VkJsonDevice VkJsonGetDevice(VkPhysicalDevice physical_device) {
     f.write("""\
   }
 
-  if (device.properties.apiVersion >= VK_API_VERSION_1_3) {
-      for (VkFormat format = VK_FORMAT_G8_B8R8_2PLANE_444_UNORM;
-         // TODO(http://b/171403054): avoid hard-coding last value in the
-         // contiguous range
-         format <= VK_FORMAT_G16_B16R16_2PLANE_444_UNORM;
-         format = static_cast<VkFormat>(format + 1)) {
-      vkGetPhysicalDeviceFormatProperties(physical_device, format,
-                                          &format_properties);
-      if (format_properties.linearTilingFeatures ||
-          format_properties.optimalTilingFeatures ||
-          format_properties.bufferFeatures) {
-        device.formats.insert(std::make_pair(format, format_properties));
-      }
-    }
-
-    for (VkFormat format = VK_FORMAT_A4R4G4B4_UNORM_PACK16;
-         // TODO(http://b/171403054): avoid hard-coding last value in the
-         // contiguous range
-         format <= VK_FORMAT_A4B4G4R4_UNORM_PACK16;
-         format = static_cast<VkFormat>(format + 1)) {
-      vkGetPhysicalDeviceFormatProperties(physical_device, format,
-                                          &format_properties);
-      if (format_properties.linearTilingFeatures ||
-          format_properties.optimalTilingFeatures ||
-          format_properties.bufferFeatures) {
-        device.formats.insert(std::make_pair(format, format_properties));
-      }
-    }
-
-    for (VkFormat format = VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK;
-         // TODO(http://b/171403054): avoid hard-coding last value in the
-         // contiguous range
-         format <= VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK;
-         format = static_cast<VkFormat>(format + 1)) {
-      vkGetPhysicalDeviceFormatProperties(physical_device, format,
-                                          &format_properties);
-      if (format_properties.linearTilingFeatures ||
-          format_properties.optimalTilingFeatures ||
-          format_properties.bufferFeatures) {
-        device.formats.insert(std::make_pair(format, format_properties));
-      }
-    }\n""")
+  if (device.properties.apiVersion >= VK_API_VERSION_1_3) {\n""")
+    f.write(util.generate_vk_format_init_code("VK_VERSION_1_3"))
     cc_code_properties_13, cc_code_features_13 = util.generate_vk_core_structs_init_code("Core13")
     cc_code_properties_14, cc_code_features_14 = util.generate_vk_core_structs_init_code("Core14")
 
@@ -1107,21 +1013,8 @@ VkJsonDevice VkJsonGetDevice(VkPhysicalDevice physical_device) {
     f.write("""\
   }
 
-  if (device.properties.apiVersion >= VK_API_VERSION_1_4) {
-    for (VkFormat format = VK_FORMAT_A1B5G5R5_UNORM_PACK16;
-         // TODO(http://b/171403054): avoid hard-coding last value in the
-         // contiguous range
-         format <= VK_FORMAT_A8_UNORM;
-         format = static_cast<VkFormat>(format + 1)) {
-      vkGetPhysicalDeviceFormatProperties(physical_device, format,
-                                          &format_properties);
-      if (format_properties.linearTilingFeatures ||
-          format_properties.optimalTilingFeatures ||
-          format_properties.bufferFeatures) {
-        device.formats.insert(std::make_pair(format, format_properties));
-      }
-    }
-    \n""")
+  if (device.properties.apiVersion >= VK_API_VERSION_1_4) {\n""")
+    f.write(util.generate_vk_format_init_code("VK_VERSION_1_4"))
 
     # Vulkan version data for VK_VERSION_1_4
     vk_version_data = VK.VULKAN_VERSIONS_AND_STRUCTS_MAPPING["VK_VERSION_1_4"]

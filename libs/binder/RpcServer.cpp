@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "RpcServer"
+#define LOG_TAG "libbinder.RpcServer"
 
 #include <inttypes.h>
 #include <netinet/tcp.h>

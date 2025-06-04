@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "RpcState"
+#define LOG_TAG "libbinder.RpcState"
 
 #include "RpcState.h"
 

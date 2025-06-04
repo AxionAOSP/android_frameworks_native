@@ -58,17 +58,12 @@ public:
 
     virtual ~BpSurfaceComposer();
 
-    status_t setTransactionState(
-            const SimpleTransactionState simpleState, const FrameTimelineInfo& frameTimelineInfo,
-            Vector<ComposerState>& state, Vector<DisplayState>& displays,
-            const sp<IBinder>& applyToken, const std::vector<client_cache_t>& uncacheBuffers,
-            const TransactionListenerCallbacks& listenerCallbacks,
-            const std::vector<uint64_t>& mergedTransactionIds,
-            const std::vector<gui::EarlyWakeupInfo>& earlyWakeupInfos) override {
+    status_t setTransactionState(const SimpleTransactionState simpleState,
+                                 const ComplexTransactionState& complexState,
+                                 Vector<ComposerState>& state, Vector<DisplayState>& displays,
+                                 const sp<IBinder>& applyToken) override {
         Parcel data, reply;
         data.writeInterfaceToken(ISurfaceComposer::getInterfaceDescriptor());
-
-        frameTimelineInfo.writeToParcel(&data);
 
         SAFE_PARCEL(data.writeUint32, static_cast<uint32_t>(state.size()));
         for (const auto& s : state) {
@@ -81,24 +76,8 @@ public:
         }
 
         SAFE_PARCEL(simpleState.writeToParcel, &data);
+        SAFE_PARCEL(complexState.writeToParcel, &data);
         SAFE_PARCEL(data.writeStrongBinder, applyToken);
-        SAFE_PARCEL(data.writeUint32, static_cast<uint32_t>(uncacheBuffers.size()));
-        for (const client_cache_t& uncacheBuffer : uncacheBuffers) {
-            SAFE_PARCEL(data.writeStrongBinder, uncacheBuffer.token.promote());
-            SAFE_PARCEL(data.writeUint64, uncacheBuffer.id);
-        }
-
-        SAFE_PARCEL(listenerCallbacks.writeToParcel, &data);
-
-        SAFE_PARCEL(data.writeUint32, static_cast<uint32_t>(mergedTransactionIds.size()));
-        for (auto mergedTransactionId : mergedTransactionIds) {
-            SAFE_PARCEL(data.writeUint64, mergedTransactionId);
-        }
-
-        SAFE_PARCEL(data.writeUint32, static_cast<uint32_t>(earlyWakeupInfos.size()));
-        for (const auto& e : earlyWakeupInfos) {
-            e.writeToParcel(&data);
-        }
 
         if (simpleState.mFlags & ISurfaceComposer::eOneWay) {
             return remote()->transact(BnSurfaceComposer::SET_TRANSACTION_STATE, data, &reply,
@@ -123,9 +102,6 @@ status_t BnSurfaceComposer::onTransact(uint32_t code, const Parcel& data, Parcel
         case SET_TRANSACTION_STATE: {
             CHECK_INTERFACE(ISurfaceComposer, data, reply);
 
-            FrameTimelineInfo frameTimelineInfo;
-            frameTimelineInfo.readFromParcel(&data);
-
             uint32_t count = 0;
             SAFE_PARCEL_READ_SIZE(data.readUint32, &count, data.dataSize());
             Vector<ComposerState> state;
@@ -147,41 +123,13 @@ status_t BnSurfaceComposer::onTransact(uint32_t code, const Parcel& data, Parcel
 
             SimpleTransactionState simpleState;
             SAFE_PARCEL(simpleState.readFromParcel, &data);
+            ComplexTransactionState complexState;
+            SAFE_PARCEL(complexState.readFromParcel, &data);
 
             sp<IBinder> applyToken;
             SAFE_PARCEL(data.readStrongBinder, &applyToken);
 
-            SAFE_PARCEL_READ_SIZE(data.readUint32, &count, data.dataSize());
-            std::vector<client_cache_t> uncacheBuffers(count);
-            sp<IBinder> tmpBinder;
-            for (size_t i = 0; i < count; i++) {
-                SAFE_PARCEL(data.readNullableStrongBinder, &tmpBinder);
-                uncacheBuffers[i].token = tmpBinder;
-                SAFE_PARCEL(data.readUint64, &uncacheBuffers[i].id);
-            }
-
-            TransactionListenerCallbacks listenerCallbacks;
-            SAFE_PARCEL(listenerCallbacks.readFromParcel, &data);
-
-            SAFE_PARCEL_READ_SIZE(data.readUint32, &count, data.dataSize());
-            std::vector<uint64_t> mergedTransactions(count);
-            for (size_t i = 0; i < count; i++) {
-                SAFE_PARCEL(data.readUint64, &mergedTransactions[i]);
-            }
-
-            count = 0;
-            SAFE_PARCEL_READ_SIZE(data.readUint32, &count, data.dataSize());
-            std::vector<gui::EarlyWakeupInfo> earlyWakeupInfos;
-            earlyWakeupInfos.reserve(count);
-            for (size_t i = 0; i < count; i++) {
-                gui::EarlyWakeupInfo e;
-                e.readFromParcel(&data);
-                earlyWakeupInfos.push_back(std::move(e));
-            }
-
-            return setTransactionState(simpleState, frameTimelineInfo, state, displays, applyToken,
-                                       uncacheBuffers, listenerCallbacks, mergedTransactions,
-                                       earlyWakeupInfos);
+            return setTransactionState(simpleState, complexState, state, displays, applyToken);
         }
         case GET_SCHEDULING_POLICY: {
             gui::SchedulingPolicy policy;

@@ -41,16 +41,14 @@ struct SimpleTransactionState {
     // The desired present time does not affect this ordering.
     int64_t mDesiredPresentTime = 0;
     bool mIsAutoTimestamp = true;
-    InputWindowCommands mInputWindowCommands = {};
 
     SimpleTransactionState() = default;
     SimpleTransactionState(uint64_t id, uint32_t flags, int64_t desiredPresentTime,
-                           bool isAutoTimestamp, InputWindowCommands&& inputWindowCommands)
+                           bool isAutoTimestamp)
           : mId(id),
             mFlags(flags),
             mDesiredPresentTime(desiredPresentTime),
-            mIsAutoTimestamp(isAutoTimestamp),
-            mInputWindowCommands(std::move(inputWindowCommands)) {}
+            mIsAutoTimestamp(isAutoTimestamp) {}
     bool operator==(const SimpleTransactionState& rhs) const = default;
     bool operator!=(const SimpleTransactionState& rhs) const = default;
 

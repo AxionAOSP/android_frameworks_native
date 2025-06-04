@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "RpcTransportTipcAndroid"
+#define LOG_TAG "libbinder.RpcTransportTipcAndroid"
 
 #include <binder/RpcSession.h>
 #include <binder/RpcTransportTipcAndroid.h>

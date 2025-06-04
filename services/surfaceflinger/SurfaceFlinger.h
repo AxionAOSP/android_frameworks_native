@@ -547,13 +547,10 @@ private:
     }
 
     sp<IBinder> getPhysicalDisplayToken(PhysicalDisplayId displayId) const;
-    status_t setTransactionState(
-            SimpleTransactionState podState, const FrameTimelineInfo& frameTimelineInfo,
-            Vector<ComposerState>& state, Vector<DisplayState>& displays,
-            const sp<IBinder>& applyToken, const std::vector<client_cache_t>& uncacheBuffers,
-            const TransactionListenerCallbacks& listenerCallbacks,
-            const std::vector<uint64_t>& mergedTransactionIds,
-            const std::vector<gui::EarlyWakeupInfo>& earlyWakeupInfos) override;
+    status_t setTransactionState(SimpleTransactionState podState,
+                                 const ComplexTransactionState& complexState,
+                                 Vector<ComposerState>& state, Vector<DisplayState>& displays,
+                                 const sp<IBinder>& applyToken) override;
     void bootFinished();
     status_t getSupportedFrameTimestamps(std::vector<FrameEvent>* outSupported) const;
     sp<IDisplayEventConnection> createDisplayEventConnection(

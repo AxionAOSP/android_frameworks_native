@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "IMemory"
+#define LOG_TAG "libbinder.IMemory"
 
 #include <atomic>
 #include <stdatomic.h>

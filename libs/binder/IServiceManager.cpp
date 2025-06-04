@@ -15,7 +15,7 @@
  */
 
 #include <sys/socket.h>
-#define LOG_TAG "ServiceManagerCppClient"
+#define LOG_TAG "libbinder.ServiceManagerCppClient"
 
 #include <binder/IServiceManager.h>
 #include <binder/IServiceManagerUnitTestHelper.h>

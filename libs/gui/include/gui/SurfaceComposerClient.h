@@ -56,6 +56,7 @@
 #include <gui/LayerState.h>
 #include <gui/SimpleTransactionState.h>
 #include <gui/SurfaceControl.h>
+#include <gui/TransactionState.h>
 #include <gui/WindowInfosListenerReporter.h>
 #include <math/vec3.h>
 
@@ -466,6 +467,7 @@ public:
         static void mergeFrameTimelineInfo(FrameTimelineInfo& t, const FrameTimelineInfo& other);
 
         SimpleTransactionState mSimpleState;
+        ComplexTransactionState mComplexState;
         // Tracks registered callbacks
         sp<TransactionCompletedListener> mTransactionCompletedListener = nullptr;
         // Prints debug logs when enabled.
@@ -476,27 +478,15 @@ public:
         Vector<DisplayState> mDisplayStates;
         std::unordered_map<sp<ITransactionCompletedListener>, CallbackInfo, TCLHash>
                 mListenerCallbacks;
-        std::vector<client_cache_t> mUncacheBuffers;
-
-        // We keep track of the last MAX_MERGE_HISTORY_LENGTH merged transaction ids.
-        // Ordered most recently merged to least recently merged.
-        static const size_t MAX_MERGE_HISTORY_LENGTH = 10u;
-        std::vector<uint64_t> mMergedTransactionIds;
 
         // Indicates that the Transaction may contain buffers that should be cached. The reason this
         // is only a guess is that buffers can be removed before cache is called. This is only a
         // hint that at some point a buffer was added to this transaction before apply was called.
         bool mMayContainBuffer = false;
 
-        // The vsync id provided by Choreographer.getVsyncId and the input event id
-        FrameTimelineInfo mFrameTimelineInfo;
-
         // If not null, transactions will be queued up using this token otherwise a common token
         // per process will be used.
         sp<IBinder> mApplyToken = nullptr;
-
-        // Tracks the client setting the early wakeup request
-        std::vector<gui::EarlyWakeupInfo> mEarlyWakeupInfos;
 
         InputWindowCommands mInputWindowCommands;
         int mStatus = NO_ERROR;

@@ -676,13 +676,12 @@ public:
         mSupportsPresent = supportsPresent;
     }
 
-    status_t setTransactionState(
-            SimpleTransactionState /*podState*/, const FrameTimelineInfo& /*frameTimelineInfo*/,
-            Vector<ComposerState>& /*state*/, Vector<DisplayState>& /*displays*/,
-            const sp<IBinder>& /*applyToken*/, const std::vector<client_cache_t>& /*cachedBuffer*/,
-            const TransactionListenerCallbacks& /*listenerCallbacks*/,
-            const std::vector<uint64_t>& /*mergedTransactionIds*/,
-            const std::vector<gui::EarlyWakeupInfo>& /*earlyWakeupInfos*/) override {
+    status_t setTransactionState(SimpleTransactionState /*podState*/,
+                                 const ComplexTransactionState& /*complexState*/,
+                                 Vector<ComposerState>& /*state*/,
+                                 Vector<DisplayState>& /*displays*/,
+                                 const sp<IBinder>& /*applyToken*/
+                                 ) override {
         return NO_ERROR;
     }
 

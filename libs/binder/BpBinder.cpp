@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "BpBinder"
+#define LOG_TAG "libbinder.BpBinder"
 //#define LOG_NDEBUG 0
 
 #include <binder/BpBinder.h>

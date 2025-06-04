@@ -36,6 +36,35 @@ struct TransactionListenerCallbacks {
     bool operator!=(const TransactionListenerCallbacks& rhs) const = default;
 };
 
+// State components that are containers or aggregates and are passed by const ref to
+// setTransactionState.
+struct ComplexTransactionState {
+    // The vsync id provided by Choreographer.getVsyncId and the input event id
+    gui::FrameTimelineInfo mFrameTimelineInfo = {};
+    std::vector<client_cache_t> mUncacheBuffers = {};
+    std::vector<uint64_t> mMergedTransactionIds = {};
+    TransactionListenerCallbacks mCallbacks = TransactionListenerCallbacks();
+    InputWindowCommands mInputWindowCommands = {};
+    // Tracks the client setting the early wakeup request
+    std::vector<gui::EarlyWakeupInfo> mEarlyWakeupInfos = {};
+
+    ComplexTransactionState() = default;
+    status_t writeToParcel(Parcel* parcel) const;
+    status_t readFromParcel(const Parcel* parcel);
+    void clear();
+    void merge(ComplexTransactionState& other);
+    bool operator==(const ComplexTransactionState& rhs) const = default;
+    bool operator!=(const ComplexTransactionState& rhs) const = default;
+
+    // copied from FrameTimelineInfo::merge()
+    void mergeFrameTimelineInfo(const FrameTimelineInfo& other);
+
+private:
+    // We keep track of the last MAX_MERGE_HISTORY_LENGTH merged transaction ids.
+    // Ordered most recently merged to least recently merged.
+    static constexpr size_t MAX_MERGE_HISTORY_LENGTH = 10u;
+};
+
 // Class to store all the transaction data and the parcelling logic
 class TransactionState {
 public:
@@ -49,23 +78,20 @@ public:
     // Returns the current id of the transaction.
     // The id is updated every time the transaction is applied.
     uint64_t getId() const { return mSimpleState.mId; }
-    std::vector<uint64_t> getMergedTransactionIds() const { return mMergedTransactionIds; }
+    std::vector<uint64_t> getMergedTransactionIds() const {
+        return mComplexState.mMergedTransactionIds;
+    }
     void enableDebugLogCallPoints() { mLogCallPoints = true; }
     void merge(TransactionState&& other,
                const std::function<void(layer_state_t&)>& onBufferOverwrite);
 
-    // copied from FrameTimelineInfo::merge()
-    void mergeFrameTimelineInfo(const FrameTimelineInfo& other);
     void clear();
     bool operator==(const TransactionState& rhs) const = default;
     bool operator!=(const TransactionState& rhs) const = default;
 
     SimpleTransactionState mSimpleState;
-    TransactionListenerCallbacks mCallbacks;
+    ComplexTransactionState mComplexState;
 
-    std::vector<uint64_t> mMergedTransactionIds;
-    // The vsync id provided by Choreographer.getVsyncId and the input event id
-    gui::FrameTimelineInfo mFrameTimelineInfo;
     // If not null, transactions will be queued up using this token otherwise a common token
     // per process will be used.
     sp<IBinder> mApplyToken;
@@ -78,12 +104,6 @@ public:
 
     std::vector<DisplayState> mDisplayStates;
     std::vector<ComposerState> mComposerStates;
-    std::vector<client_cache_t> mUncacheBuffers;
-
-private:
-    // We keep track of the last MAX_MERGE_HISTORY_LENGTH merged transaction ids.
-    // Ordered most recently merged to least recently merged.
-    static constexpr size_t MAX_MERGE_HISTORY_LENGTH = 10u;
 };
 
 }; // namespace android

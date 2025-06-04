@@ -60,8 +60,8 @@ constexpr std::string dump_struct(auto& x) {
 
 void PrintTo(const TransactionState& state, ::std::ostream* os) {
     *os << dump_struct(state);
-    *os << state.mFrameTimelineInfo.toString();
-    for (auto mergedId : state.mMergedTransactionIds) {
+    *os << state.mComplexState.mFrameTimelineInfo.toString();
+    for (auto mergedId : state.mComplexState.mMergedTransactionIds) {
         *os << mergedId << ",";
     }
 }
@@ -76,7 +76,6 @@ void Compare(const SimpleTransactionState& s1, const SimpleTransactionState& s2)
     EXPECT_EQ(s1.mFlags, s2.mFlags);
     EXPECT_EQ(s1.mDesiredPresentTime, s2.mDesiredPresentTime);
     EXPECT_EQ(s1.mIsAutoTimestamp, s2.mIsAutoTimestamp);
-    EXPECT_EQ(s1.mInputWindowCommands, s2.mInputWindowCommands);
 }
 
 void Compare(const TransactionListenerCallbacks& s1, const TransactionListenerCallbacks& s2) {
@@ -85,12 +84,19 @@ void Compare(const TransactionListenerCallbacks& s1, const TransactionListenerCa
     EXPECT_EQ(s1.mFlattenedListenerCallbacks, s2.mFlattenedListenerCallbacks);
 }
 
+void Compare(const ComplexTransactionState& s1, const ComplexTransactionState& s2) {
+    EXPECT_EQ(s1.mMergedTransactionIds, s2.mMergedTransactionIds);
+    EXPECT_EQ(s1.mFrameTimelineInfo, s2.mFrameTimelineInfo);
+    EXPECT_EQ(s1.mUncacheBuffers, s2.mUncacheBuffers);
+    EXPECT_EQ(s1.mCallbacks, s2.mCallbacks);
+    EXPECT_EQ(s1.mInputWindowCommands, s2.mInputWindowCommands);
+}
+
 // In case EXPECT_EQ fails, this function is useful to pinpoint exactly which
 // field did not compare ==.
 void Compare(const TransactionState& s1, const TransactionState& s2) {
     Compare(s1.mSimpleState, s2.mSimpleState);
-    EXPECT_EQ(s1.mMergedTransactionIds, s2.mMergedTransactionIds);
-    EXPECT_EQ(s1.mFrameTimelineInfo, s2.mFrameTimelineInfo);
+    Compare(s1.mComplexState, s2.mComplexState);
     EXPECT_EQ(s1.mApplyToken, s2.mApplyToken);
     EXPECT_EQ(s1.mMayContainBuffer, s2.mMayContainBuffer);
     EXPECT_EQ(s1.mLogCallPoints, s2.mLogCallPoints);
@@ -98,7 +104,6 @@ void Compare(const TransactionState& s1, const TransactionState& s2) {
     EXPECT_THAT(s1.mDisplayStates, ::testing::ContainerEq(s2.mDisplayStates));
     EXPECT_EQ(s1.mComposerStates.size(), s2.mComposerStates.size());
     EXPECT_EQ(s1.mComposerStates, s2.mComposerStates);
-    EXPECT_EQ(s1.mUncacheBuffers, s2.mUncacheBuffers);
 }
 
 std::unique_ptr<std::unordered_map<int, sp<BBinder>>> createTokenMap(size_t maxSize) {
@@ -138,33 +143,14 @@ SimpleTransactionState createSimpleTransactionStateForTest() {
     state.mFlags = 1;
     state.mDesiredPresentTime = 11;
     state.mIsAutoTimestamp = true;
-    static const auto* const sFocusRequestTokens = createTokenMap(5).release();
-    for (int i = 0; i < 5; i++) {
-        gui::FocusRequest request;
-        request.token = sFocusRequestTokens->at(i);
-        request.timestamp = i;
-        state.mInputWindowCommands.addFocusRequest(request);
-    }
     return state;
 }
 
-TransactionState createTransactionStateForTest() {
-    static sp<BBinder> sApplyToken = sp<BBinder>::make();
-    static gui::EarlyWakeupInfo sEarlyWakeupInfo;
-
-    TransactionState state;
-
-    state.mSimpleState = createSimpleTransactionStateForTest();
+ComplexTransactionState createComplexTransactionStateForTest() {
+    ComplexTransactionState state;
     state.mMergedTransactionIds.push_back(15);
     state.mMergedTransactionIds.push_back(0);
     state.mFrameTimelineInfo.vsyncId = 14;
-    state.mApplyToken = sApplyToken;
-    for (size_t i = 0; i < kMaxDisplayStates; i++) {
-        state.mDisplayStates.push_back(createDisplayStateForTest(i));
-    }
-    for (size_t i = 0; i < kMaxComposerStates; i++) {
-        state.mComposerStates.push_back(createComposerStateForTest(i));
-    }
     static const auto* const sCacheToken = createTokenMap(5).release();
     for (int i = 0; i < 5; i++) {
         client_cache_t cache;
@@ -182,6 +168,30 @@ TransactionState createTransactionStateForTest() {
     }();
     state.mCallbacks.mHasListenerCallbacks = true;
     state.mCallbacks.mFlattenedListenerCallbacks = *sListenerCallbacks;
+    static const auto* const sFocusRequestTokens = createTokenMap(5).release();
+    for (int i = 0; i < 5; i++) {
+        gui::FocusRequest request;
+        request.token = sFocusRequestTokens->at(i);
+        request.timestamp = i;
+        state.mInputWindowCommands.addFocusRequest(request);
+    }
+
+    return state;
+}
+
+TransactionState createTransactionStateForTest() {
+    static sp<BBinder> sApplyToken = sp<BBinder>::make();
+
+    TransactionState state;
+    state.mSimpleState = createSimpleTransactionStateForTest();
+    state.mComplexState = createComplexTransactionStateForTest();
+    state.mApplyToken = sApplyToken;
+    for (size_t i = 0; i < kMaxDisplayStates; i++) {
+        state.mDisplayStates.push_back(createDisplayStateForTest(i));
+    }
+    for (size_t i = 0; i < kMaxComposerStates; i++) {
+        state.mComposerStates.push_back(createComposerStateForTest(i));
+    }
     return state;
 }
 
@@ -272,7 +282,6 @@ TEST(SimpleTransactionStateTest, merge) {
     expectedMergedState.mFlags = state.mFlags | update.mFlags;
 
     EXPECT_EQ(state.mFlags, expectedMergedState.mFlags);
-    EXPECT_EQ(state.mInputWindowCommands, expectedMergedState.mInputWindowCommands);
 
     // desired present time is not merged.
     expectedMergedState.mDesiredPresentTime = state.mDesiredPresentTime;
@@ -308,19 +317,20 @@ TEST(TransactionStateTest, merge) {
     EXPECT_EQ(update, createEmptyTransaction(update.getId()));
 
     TransactionState expectedMergedState = createTransactionStateForTest();
-    expectedMergedState.mMergedTransactionIds
-            .insert(expectedMergedState.mMergedTransactionIds.begin(), kUpdateTransactionId);
+    expectedMergedState.mComplexState.mMergedTransactionIds
+            .insert(expectedMergedState.mComplexState.mMergedTransactionIds.begin(),
+                    kUpdateTransactionId);
     expectedMergedState.mComposerStates.at(0).state.what |= layer_state_t::eAlphaChanged;
     expectedMergedState.mComposerStates.at(0).state.color.a = .42;
     expectedMergedState.mComposerStates.at(1).state.what |= layer_state_t::eBufferChanged;
-    auto inputCommands = expectedMergedState.mSimpleState.mInputWindowCommands;
+    auto inputCommands = expectedMergedState.mComplexState.mInputWindowCommands;
 
     // desired present time is not merged.
     expectedMergedState.mSimpleState.mDesiredPresentTime = state.mSimpleState.mDesiredPresentTime;
 
     EXPECT_EQ(state.mComposerStates[0], expectedMergedState.mComposerStates[0]);
-    EXPECT_EQ(state.mSimpleState.mInputWindowCommands,
-              expectedMergedState.mSimpleState.mInputWindowCommands);
+    EXPECT_EQ(state.mComplexState.mInputWindowCommands,
+              expectedMergedState.mComplexState.mInputWindowCommands);
     EXPECT_EQ(state, expectedMergedState);
 };
 

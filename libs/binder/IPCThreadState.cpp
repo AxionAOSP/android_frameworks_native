@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "IPCThreadState"
+#define LOG_TAG "libbinder.IPCThreadState"
 
 #include <binder/IPCThreadState.h>
 

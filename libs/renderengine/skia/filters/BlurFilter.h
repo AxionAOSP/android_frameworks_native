@@ -22,6 +22,7 @@
 #include <SkSurface.h>
 
 #include "../compat/SkiaGpuContext.h"
+#include "RuntimeEffectManager.h"
 
 using namespace std;
 
@@ -36,7 +37,7 @@ public:
     // Downsample scale factor used to improve performance
     static constexpr float kInverseInputScale = 1.0f / kInputScale;
 
-    explicit BlurFilter(float maxCrossFadeRadius = 10.0f);
+    explicit BlurFilter(RuntimeEffectManager& effectManager, float maxCrossFadeRadius = 10.0f);
     virtual ~BlurFilter(){}
 
     // Execute blur, saving it to a texture

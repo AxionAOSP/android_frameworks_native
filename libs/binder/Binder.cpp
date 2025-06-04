@@ -593,8 +593,9 @@ int BBinder::getMinSchedulerPriority() {
 
 bool BBinder::isInheritRt() {
     Extras* e = mExtras.load(std::memory_order_acquire);
-
-    return e && e->mInheritRt;
+    // Return configured default value if it has not been overridden
+    if (e == nullptr) return sGlobalInheritRt.load(std::memory_order_acquire);
+    return e->mInheritRt;
 }
 
 void BBinder::setInheritRt(bool inheritRt) {
@@ -614,6 +615,12 @@ void BBinder::setInheritRt(bool inheritRt) {
     }
 
     e->mInheritRt = inheritRt;
+}
+
+std::atomic<bool> BBinder::sGlobalInheritRt(false);
+
+void BBinder::setGlobalInheritRt(bool enabled) {
+    sGlobalInheritRt.store(enabled, std::memory_order_release);
 }
 
 pid_t BBinder::getDebugPid() {
@@ -744,7 +751,7 @@ BBinder::~BBinder()
         if (isRequestingSid()) {
             ALOGW("Binder %p destroyed when requesting SID before being parceled.", this);
         }
-        if (isInheritRt()) {
+        if (sGlobalInheritRt.load(std::memory_order_acquire) != isInheritRt()) {
             ALOGW("Binder %p destroyed after setInheritRt before being parceled.", this);
         }
 #ifdef __linux__

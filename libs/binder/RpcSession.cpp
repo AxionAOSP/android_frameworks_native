@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "RpcSession"
+#define LOG_TAG "libbinder.RpcSession"
 
 #include <binder/RpcSession.h>
 

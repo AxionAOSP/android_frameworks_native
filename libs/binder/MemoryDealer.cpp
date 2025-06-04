@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "MemoryDealer"
+#define LOG_TAG "libbinder.MemoryDealer"
 
 #include <binder/MemoryDealer.h>
 #include <binder/IPCThreadState.h>

@@ -67,7 +67,7 @@ struct InputWindowCommands;
 class HdrCapabilities;
 class Rect;
 struct SimpleTransactionState;
-struct TransactionListenerCallbacks;
+struct ComplexTransactionState;
 
 using gui::FrameTimelineInfo;
 using gui::IDisplayEventConnection;
@@ -108,13 +108,11 @@ public:
     };
 
     /* open/close transactions. requires ACCESS_SURFACE_FLINGER permission */
-    virtual status_t setTransactionState(
-            SimpleTransactionState simpleState, const FrameTimelineInfo& frameTimelineInfo,
-            Vector<ComposerState>& state, Vector<DisplayState>& displays,
-            const sp<IBinder>& applyToken, const std::vector<client_cache_t>& uncacheBuffer,
-            const TransactionListenerCallbacks& listenerCallbacks,
-            const std::vector<uint64_t>& mergedTransactionIds,
-            const std::vector<gui::EarlyWakeupInfo>& earlyWakeupInfos) = 0;
+    virtual status_t setTransactionState(SimpleTransactionState simpleState,
+                                         const ComplexTransactionState& complexState,
+                                         Vector<ComposerState>& state,
+                                         Vector<DisplayState>& displays,
+                                         const sp<IBinder>& applyToken) = 0;
 };
 
 // ----------------------------------------------------------------------------

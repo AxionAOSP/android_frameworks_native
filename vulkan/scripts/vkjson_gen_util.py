@@ -47,6 +47,8 @@ COPYRIGHT_WARNINGS = """////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 """
 
+VK_FORMAT_RANGE_MAPPING = {}
+
 def get_copyright_warnings():
     return COPYRIGHT_WARNINGS
 
@@ -537,3 +539,102 @@ def generate_vk_version_structs_initialization(version_data, struct_type_keyword
                 )
 
     return "\n".join(struct_initialization_code)
+
+
+def find_contiguous_ranges(format_data):
+  """Finds contiguous ranges of format values from a list of enums for a given extension or Vulkan API version.
+    For example, for the format data for the below extension:
+        "VK_EXT_ycbcr_2plane_444_formats": [
+            ("VK_FORMAT_G8_B8R8_2PLANE_444_UNORM_EXT", 1000330000),
+            ("VK_FORMAT_G10X6_B10X6R10X6_2PLANE_444_UNORM_3PACK16_EXT", 1000330001),
+            ("VK_FORMAT_G12X4_B12X4R12X4_2PLANE_444_UNORM_3PACK16_EXT", 1000330002),
+            ("VK_FORMAT_G16_B16R16_2PLANE_444_UNORM_EXT", 1000330003),
+        ]
+
+    The range of formats is:
+    [(VK_FORMAT_G8_B8R8_2PLANE_444_UNORM_EXT,VK_FORMAT_G16_B16R16_2PLANE_444_UNORM_EXT)]
+    """
+  sorted_data = sorted(format_data, key=lambda x: x[1])
+  contiguous_ranges = []
+  start_name, start_val = sorted_data[0]
+  prev_name, prev_val = start_name, start_val
+  for name, val in sorted_data[1:]:
+    if val != prev_val + 1:
+      # Range break
+      contiguous_ranges.append((start_name, prev_name))
+      start_name = name
+    prev_name, prev_val = name, val
+
+  # Append the final range
+  contiguous_ranges.append((start_name, prev_name))
+  return contiguous_ranges
+
+
+def generate_format_range_map():
+  """Returns a map from Vulkan API versions and extensions to their contiguous ranges of format enums.
+
+    For example, for 'VK_VERSION_1_3', the map contains:
+    'VK_VERSION_1_3': [
+        ('VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK', 'VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK'),
+        ('VK_FORMAT_G8_B8R8_2PLANE_444_UNORM', 'VK_FORMAT_G16_B16R16_2PLANE_444_UNORM'),
+        ('VK_FORMAT_A4R4G4B4_UNORM_PACK16', 'VK_FORMAT_A4B4G4R4_UNORM_PACK16')
+    ]
+    """
+  for key, format_data in VK.VK_FORMAT_MAPPING.items():
+    VK_FORMAT_RANGE_MAPPING[key] = find_contiguous_ranges(format_data)
+
+
+def generate_vk_format_init_code(vk_version_api: str = None):
+    """
+    Generates C++ code to initialize Vulkan format enums based on either a Vulkan API version
+    or an extension name.
+
+    If `vk_version_api` is None, the function processes all extensions in `VK_FORMAT_RANGE_MAPPING`.
+    Otherwise, it generates code for the specified Vulkan version.
+
+    Example output for an extension:
+        if (HasExtension("VK_EXT_texture_compression_astc_hdr", device.extensions)) {
+          ...
+        }
+    """
+    generated_code = []
+
+    def generate_format_block(start_format: str, end_format: str):
+        if start_format != end_format:
+            return [
+                f"  for (VkFormat format = {start_format};",
+                f"       format <= {end_format};",
+                f"       format = static_cast<VkFormat>(format + 1)) {{",
+                f"    vkGetPhysicalDeviceFormatProperties(physical_device, format,",
+                f"                                       &format_properties);",
+                f"    device.formats.insert(std::make_pair(format, format_properties));",
+                f"  }}"
+            ]
+        else:
+            return [
+                f"  VkFormat format = {start_format};",
+                f"  vkGetPhysicalDeviceFormatProperties(physical_device, format,",
+                f"                                       &format_properties);",
+                f"  device.formats.insert(std::make_pair(format, format_properties));"
+            ]
+
+    if not vk_version_api:
+        # Process all extensions
+        for key, format_ranges in VK_FORMAT_RANGE_MAPPING.items():
+            if key.startswith("VK_VERSION_"):
+                continue
+            for start_format, end_format in format_ranges:
+                format_code = [f'if (HasExtension("{key}", device.extensions)) {{']
+                format_code.extend(generate_format_block(start_format, end_format))
+                format_code.append("}\n")
+                generated_code.extend(format_code)
+    else:
+        # Process a specific Vulkan version
+        if vk_version_api not in VK_FORMAT_RANGE_MAPPING:
+            return ""
+        for start_format, end_format in VK_FORMAT_RANGE_MAPPING[vk_version_api]:
+            format_code = generate_format_block(start_format, end_format)
+            format_code.append("")  # Add newline after each block
+            generated_code.extend(format_code)
+
+    return "\n".join(generated_code + [""])

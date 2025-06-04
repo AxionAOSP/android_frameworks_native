@@ -28,27 +28,21 @@
 #include <common/trace.h>
 #include <log/log.h>
 
+#include "RuntimeEffectManager.h"
+
 namespace android {
 namespace renderengine {
 namespace skia {
 
-static sk_sp<SkRuntimeEffect> createMixEffect() {
-    SkString mixString(R"(
-        uniform shader blurredInput;
-        uniform shader originalInput;
-        uniform float mixFactor;
+static const SkString kMixString(R"(
+    uniform shader blurredInput;
+    uniform shader originalInput;
+    uniform float mixFactor;
 
-        half4 main(float2 xy) {
-            return half4(mix(originalInput.eval(xy), blurredInput.eval(xy), mixFactor)).rgb1;
-        }
-    )");
-
-    auto [mixEffect, mixError] = SkRuntimeEffect::MakeForShader(mixString);
-    if (!mixEffect) {
-        LOG_ALWAYS_FATAL("RuntimeShader error: %s", mixError.c_str());
+    half4 main(float2 xy) {
+        return half4(mix(originalInput.eval(xy), blurredInput.eval(xy), mixFactor)).rgb1;
     }
-    return mixEffect;
-}
+)");
 
 static SkMatrix getShaderTransform(const SkCanvas* canvas, const SkRect& blurRect,
                                    const float scale, const float zoomScale) {
@@ -74,9 +68,15 @@ static SkMatrix getShaderTransform(const SkCanvas* canvas, const SkRect& blurRec
     return matrix;
 }
 
-BlurFilter::BlurFilter(const float maxCrossFadeRadius)
+BlurFilter::BlurFilter(RuntimeEffectManager& effectManager, const float maxCrossFadeRadius)
       : mMaxCrossFadeRadius(maxCrossFadeRadius),
-        mMixEffect(maxCrossFadeRadius > 0 ? createMixEffect() : nullptr) {}
+        mMixEffect(
+                maxCrossFadeRadius > 0
+                        ? effectManager.createAndStoreRuntimeEffect(RuntimeEffectManager::KnownId::
+                                                                            kBlurFilter_MixEffect,
+                                                                    "BlurFilter_MixEffect",
+                                                                    kMixString)
+                        : nullptr) {}
 
 float BlurFilter::getMaxCrossFadeRadius() const {
     return mMaxCrossFadeRadius;

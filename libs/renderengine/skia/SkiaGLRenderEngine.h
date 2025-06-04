@@ -38,7 +38,6 @@
 #include "android-base/macros.h"
 #include "debug/SkiaCapture.h"
 #include "filters/BlurFilter.h"
-#include "filters/LinearEffect.h"
 #include "filters/StretchShaderFactory.h"
 
 class SkData;

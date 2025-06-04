@@ -31,7 +31,6 @@ void SimpleTransactionState::clear() {
 void SimpleTransactionState::merge(const SimpleTransactionState& other) {
     // TODO(b/385156191) Consider merging desired present time.
     mFlags |= other.mFlags;
-    mInputWindowCommands.merge(other.mInputWindowCommands);
 }
 
 status_t SimpleTransactionState::writeToParcel(Parcel* parcel) const {
@@ -39,7 +38,6 @@ status_t SimpleTransactionState::writeToParcel(Parcel* parcel) const {
     SAFE_PARCEL(parcel->writeUint32, mFlags);
     SAFE_PARCEL(parcel->writeInt64, mDesiredPresentTime);
     SAFE_PARCEL(parcel->writeBool, mIsAutoTimestamp);
-    SAFE_PARCEL(mInputWindowCommands.write, *parcel);
 
     return NO_ERROR;
 }
@@ -49,7 +47,6 @@ status_t SimpleTransactionState::readFromParcel(const Parcel* parcel) {
     SAFE_PARCEL(parcel->readUint32, &mFlags);
     SAFE_PARCEL(parcel->readInt64, &mDesiredPresentTime);
     SAFE_PARCEL(parcel->readBool, &mIsAutoTimestamp);
-    SAFE_PARCEL(mInputWindowCommands.read, *parcel);
 
     return NO_ERROR;
 }
@@ -86,10 +83,62 @@ status_t TransactionListenerCallbacks::readFromParcel(const Parcel* parcel) {
     return NO_ERROR;
 }
 
+status_t ComplexTransactionState::writeToParcel(Parcel* parcel) const {
+    SAFE_PARCEL(parcel->writeParcelable, mFrameTimelineInfo);
+
+    SAFE_PARCEL(parcel->writeUint32, static_cast<uint32_t>(mUncacheBuffers.size()));
+    for (const client_cache_t& uncacheBuffer : mUncacheBuffers) {
+        SAFE_PARCEL(parcel->writeStrongBinder, uncacheBuffer.token.promote());
+        SAFE_PARCEL(parcel->writeUint64, uncacheBuffer.id);
+    }
+
+    SAFE_PARCEL(parcel->writeUint64Vector, mMergedTransactionIds);
+    SAFE_PARCEL(mCallbacks.writeToParcel, parcel);
+    SAFE_PARCEL(mInputWindowCommands.write, *parcel);
+    SAFE_PARCEL(parcel->writeUint32, static_cast<uint32_t>(mEarlyWakeupInfos.size()));
+    for (const auto& e : mEarlyWakeupInfos) {
+        e.writeToParcel(parcel);
+    }
+
+    return NO_ERROR;
+}
+
+status_t ComplexTransactionState::readFromParcel(const Parcel* parcel) {
+    SAFE_PARCEL(parcel->readParcelable, &mFrameTimelineInfo);
+
+    uint32_t count;
+    SAFE_PARCEL_READ_SIZE(parcel->readUint32, &count, parcel->dataSize())
+    mUncacheBuffers.clear();
+    mUncacheBuffers.reserve(count);
+    for (size_t i = 0; i < count; i++) {
+        client_cache_t client_cache;
+        sp<IBinder> tmpBinder;
+        SAFE_PARCEL(parcel->readStrongBinder, &tmpBinder);
+        client_cache.token = tmpBinder;
+        SAFE_PARCEL(parcel->readUint64, &client_cache.id);
+        mUncacheBuffers.emplace_back(std::move(client_cache));
+    }
+
+    SAFE_PARCEL(parcel->readUint64Vector, &mMergedTransactionIds);
+    SAFE_PARCEL(mCallbacks.readFromParcel, parcel);
+    SAFE_PARCEL(mInputWindowCommands.read, *parcel);
+    count = 0;
+    SAFE_PARCEL_READ_SIZE(parcel->readUint32, &count, parcel->dataSize());
+    std::vector<gui::EarlyWakeupInfo> earlyWakeupInfos;
+    earlyWakeupInfos.reserve(count);
+    for (size_t i = 0; i < count; i++) {
+        gui::EarlyWakeupInfo e;
+        e.readFromParcel(parcel);
+        earlyWakeupInfos.push_back(std::move(e));
+    }
+    mEarlyWakeupInfos = std::move(earlyWakeupInfos);
+
+    return NO_ERROR;
+}
+
 status_t TransactionState::writeToParcel(Parcel* parcel) const {
     SAFE_PARCEL(mSimpleState.writeToParcel, parcel);
-    SAFE_PARCEL(mCallbacks.writeToParcel, parcel);
-    SAFE_PARCEL(parcel->writeParcelable, mFrameTimelineInfo);
+    SAFE_PARCEL(mComplexState.writeToParcel, parcel);
     SAFE_PARCEL(parcel->writeStrongBinder, mApplyToken);
     SAFE_PARCEL(parcel->writeBool, mMayContainBuffer);
     SAFE_PARCEL(parcel->writeBool, mLogCallPoints);
@@ -103,24 +152,12 @@ status_t TransactionState::writeToParcel(Parcel* parcel) const {
         composerState.write(*parcel);
     }
 
-    SAFE_PARCEL(parcel->writeUint32, static_cast<uint32_t>(mUncacheBuffers.size()));
-    for (const client_cache_t& uncacheBuffer : mUncacheBuffers) {
-        SAFE_PARCEL(parcel->writeStrongBinder, uncacheBuffer.token.promote());
-        SAFE_PARCEL(parcel->writeUint64, uncacheBuffer.id);
-    }
-
-    SAFE_PARCEL(parcel->writeUint32, static_cast<uint32_t>(mMergedTransactionIds.size()));
-    for (auto mergedTransactionId : mMergedTransactionIds) {
-        SAFE_PARCEL(parcel->writeUint64, mergedTransactionId);
-    }
-
     return NO_ERROR;
 }
 
 status_t TransactionState::readFromParcel(const Parcel* parcel) {
     SAFE_PARCEL(mSimpleState.readFromParcel, parcel);
-    SAFE_PARCEL(mCallbacks.readFromParcel, parcel);
-    SAFE_PARCEL(parcel->readParcelable, &mFrameTimelineInfo);
+    SAFE_PARCEL(mComplexState.readFromParcel, parcel);
     SAFE_PARCEL(parcel->readNullableStrongBinder, &mApplyToken);
     SAFE_PARCEL(parcel->readBool, &mMayContainBuffer);
     SAFE_PARCEL(parcel->readBool, &mLogCallPoints);
@@ -148,31 +185,10 @@ status_t TransactionState::readFromParcel(const Parcel* parcel) {
         mComposerStates.emplace_back(std::move(composerState));
     }
 
-    SAFE_PARCEL_READ_SIZE(parcel->readUint32, &count, parcel->dataSize())
-    mUncacheBuffers.clear();
-    mUncacheBuffers.reserve(count);
-    for (size_t i = 0; i < count; i++) {
-        client_cache_t client_cache;
-        sp<IBinder> tmpBinder;
-        SAFE_PARCEL(parcel->readStrongBinder, &tmpBinder);
-        client_cache.token = tmpBinder;
-        SAFE_PARCEL(parcel->readUint64, &client_cache.id);
-        mUncacheBuffers.emplace_back(std::move(client_cache));
-    }
-
-    SAFE_PARCEL_READ_SIZE(parcel->readUint32, &count, parcel->dataSize())
-    mMergedTransactionIds.clear();
-    mMergedTransactionIds.resize(count);
-    for (size_t i = 0; i < count; i++) {
-        SAFE_PARCEL(parcel->readUint64, &mMergedTransactionIds[i]);
-    }
-
     return NO_ERROR;
 }
 
-void TransactionState::merge(TransactionState&& other,
-                             const std::function<void(layer_state_t&)>& onBufferOverwrite) {
-    mSimpleState.merge(other.mSimpleState);
+void ComplexTransactionState::merge(ComplexTransactionState& other) {
     while (mMergedTransactionIds.size() + other.mMergedTransactionIds.size() >
                    MAX_MERGE_HISTORY_LENGTH - 1 &&
            mMergedTransactionIds.size() > 0) {
@@ -187,7 +203,26 @@ void TransactionState::merge(TransactionState&& other,
                                      other.mMergedTransactionIds.begin(),
                                      other.mMergedTransactionIds.end());
     }
-    mMergedTransactionIds.insert(mMergedTransactionIds.begin(), other.mSimpleState.mId);
+
+    for (auto& cacheId : other.mUncacheBuffers) {
+        mUncacheBuffers.emplace_back(std::move(cacheId));
+    }
+
+    mergeFrameTimelineInfo(other.mFrameTimelineInfo);
+
+    mInputWindowCommands.merge(other.mInputWindowCommands);
+
+    for (gui::EarlyWakeupInfo& op : other.mEarlyWakeupInfos) {
+        mEarlyWakeupInfos.emplace_back(std::move(op));
+    }
+}
+
+void TransactionState::merge(TransactionState&& other,
+                             const std::function<void(layer_state_t&)>& onBufferOverwrite) {
+    mSimpleState.merge(other.mSimpleState);
+    mComplexState.merge(other.mComplexState);
+    mComplexState.mMergedTransactionIds.insert(mComplexState.mMergedTransactionIds.begin(),
+                                               other.mSimpleState.mId);
 
     for (auto const& otherState : other.mComposerStates) {
         if (auto it = std::find_if(mComposerStates.begin(), mComposerStates.end(),
@@ -217,21 +252,16 @@ void TransactionState::merge(TransactionState&& other,
         }
     }
 
-    for (const auto& cacheId : other.mUncacheBuffers) {
-        mUncacheBuffers.push_back(cacheId);
-    }
-
     mMayContainBuffer |= other.mMayContainBuffer;
     mLogCallPoints |= other.mLogCallPoints;
 
     // mApplyToken is explicitly not merged. Token should be set before applying the transactions to
     // make synchronization decisions a bit simpler.
-    mergeFrameTimelineInfo(other.mFrameTimelineInfo);
     other.clear();
 }
 
 // copied from FrameTimelineInfo::merge()
-void TransactionState::mergeFrameTimelineInfo(const FrameTimelineInfo& other) {
+void ComplexTransactionState::mergeFrameTimelineInfo(const FrameTimelineInfo& other) {
     // When merging vsync Ids we take the oldest valid one
     if (mFrameTimelineInfo.vsyncId != FrameTimelineInfo::INVALID_VSYNC_ID &&
         other.vsyncId != FrameTimelineInfo::INVALID_VSYNC_ID) {
@@ -243,15 +273,21 @@ void TransactionState::mergeFrameTimelineInfo(const FrameTimelineInfo& other) {
     }
 }
 
-void TransactionState::clear() {
-    mSimpleState.clear();
+void ComplexTransactionState::clear() {
     mCallbacks.clear();
-    mComposerStates.clear();
-    mDisplayStates.clear();
     mUncacheBuffers.clear();
-    mApplyToken = nullptr;
     mFrameTimelineInfo = {};
     mMergedTransactionIds.clear();
+    mInputWindowCommands.clear();
+    mEarlyWakeupInfos.clear();
+}
+
+void TransactionState::clear() {
+    mSimpleState.clear();
+    mComplexState.clear();
+    mComposerStates.clear();
+    mDisplayStates.clear();
+    mApplyToken = nullptr;
     mMayContainBuffer = false;
     mLogCallPoints = false;
 }
