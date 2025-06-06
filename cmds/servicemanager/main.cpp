@@ -158,14 +158,10 @@ int main(int argc, char** argv) {
 
     LOG(INFO) << "Starting sm instance on " << driver;
 
-    int sched_policy = SCHED_FIFO;
-    int newPriority = sched_get_priority_min(sched_policy);
+    struct sched_param sm_param = { .sched_priority = 98 };
 
-    struct sched_param param;
-    param.sched_priority = newPriority;
-
-    if (sched_setscheduler(0, sched_policy, &param)) {
-       LOG(ERROR) << "Failed to set ServiceManager priority to SCHED_FIFO";
+    if (sched_setscheduler(0, SCHED_FIFO, &sm_param)) {
+       LOG(ERROR) << "Failed to set ServiceManager priority to RT(98)";
     }
 
     sp<ProcessState> ps = ProcessState::initWithDriver(driver);
