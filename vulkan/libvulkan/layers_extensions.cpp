@@ -24,6 +24,7 @@
 #include <string.h>
 #include <sys/prctl.h>
 #include <unistd.h>
+#include <unordered_set>
 
 #include <mutex>
 #include <string>
@@ -359,20 +360,28 @@ void AddLayerLibrary(const std::string& path, const std::string& filename) {
 template <typename Functor>
 void ForEachFileInDir(const std::string& dirname, Functor functor) {
     auto dir_deleter = [](DIR* handle) { closedir(handle); };
-    std::unique_ptr<DIR, decltype(dir_deleter)> dir(opendir(dirname.c_str()),
-                                                    dir_deleter);
+    std::unique_ptr<DIR, decltype(dir_deleter)> dir(opendir(dirname.c_str()), dir_deleter);
     if (!dir) {
-        // It's normal for some search directories to not exist, especially
-        // /data/local/debug/vulkan.
         int err = errno;
         ALOGW_IF(err != ENOENT, "failed to open layer directory '%s': %s",
                  dirname.c_str(), strerror(err));
         return;
     }
+
     ALOGD("searching for layers in '%s'", dirname.c_str());
     dirent* entry;
-    while ((entry = readdir(dir.get())) != nullptr)
-        functor(entry->d_name);
+    std::unordered_set<std::string> seen;
+
+    while ((entry = readdir(dir.get())) != nullptr) {
+        std::string name(entry->d_name);
+        if (!android::base::StartsWith(name, "libVkLayer") ||
+            !android::base::EndsWith(name, ".so")) {
+            continue;
+        }
+        if (seen.insert(name).second) {
+            functor(name);
+        }
+    }
 }
 
 template <typename Functor>
@@ -386,31 +395,41 @@ void ForEachFileInZip(const std::string& zipname,
         ALOGE("failed to open apk '%s': %d", zipname.c_str(), err);
         return;
     }
-    std::string prefix(dir_in_zip + "/");
+
+    std::string prefix(dir_in_zip + "/libVkLayer");
+    std::string suffix(".so");
     void* iter_cookie = nullptr;
-    if ((err = StartIteration(zip, &iter_cookie, prefix, "")) != 0) {
-        ALOGE("failed to iterate entries in apk '%s': %d", zipname.c_str(),
-              err);
+    if ((err = StartIteration(zip, &iter_cookie, prefix, suffix)) != 0) {
+        ALOGE("failed to iterate entries in apk '%s': %d", zipname.c_str(), err);
         CloseArchive(zip);
         return;
     }
-    ALOGD("searching for layers in '%s!/%s'", zipname.c_str(),
-          dir_in_zip.c_str());
+
+    ALOGD("searching for layers in '%s!/%s'", zipname.c_str(), dir_in_zip.c_str());
     ZipEntry entry;
     std::string name;
+    std::unordered_set<std::string> seen;
+    std::string full_prefix(dir_in_zip + "/");
+
     while (Next(iter_cookie, &entry, &name) == 0) {
-        std::string filename(name.substr(prefix.length()));
-        // only enumerate direct entries of the directory, not subdirectories
-        if (filename.find('/') != filename.npos)
+        if (!android::base::StartsWith(name, full_prefix)) continue;
+
+        std::string filename(name.substr(full_prefix.length()));
+        if (filename.find('/') != std::string::npos) continue;
+        
+        if (!android::base::StartsWith(filename, "libVkLayer") ||
+            !android::base::EndsWith(filename, ".so")) {
             continue;
-        // Check whether it *may* be possible to load the library directly from
-        // the APK. Loading still may fail for other reasons, but this at least
-        // lets us avoid failed-to-load log messages in the typical case of
-        // compressed and/or unaligned libraries.
+        }
+
+        if (!seen.insert(filename).second) continue;
+
         if (entry.method != kCompressStored || entry.offset % kPageSize != 0)
             continue;
+
         functor(filename);
     }
+
     EndIteration(iter_cookie);
     CloseArchive(zip);
 }
@@ -429,31 +448,22 @@ void ForEachFileInPath(const std::string& path, Functor functor) {
 void DiscoverLayersInPathList(const std::string& pathstr) {
     ATRACE_CALL();
 
+    std::unordered_set<std::string> seen_layers;
+
     std::vector<std::string> paths = android::base::Split(pathstr, ":");
     for (const auto& path : paths) {
         ForEachFileInPath(path, [&](const std::string& filename) {
-            if (android::base::StartsWith(filename, "libVkLayer") &&
-                android::base::EndsWith(filename, ".so")) {
-
-                // Check to ensure we haven't seen this layer already
-                // Let the first instance of the shared object be enumerated
-                // We're searching for layers in following order:
-                // 1. system path
-                // 2. libraryPermittedPath (if enabled)
-                // 3. libraryPath
-
-                bool duplicate = false;
-                for (auto& layer : g_layer_libraries) {
-                    if (layer.GetFilename() == filename) {
-                        ALOGV("Skipping duplicate layer %s in %s",
-                              filename.c_str(), path.c_str());
-                        duplicate = true;
-                    }
-                }
-
-                if (!duplicate)
-                    AddLayerLibrary(path, filename);
+            if (!android::base::StartsWith(filename, "libVkLayer") ||
+                !android::base::EndsWith(filename, ".so")) {
+                return;
             }
+
+            if (!seen_layers.insert(filename).second) {
+                ALOGV("Skipping already-seen layer %s", filename.c_str());
+                return;
+            }
+
+            AddLayerLibrary(path, filename);
         });
     }
 }
