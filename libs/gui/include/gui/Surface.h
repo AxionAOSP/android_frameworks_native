@@ -29,6 +29,7 @@
 #include <utils/Condition.h>
 #include <utils/Mutex.h>
 #include <utils/RefBase.h>
+#include <utils/String8.h>
 
 #include <shared_mutex>
 #include <unordered_set>
@@ -365,19 +366,15 @@ private:
     int dispatchSetFrameTimelineInfo(va_list args);
     int dispatchSetAdditionalOptions(va_list args);
 
-    std::mutex mNameMutex;
-    std::string mName;
-    const char* getDebugName();
-
 protected:
-    virtual int dequeueBuffer(ANativeWindowBuffer** buffer, int* fenceFd);
-    virtual int cancelBuffer(ANativeWindowBuffer* buffer, int fenceFd);
-    virtual int queueBuffer(ANativeWindowBuffer* buffer, int fenceFd,
+    virtual int dequeueBuffer(sp<GraphicBuffer>* buffer, int* fenceFd);
+    virtual int cancelBuffer(sp<GraphicBuffer>&& buffer, int fenceFd);
+    virtual int queueBuffer(sp<GraphicBuffer>&& buffer, int fenceFd,
                             SurfaceQueueBufferOutput* surfaceOutput = nullptr);
     virtual int perform(int operation, va_list args);
     virtual int setSwapInterval(int interval);
 
-    virtual int lockBuffer_DEPRECATED(ANativeWindowBuffer* buffer);
+    virtual int lockBuffer_DEPRECATED(const sp<GraphicBuffer>& buffer);
 
     virtual int connect(int api);
     virtual int setBufferCount(int bufferCount);
@@ -509,18 +506,18 @@ protected:
     void querySupportedTimestampsLocked() const;
 
     void freeAllBuffers();
-    int getSlotFromBufferLocked(android_native_buffer_t* buffer) const;
+    int getSlotFromBufferLocked(const sp<GraphicBuffer>& buffer) const;
 
     void getDequeueBufferInputLocked(IGraphicBufferProducer::DequeueBufferInput* dequeueInput);
 
-    void getQueueBufferInputLocked(android_native_buffer_t* buffer, int fenceFd, nsecs_t timestamp,
-            IGraphicBufferProducer::QueueBufferInput* out);
+    void getQueueBufferInputLocked(const sp<GraphicBuffer>& buffer, int fenceFd, nsecs_t timestamp,
+                                   IGraphicBufferProducer::QueueBufferInput* out);
 
     // For easing in adoption of gralloc4 metadata by vendor components, as well as for supporting
     // the public ANativeWindow api, allow setting relevant metadata when queueing a buffer through
     // a native window
     void applyGrallocMetadataLocked(
-            android_native_buffer_t* buffer,
+            const sp<GraphicBuffer>& buffer,
             const IGraphicBufferProducer::QueueBufferInput& queueBufferInput);
 
     void onBufferQueuedLocked(int slot, sp<Fence> fence,
@@ -745,6 +742,10 @@ protected:
     // the GRALLOC_USAGE_CURSOR usage flag should be set on the buffer created when this surface is
     // locked.
     bool mIsForCursor = false;
+
+    mutable std::mutex mDebugMutex;
+    String8 mDebugName GUARDED_BY(mDebugMutex) = String8("not-connected");
+    uint64_t mId GUARDED_BY(mDebugMutex) = 0;
 };
 
 } // namespace android

@@ -21,6 +21,10 @@
 #include "FdTrigger.h"
 #include "RpcState.h"
 
+// For just this file:
+// #undef LOG_RPC_DETAIL
+// #define LOG_RPC_DETAIL ALOGE
+
 namespace android {
 
 template <typename SendOrReceive>
@@ -56,10 +60,24 @@ status_t interruptableReadOrWrite(
         return OK;
     }
 
+    // size to break up message
+    constexpr size_t kChunkMax = 65536;
+    const size_t kChunkMin = getpagesize(); // typical allocated granularity for sockets
+    size_t chunkSize = kChunkMax;
+
+    // b/419364025 - vhost-vsock, and perhaps other socket implementations may return
+    // ENOMEM from blocking sockets, non-blocking
+    // how long we are waiting on repeated enomems for memory to be available
+    constexpr size_t kEnomemWaitStartUs = 10'000;
+    constexpr size_t kEnomemWaitMaxUs = 1'000'000;       // don't risk ANR
+    constexpr size_t kEnomemWaitTotalMaxUs = 30'000'000; // ANR at 30s anyway, so avoid hang
+    size_t enomemWaitUs = 0;
+    size_t enomemTotalUs = 0;
+
     bool havePolled = false;
     while (true) {
         ssize_t processSize = -1;
-        bool canSendFullTransaction = false;
+        bool skipPollingAndContinue = false; // set when we should retry immediately
 
         // This block dynamically adjusts packet sizes down to work around a
         // limitation in the vsock driver where large packets are sometimes
@@ -67,15 +85,15 @@ status_t interruptableReadOrWrite(
         // TODO: only apply this workaround on vsock ???
         // TODO: fix vsock
         {
-            size_t limit = 65536;
+            size_t chunkRemaining = chunkSize;
             int i = 0;
             for (i = 0; i < niovs; i++) {
-                if (iovs[i].iov_len >= limit) {
+                if (iovs[i].iov_len >= chunkRemaining) {
                     break;
                 }
-                limit -= iovs[i].iov_len;
+                chunkRemaining -= iovs[i].iov_len;
             }
-            canSendFullTransaction = i == niovs;
+            bool canSendFullTransaction = i == niovs;
 
             int old_niovs = niovs;
             size_t old_len = 0xDEADBEEF;
@@ -84,14 +102,20 @@ status_t interruptableReadOrWrite(
                 // pretend like we have fewer iovecs
                 niovs = i + 1; // to restore (A)
                 old_len = iovs[i].iov_len;
-                // only send up to remaining limit from this iovec
-                iovs[i].iov_len = limit; // to restore (B)
-                LOG_ALWAYS_FATAL_IF(limit == 0,
-                                    "limit should not be zero - see EMPTY IOVEC ISSUE above");
+                // only send up to remaining chunkRemaining from this iovec
+                iovs[i].iov_len = chunkRemaining; // to restore (B)
+                LOG_ALWAYS_FATAL_IF(chunkRemaining == 0,
+                                    "chunkRemaining never zero - see EMPTY IOVEC ISSUE above");
             }
 
             // MAIN ACTION
-            processSize = sendOrReceiveFun(iovs, niovs);
+            if (MAYBE_TRUE_IN_FLAKE_MODE) {
+                LOG_RPC_DETAIL("Injecting ENOMEM.");
+                processSize = -1;
+                errno = ENOMEM;
+            } else {
+                processSize = sendOrReceiveFun(iovs, niovs);
+            }
             // MAIN ACTION
 
             if (!canSendFullTransaction) {
@@ -101,20 +125,67 @@ status_t interruptableReadOrWrite(
                 niovs = old_niovs;         // (A) - restored
                 iovs[i].iov_len = old_len; // (B) - restored
             }
+
+            // altPoll may introduce long waiting since it assumes if it cannot write
+            // data, that it needs to wait to send more to give time for the producer
+            // consumer problem to be solved - otherwise it will busy loop. However,
+            // for this worakround, we are breaking up the transaction intentionally,
+            // not because the transaction won't fit, but to avoid a bug in the kernel
+            // for how it combines messages. So, when we artificially simulate a
+            // limited send, don't poll and just keep on sending data.
+            skipPollingAndContinue = !canSendFullTransaction;
         }
 
+        // HANDLE RESULT OF SEND OR RECEIVE
         if (processSize < 0) {
             int savedErrno = errno;
 
-            // Still return the error on later passes, since it would expose
-            // a problem with polling
-            if (havePolled || (savedErrno != EAGAIN && savedErrno != EWOULDBLOCK)) {
+            if (savedErrno == ENOMEM) {
+                LOG_RPC_DETAIL("RpcTransport %s(): %s", funName, strerror(savedErrno));
+
+                // Since this is the limit only for this call to send this packet
+                // we don't ever restore this. Assume it will be hard to get more
+                // memory if we're already having difficulty sending this out.
+                chunkSize = std::max(chunkSize / 2, kChunkMin);
+                LOG_RPC_DETAIL("Chunk size is now %zu due to ENOMEM.", chunkSize);
+
+                // When we've gotten down to the minimum send size, add a timer
+                // to give time for more memory to be freed up. This means even
+                // a single page is not available, so we have to wait.
+                if (chunkSize <= kChunkMin) {
+                    if (enomemWaitUs == 0) enomemWaitUs = kEnomemWaitStartUs;
+                    enomemWaitUs = std::min(enomemWaitUs * 2, kEnomemWaitMaxUs);
+                    enomemTotalUs += enomemWaitUs;
+
+                    if (enomemTotalUs > kEnomemWaitTotalMaxUs) {
+                        // by this time WatchDog should be kicking in
+                        return -ENOMEM;
+                    }
+
+                    LOG_RPC_DETAIL("Sleeping %zuus due to ENOMEM.", enomemWaitUs);
+                    usleep(enomemWaitUs);
+                }
+
+                // Need to survey socket code to see if polling in this situation is
+                // guaranteed to be non-blocking.
+                // NOTE: if the other side needs to deallocate memory, and that is the
+                // only deallocatable memory in the entire system, but we need altPoll
+                // to drain commands to unstick it so it can do that, then this could
+                // cause a deadlock, but this is not realistic on Android.
+                skipPollingAndContinue = true;
+            } else if (havePolled || (savedErrno != EAGAIN && savedErrno != EWOULDBLOCK)) {
+                // Still return the error on later passes, since it would expose
+                // a problem with polling
                 LOG_RPC_DETAIL("RpcTransport %s(): %s", funName, strerror(savedErrno));
                 return -savedErrno;
             }
         } else if (processSize == 0) {
             return DEAD_OBJECT;
         } else {
+            // success - reset error exponential backoffs
+            enomemWaitUs = 0;
+            enomemTotalUs = 0;
+
             while (processSize > 0 && niovs > 0) {
                 auto& iov = iovs[0];
                 if (static_cast<size_t>(processSize) < iov.iov_len) {
@@ -138,18 +209,15 @@ status_t interruptableReadOrWrite(
             }
         }
 
-        // altPoll may introduce long waiting since it assumes if it cannot write
-        // data, that it needs to wait to send more to give time for the producer
-        // consumer problem to be solved - otherwise it will busy loop. However,
-        // for this worakround, we are breaking up the transaction intentionally,
-        // not because the transaction won't fit, but to avoid a bug in the kernel
-        // for how it combines messages. So, when we artificially simulate a
-        // limited send, don't poll and just keep on sending data.
-        if (!canSendFullTransaction) continue;
-
-        if (altPoll) {
-            if (status_t status = (*altPoll)(); status != OK) return status;
+        // METHOD OF POLLING
+        if (skipPollingAndContinue) {
             if (fdTrigger->isTriggered()) {
+                return DEAD_OBJECT;
+            }
+            // continue;
+        } else if (altPoll) {
+            if (status_t status = (*altPoll)(); status != OK) return status;
+            if (fdTrigger->isTriggered()) { // altPoll may not check this
                 return DEAD_OBJECT;
             }
         } else {

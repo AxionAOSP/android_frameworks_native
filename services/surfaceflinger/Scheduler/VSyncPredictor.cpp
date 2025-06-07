@@ -693,7 +693,9 @@ int64_t VSyncPredictor::VsyncTimeline::getFreezeSequencePhase(
     }
 
     const auto lastVsyncSequence = getVsyncSequenceLocked(model, lastVsync.ns());
-    auto seq = static_cast<int64_t>(std::ceil(lastVsyncSequence.seq / divisor)) * divisor;
+    auto seq = static_cast<int64_t>(std::ceil(static_cast<double>(lastVsyncSequence.seq) /
+                                              static_cast<double>(divisor))) *
+            divisor;
     return seq - lastVsyncSequence.seq;
 }
 

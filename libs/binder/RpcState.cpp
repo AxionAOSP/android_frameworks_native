@@ -45,7 +45,7 @@ using android::binder::borrowed_fd;
 using android::binder::unique_fd;
 
 #if RPC_FLAKE_PRONE
-void rpcMaybeWaitToFlake() {
+static unsigned rpcFlakeUnsigned() {
     [[clang::no_destroy]] static std::random_device r;
     [[clang::no_destroy]] static RpcMutex m;
     unsigned num;
@@ -53,6 +53,14 @@ void rpcMaybeWaitToFlake() {
         RpcMutexLockGuard lock(m);
         num = r();
     }
+    return num;
+}
+bool rpcMaybeFlake() {
+    return rpcFlakeUnsigned() % 10 == 0; // flake 10%
+    // return rpcFlakeUnsigned() % 4 != 0; // flake 75%
+}
+void rpcMaybeWaitToFlake() {
+    unsigned num = rpcFlakeUnsigned();
     if (num % 10 == 0) usleep(num % 1000);
 }
 #endif

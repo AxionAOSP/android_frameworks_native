@@ -2296,9 +2296,7 @@ TEST_F(SurfaceTest, PlatformBufferMethods) {
     // Verify nullptrs are handled safely:
     //
 
-    EXPECT_EQ(BAD_VALUE, surface->dequeueBuffer((sp<GraphicBuffer>*)nullptr, nullptr));
     EXPECT_EQ(BAD_VALUE, surface->dequeueBuffer((sp<GraphicBuffer>*)nullptr, &fence));
-    EXPECT_EQ(BAD_VALUE, surface->dequeueBuffer(&buffer, nullptr));
     EXPECT_EQ(BAD_VALUE, surface->queueBuffer(nullptr, nullptr));
     EXPECT_EQ(BAD_VALUE, surface->detachBuffer(nullptr));
 

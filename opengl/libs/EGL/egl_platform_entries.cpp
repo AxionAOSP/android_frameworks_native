@@ -1196,6 +1196,12 @@ static __eglMustCastToProperFunctionPointerType findBuiltinWrapper(const char* p
 }
 
 __eglMustCastToProperFunctionPointerType eglGetProcAddressImpl(const char* procname) {
+    // This is not required by the EGL spec, but we're choosing to fail gracefully (return nullptr)
+    // rather than performing undefined behavior (crashing).
+    if (procname == nullptr) {
+        return nullptr;
+    }
+
     if (FILTER_EXTENSIONS(procname)) {
         return nullptr;
     }
