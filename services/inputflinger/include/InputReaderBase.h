@@ -161,7 +161,7 @@ struct InputReaderConfiguration {
     // For mice, these are ignored and the values of mousePointerSpeed and
     // mousePointerAccelerationEnabled used instead.
     //
-    // TODO(b/281840344): remove, and check if other fields beginning with pointer… are still used.
+    // TODO(b/281840344): remove this.
     VelocityControlParameters pointerVelocityControlParameters;
 
     // Velocity control parameters for mouse wheel movements.
