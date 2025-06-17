@@ -927,7 +927,7 @@ void SurfaceFlinger::init() FTL_FAKE_GUARD(kMainThreadContext) {
             std::min(getRenderEngine().getMaxTextureSize(), getRenderEngine().getMaxViewportDims());
 
     // Set SF main policy after initializing RenderEngine which has its own policy.
-    if (!SetTaskProfiles(0, {"SFMainPolicy"})) {
+    if (!SetTaskProfiles(0, {"DisplayCapacity", "DisplayPerformance"})) {
         ALOGW("Failed to set main task profile");
     }
 
