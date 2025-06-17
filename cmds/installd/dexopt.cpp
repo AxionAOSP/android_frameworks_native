@@ -340,7 +340,7 @@ static bool ShouldUseSwapFileForDexopt() {
 
 static void SetDex2OatScheduling(bool set_to_bg) {
     if (set_to_bg) {
-        if (!SetTaskProfiles(0, {"Dex2OatBootComplete"})) {
+        if (!SetTaskProfiles(0, {"Dex2oatPerformance", "Dex2oatCapacity", "LowIoPriority", "TimerSlackHigh"})) {
             LOG(ERROR) << "Failed to set dex2oat task profile";
             exit(DexoptReturnCodes::kSetSchedPolicy);
         }
