@@ -931,16 +931,6 @@ void SurfaceFlinger::init() FTL_FAKE_GUARD(kMainThreadContext) {
         ALOGW("Failed to set main task profile");
     }
 
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    for (int i = 4; i <= 7; ++i) {
-        CPU_SET(i, &cpuset);
-    }
-
-    if (sched_setaffinity(0, sizeof(cpu_set_t), &cpuset) != 0) {
-        ALOGW("Failed to set Surfaceflinger CPU affinity to big cores!");
-    }
-
     mCompositionEngine->setTimeStats(mTimeStats);
 
     mCompositionEngine->setHwComposer(getFactory().createHWComposer(mHwcServiceName));
