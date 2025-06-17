@@ -23,7 +23,6 @@
 #include <future>
 
 #include <android-base/stringprintf.h>
-#include <android-base/properties.h>
 #include <common/trace.h>
 #include <private/gui/SyncFeatures.h>
 #include <processgroup/processgroup.h>
@@ -81,33 +80,12 @@ void RenderEngineThreaded::threadMain(CreateInstanceFactory factory) NO_THREAD_S
 
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
-
-    std::vector<int32_t> big_cores;
-
-    auto parseCpusets = [](const std::string& cpuset_str, std::vector<int32_t>& cpus) {
-        std::istringstream ss(cpuset_str);
-        std::string token;
-        while (std::getline(ss, token, ',')) {
-            char* endptr;
-            long cpu = std::strtol(token.c_str(), &endptr, 10);
-            if (*endptr == '\0' && cpu >= 0) {
-                cpus.push_back(static_cast<int32_t>(cpu));
-            } else {
-                ALOGW("Invalid CPU core value: %s", token.c_str());
-            }
-        }
-    };
-
-    parseCpusets(android::base::GetProperty("persist.sys.axion_cpu_big", "4,5,6,7"), big_cores);
-
-    for (int core : big_cores) {
-        CPU_SET(core, &cpuset);
+    for (int i = 4; i <= 7; ++i) {
+        CPU_SET(i, &cpuset);
     }
 
     if (sched_setaffinity(0, sizeof(cpu_set_t), &cpuset) != 0) {
         ALOGW("Failed to set render-engine CPU affinity to big cores!");
-    } else {
-        ALOGI("Successfully set render-engine CPU affinity to big cores!");
     }
 
     if (!SetTaskProfiles(0, {"SFRenderEnginePolicy"})) {
