@@ -215,6 +215,13 @@ public:
     // Set scheduling policy and attributes of main thread.
     static void setSchedFifo(bool enabled, const char* whence);
     static void setSchedAttr(bool enabled, const char* whence);
+    
+    void boostSF(bool enabled);
+    void resetBoosts();
+    void setScheduler(int sched_policy, int priority, bool enabled, const char* group_name);
+    
+    static int parse_cpuset_cpus(char* str, cpu_set_t* set);
+    static cpu_set_t createOrGetCpuSet(bool enabled);
 
     static char const* getServiceName() ANDROID_API { return "SurfaceFlinger"; }
 

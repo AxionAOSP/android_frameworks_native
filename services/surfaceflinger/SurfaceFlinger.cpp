@@ -24,6 +24,8 @@
 
 #include "SurfaceFlinger.h"
 
+#include <sys/resource.h>
+
 #include <aidl/android/hardware/power/Boost.h>
 #include <android-base/parseint.h>
 #include <android-base/properties.h>
@@ -5898,6 +5900,10 @@ void SurfaceFlinger::applyOptimizationPolicy(const char* whence) {
                 });
         mScheduler->enableSyntheticVsync(!disableSyntheticVsync);
     }
+    
+    if (!optimizeForPerformance) {
+        resetBoosts();
+    }
 }
 
 void SurfaceFlinger::setPowerMode(const sp<IBinder>& displayToken, int mode) {
@@ -6672,9 +6678,9 @@ status_t SurfaceFlinger::CheckTransactCodeCredentials(uint32_t code) {
         code == IBinder::SYSPROPS_TRANSACTION) {
         return OK;
     }
-    // Numbers from 1000 to 1047 are currently used for backdoors. The code
+    // Numbers from 1000 to 1048 are currently used for backdoors. The code
     // in onTransact verifies that the user is root, and has access to use SF.
-    if (code >= 1000 && code <= 1047) {
+    if (code >= 1000 && code <= 1048) {
         ALOGV("Accessing SurfaceFlinger through backdoor code: %u", code);
         return OK;
     }
@@ -7243,6 +7249,15 @@ status_t SurfaceFlinger::onTransact(uint32_t code, const Parcel& data, Parcel* r
                                                      Duration::fromNs(minSfNs),
                                                      Duration::fromNs(maxSfNs),
                                                      Duration::fromNs(appDurationNs));
+                return NO_ERROR;
+            }
+            case 1048: {
+                int32_t res = data.readInt32();
+                bool enable = (res != 0);
+                boostSF(enable);
+                if (reply) {
+                    reply->writeInt32(1);
+                }
                 return NO_ERROR;
             }
         }
@@ -9857,6 +9872,78 @@ const DisplayDevice* SurfaceFlinger::getDisplayFromLayerStack(ui::LayerStack lay
         }
     }
     return nullptr;
+}
+
+int SurfaceFlinger::parse_cpuset_cpus(char* str, cpu_set_t* set) {
+    CPU_ZERO(set);
+    const char* p = str;
+    while (*p) {
+        unsigned long start, end;
+        if (sscanf(p, "%lu-%lu", &start, &end) == 2) {
+            for (unsigned long i = start; i <= end; ++i) CPU_SET(i, set);
+        } else if (sscanf(p, "%lu", &start) == 1) {
+            CPU_SET(start, set);
+        }
+        p = strchr(p, ',');
+        if (!p) break;
+        ++p;
+    }
+    return 0;
+}
+
+cpu_set_t SurfaceFlinger::createOrGetCpuSet(bool enabled) {
+    static std::optional<cpu_set_t> cached_big;
+    static std::optional<cpu_set_t> cached_display;
+
+    auto& cache = enabled ? cached_big : cached_display;
+    if (cache) return *cache;
+
+    std::string prop = enabled ? "persist.sys.axion_cpu_big" : "persist.sys.axion_cpu_display";
+    std::string def   = enabled ? "4-7" : "0-5";
+
+    std::string cpuset_str = android::base::GetProperty(prop, def);
+    std::vector<char> buf(cpuset_str.begin(), cpuset_str.end());
+    buf.push_back('\0');
+
+    cpu_set_t tmp_set;
+    if (parse_cpuset_cpus(buf.data(), &tmp_set) != 0) {
+        ALOGW("Failed to parse CPU set '%s'", cpuset_str.c_str());
+        CPU_ZERO(&tmp_set);
+    }
+
+    cache = tmp_set;
+    return tmp_set;
+}
+
+void SurfaceFlinger::setScheduler(int sched_policy, int priority, bool enabled, const char* group_name) {
+    std::vector<std::pair<pid_t, const char*>> threads = { { mPid, group_name } };
+    if (auto renderTid = getRenderEngine().getRenderEngineTid()) {
+        threads.emplace_back(*renderTid, group_name);
+    }
+
+    struct sched_param param = {0};
+    param.sched_priority = priority;
+
+    cpu_set_t target = createOrGetCpuSet(enabled);
+
+    for (auto [tid, name] : threads) {
+        if (sched_setscheduler(tid, sched_policy, &param) != 0) {
+            ALOGW("Failed to set scheduling for thread %d (%s): %s", tid, name, strerror(errno));
+        }
+        if (sched_setaffinity(tid, sizeof(cpu_set_t), &target) == -1) {
+            ALOGW("Failed to set CPU affinity for thread %d (%s): %s", tid, name, strerror(errno));
+        } else {
+            ALOGV("Set CPU affinity for thread %d (%s)", tid, name);
+        }
+    }
+}
+
+void SurfaceFlinger::boostSF(bool enabled) {
+    setScheduler(SCHED_FIFO, enabled ? 10 : 2, enabled, enabled ? "big" : "display");
+}
+
+void SurfaceFlinger::resetBoosts() {
+    setScheduler(SCHED_OTHER, 0, false, "display");
 }
 
 } // namespace android
