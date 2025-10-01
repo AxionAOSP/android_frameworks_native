@@ -107,6 +107,7 @@ cc_defaults {
         "libsurfaceflingerflags",
         "libtimestats",
         "libtonemap",
+        "ax_process_utils",
     ],
     header_libs: [
         "android.hardware.graphics.composer3-command-buffer",
@@ -123,6 +124,7 @@ cc_defaults {
         "librenderengine",
         "libserviceutils",
         "libtimestats",
+        "ax_process_utils",
     ],
     export_shared_lib_headers: [
         "android.hardware.graphics.allocator@2.0",
@@ -164,8 +166,8 @@ cc_defaults {
 cc_library_headers {
     name: "libsurfaceflinger_backend_headers",
     export_include_dirs: ["."],
-    static_libs: ["libserviceutils"],
-    export_static_lib_headers: ["libserviceutils"],
+    static_libs: ["libserviceutils", "ax_process_utils"],
+    export_static_lib_headers: ["libserviceutils", "ax_process_utils"],
 
     shared_libs: [
         "android.hardware.configstore-utils",
@@ -203,8 +205,8 @@ filegroup {
 cc_library_headers {
     name: "libsurfaceflinger_headers",
     export_include_dirs: ["."],
-    static_libs: ["libserviceutils"],
-    export_static_lib_headers: ["libserviceutils"],
+    static_libs: ["libserviceutils", "ax_process_utils"],
+    export_static_lib_headers: ["libserviceutils", "ax_process_utils"],
 }
 
 cc_library_headers {
@@ -304,6 +306,7 @@ cc_defaults {
         "android.frameworks.displayservice@1.0",
         "libdisplayservicehidl",
         "libserviceutils",
+        "ax_process_utils",
     ],
 }
 

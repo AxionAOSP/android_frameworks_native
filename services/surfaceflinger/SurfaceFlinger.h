@@ -218,7 +218,9 @@ public:
     // Set scheduling policy and attributes of main thread.
     static void setSchedFifo(bool enabled, const char* whence);
     static void setSchedAttr(bool enabled, const char* whence);
-
+    
+    void sfBindControll(bool enabled);
+    
     static char const* getServiceName() ANDROID_API { return "SurfaceFlinger"; }
 
     // If fences from sync Framework are supported.

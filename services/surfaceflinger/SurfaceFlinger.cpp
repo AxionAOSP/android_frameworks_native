@@ -24,6 +24,8 @@
 
 #include "SurfaceFlinger.h"
 
+#include <sys/resource.h>
+
 #include <aidl/android/hardware/power/Boost.h>
 #include <android-base/parseint.h>
 #include <android-base/properties.h>
@@ -124,6 +126,8 @@
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
+
+#include "ax_process_utils.h"
 
 #include <common/FlagManager.h>
 #include <common/LayerFilter.h>
@@ -967,7 +971,7 @@ void SurfaceFlinger::init() FTL_FAKE_GUARD(kMainThreadContext) {
             std::min(getRenderEngine().getMaxTextureSize(), getRenderEngine().getMaxViewportDims());
 
     // Set SF main policy after initializing RenderEngine which has its own policy.
-    if (!SetTaskProfiles(0, {"SFMainPolicy"})) {
+    if (!SetTaskProfiles(0, {"SvpPolicy"})) {
         ALOGW("Failed to set main task profile");
     }
 
@@ -7117,9 +7121,9 @@ status_t SurfaceFlinger::CheckTransactCodeCredentials(uint32_t code) {
         code == IBinder::SYSPROPS_TRANSACTION) {
         return OK;
     }
-    // Numbers from 1000 to 1047 are currently used for backdoors. The code
+    // Numbers from 1000 to 1048 are currently used for backdoors. The code
     // in onTransact verifies that the user is root, and has access to use SF.
-    if (code >= 1000 && code <= 1047) {
+    if (code >= 1000 && code <= 1048) {
         ALOGV("Accessing SurfaceFlinger through backdoor code: %u", code);
         return OK;
     }
@@ -7671,6 +7675,15 @@ status_t SurfaceFlinger::onTransact(uint32_t code, const Parcel& data, Parcel* r
                                                      Duration::fromNs(minSfNs),
                                                      Duration::fromNs(maxSfNs),
                                                      Duration::fromNs(appDurationNs));
+                return NO_ERROR;
+            }
+            case 1048: {
+                int32_t res = data.readInt32();
+                bool enable = (res != 0);
+                sfBindControll(enable);
+                if (reply) {
+                    reply->writeInt32(1);
+                }
                 return NO_ERROR;
             }
         }
@@ -10412,6 +10425,34 @@ binder::Status SurfaceComposerAIDL::getStalledTransactionInfo(
 
 binder::Status SurfaceComposerAIDL::getSchedulingPolicy(gui::SchedulingPolicy* outPolicy) {
     return gui::getSchedulingPolicy(outPolicy);
+}
+
+void SurfaceFlinger::sfBindControll(bool enabled) {
+    auto renderTid = getRenderEngine().getRenderEngineTid();
+    const char* group_name = enabled ? "svp" : "top";
+
+    std::vector<std::pair<pid_t, std::string>> threads = {
+        { mPid, group_name }
+    };
+
+    if (renderTid) {
+        threads.emplace_back(*renderTid, group_name);
+    }
+
+    int cpu_group = enabled ? 0 : 2;
+
+    for (const auto& [tid, name] : threads) {
+        if (enabled) {
+            SetTaskProfiles(tid, {"SvpPolicy"});
+        } else {
+            SetTaskProfiles(tid, {"ProcessCapacityMax"});
+        }
+        if (!axion::process::SetThreadAffinity(tid, cpu_group)) {
+            ALOGW("Failed to set CPU affinity for thread %d (%s)", tid, name.c_str());
+        } else {
+            ALOGV("Set CPU affinity for thread %d (%s)", tid, name.c_str());
+        }
+    }
 }
 
 binder::Status SurfaceComposerAIDL::notifyShutdown() {

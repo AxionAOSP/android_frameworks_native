@@ -81,7 +81,7 @@ status_t RenderEngineThreaded::setSchedFifo(bool enabled) {
 void RenderEngineThreaded::threadMain(CreateInstanceFactory factory) NO_THREAD_SAFETY_ANALYSIS {
     SFTRACE_CALL();
 
-    if (!SetTaskProfiles(0, {"SFRenderEnginePolicy"})) {
+    if (!SetTaskProfiles(0, {"SvpPolicy"})) {
         ALOGW("Failed to set render-engine task profile!");
     }
 

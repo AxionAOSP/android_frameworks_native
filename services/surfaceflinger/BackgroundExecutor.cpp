@@ -19,12 +19,14 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 
 #include <processgroup/sched_policy.h>
+#include <processgroup/processgroup.h>
 #include <pthread.h>
 #include <sched.h>
 #include <utils/Log.h>
 #include <mutex>
 
 #include "BackgroundExecutor.h"
+#include "ax_process_utils.h"
 
 namespace android {
 
@@ -35,6 +37,14 @@ void set_thread_priority(bool highPriority) {
     struct sched_param param = {0};
     param.sched_priority = highPriority ? 2 : 0 /* must be 0 for non-RT */;
     sched_setscheduler(gettid(), highPriority ? SCHED_FIFO : SCHED_NORMAL, &param);
+    
+    if (highPriority) {
+        SetTaskProfiles(gettid(), {"SvpPolicy"});
+        axion::process::SetThreadAffinity(gettid(), 0);
+    } else {
+        SetTaskProfiles(gettid(), {"ProcessCapacityMax"});
+        axion::process::SetThreadAffinity(gettid(), 2);
+    }
 }
 
 } // anonymous namespace
