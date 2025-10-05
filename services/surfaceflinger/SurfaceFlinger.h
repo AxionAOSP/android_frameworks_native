@@ -222,6 +222,7 @@ public:
     
     static int parse_cpuset_cpus(char* str, cpu_set_t* set);
     static cpu_set_t createOrGetCpuSet(bool enabled);
+    static cpu_set_t getHighPerfCpuSet();
 
     static char const* getServiceName() ANDROID_API { return "SurfaceFlinger"; }
 
