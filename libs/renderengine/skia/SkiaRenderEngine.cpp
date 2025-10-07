@@ -79,6 +79,7 @@
 #include "filters/BlurFilter.h"
 #include "filters/GainmapFactory.h"
 #include "filters/GaussianBlurFilter.h"
+#include "filters/GlassBlurFilter.h"
 #include "filters/KawaseBlurDualFilter.h"
 #include "filters/KawaseBlurFilter.h"
 #include "filters/LutShader.h"
@@ -290,27 +291,9 @@ void SkiaRenderEngine::setEnableTracing(bool tracingEnabled) {
 SkiaRenderEngine::SkiaRenderEngine(Threaded threaded, PixelFormat pixelFormat,
                                    BlurAlgorithm blurAlgorithm)
       : RenderEngine(threaded), mDefaultPixelFormat(pixelFormat) {
-    switch (blurAlgorithm) {
-        case BlurAlgorithm::GAUSSIAN: {
-            ALOGD("Background Blurs Enabled (Gaussian algorithm)");
-            mBlurFilter = new GaussianBlurFilter(mRuntimeEffectManager);
-            break;
-        }
-        case BlurAlgorithm::KAWASE: {
-            ALOGD("Background Blurs Enabled (Kawase algorithm)");
-            mBlurFilter = new KawaseBlurFilter(mRuntimeEffectManager);
-            break;
-        }
-        case BlurAlgorithm::KAWASE_DUAL_FILTER: {
-            ALOGD("Background Blurs Enabled (Kawase dual-filtering algorithm)");
-            mBlurFilter = new KawaseBlurDualFilter(mRuntimeEffectManager);
-            break;
-        }
-        default: {
-            mBlurFilter = nullptr;
-            break;
-        }
-    }
+
+    ALOGD("Background Blurs Enabled (Glass / Kawase variant)");
+    mBlurFilter = new GlassBlurFilter(mRuntimeEffectManager);
 
     mCapture = std::make_unique<SkiaCapture>();
 }
