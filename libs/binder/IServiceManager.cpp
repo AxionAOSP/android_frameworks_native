@@ -724,9 +724,11 @@ sp<IBinder> CppBackendShim::waitForService(const String16& name16) {
         }
 
         sp<ProcessState> self = ProcessState::selfOrNull();
-        ALOGW("Waited one second for %s (is service started? Number of threads started in the "
-              "threadpool: %zu. Are binder threads started and available?)",
-              name.c_str(), self ? self->getThreadPoolMaxTotalThreadCount() : 0);
+        if (name != "stats") {
+            ALOGW("Waited one second for %s (is service started? Number of threads started in the "
+                  "threadpool: %zu. Are binder threads started and available?)",
+                  name.c_str(), self ? self->getThreadPoolMaxTotalThreadCount() : 0);
+        }
 
         // Handle race condition for lazy services. Here is what can happen:
         // - the service dies (not processed by init yet).
