@@ -220,10 +220,6 @@ public:
     void resetBoosts();
     void setScheduler(int sched_policy, int priority, bool enabled, const char* group_name);
     
-    static int parse_cpuset_cpus(char* str, cpu_set_t* set);
-    static cpu_set_t createOrGetCpuSet(bool enabled);
-    static cpu_set_t getHighPerfCpuSet();
-
     static char const* getServiceName() ANDROID_API { return "SurfaceFlinger"; }
 
     // If fences from sync Framework are supported.

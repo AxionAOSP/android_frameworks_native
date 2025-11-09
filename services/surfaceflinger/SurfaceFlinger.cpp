@@ -123,6 +123,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "ax_process_utils.h"
+
 #include <common/FlagManager.h>
 #include <gui/LayerStatePermissions.h>
 #include <gui/SchedulingPolicy.h>
@@ -9874,80 +9876,6 @@ const DisplayDevice* SurfaceFlinger::getDisplayFromLayerStack(ui::LayerStack lay
     return nullptr;
 }
 
-int SurfaceFlinger::parse_cpuset_cpus(char* str, cpu_set_t* set) {
-    CPU_ZERO(set);
-    const int max_cpus = sysconf(_SC_NPROCESSORS_CONF);
-    const char* p = str;
-    while (*p) {
-        unsigned long start, end;
-        if (sscanf(p, "%lu-%lu", &start, &end) == 2) {
-            if (start >= max_cpus) { p = strchr(p, ','); if (!p) break; ++p; continue; }
-            if (end >= max_cpus) end = max_cpus - 1;
-            for (unsigned long i = start; i <= end; ++i) CPU_SET(i, set);
-        } else if (sscanf(p, "%lu", &start) == 1) {
-            if (start < max_cpus) CPU_SET(start, set);
-        }
-        p = strchr(p, ',');
-        if (!p) break;
-        ++p;
-    }
-    return 0;
-}
-
-cpu_set_t SurfaceFlinger::getHighPerfCpuSet() {
-    static std::optional<cpu_set_t> cached_big;
-    if (cached_big) return *cached_big;
-
-    std::string big_str = android::base::GetProperty("persist.sys.axion_cpu_big", "4-7");
-    std::vector<char> buf(big_str.begin(), big_str.end());
-    buf.push_back('\0');
-
-    cpu_set_t big_set;
-    if (parse_cpuset_cpus(buf.data(), &big_set) != 0) {
-        ALOGW("Failed to parse big CPU set '%s'", big_str.c_str());
-        CPU_ZERO(&big_set);
-    }
-
-    std::string prime_str = android::base::GetProperty("persist.sys.axion_cpu_prime", "");
-    if (!prime_str.empty()) {
-        std::vector<char> prime_buf(prime_str.begin(), prime_str.end());
-        prime_buf.push_back('\0');
-        cpu_set_t prime_set;
-        if (parse_cpuset_cpus(prime_buf.data(), &prime_set) == 0) {
-            for (int i = 0; i < CPU_SETSIZE; ++i)
-                if (CPU_ISSET(i, &prime_set))
-                    CPU_SET(i, &big_set);
-        } else {
-            ALOGW("Failed to parse prime CPU set '%s'", prime_str.c_str());
-        }
-    }
-
-    cached_big = big_set;
-    return big_set;
-}
-
-cpu_set_t SurfaceFlinger::createOrGetCpuSet(bool enabled) {
-    static std::optional<cpu_set_t> cached_display;
-    if (!enabled) {
-        if (cached_display) return *cached_display;
-
-        std::string display_str = android::base::GetProperty("persist.sys.axion_cpu_display", "0-5");
-        std::vector<char> buf(display_str.begin(), display_str.end());
-        buf.push_back('\0');
-
-        cpu_set_t display_set;
-        if (parse_cpuset_cpus(buf.data(), &display_set) != 0) {
-            ALOGW("Failed to parse display CPU set '%s'", display_str.c_str());
-            CPU_ZERO(&display_set);
-        }
-
-        cached_display = display_set;
-        return display_set;
-    }
-
-    return getHighPerfCpuSet();
-}
-
 void SurfaceFlinger::setScheduler(int sched_policy, int priority, bool enabled, const char* group_name) {
     std::vector<std::pair<pid_t, const char*>> threads = { { mPid, group_name } };
     if (auto renderTid = getRenderEngine().getRenderEngineTid()) {
@@ -9957,14 +9885,15 @@ void SurfaceFlinger::setScheduler(int sched_policy, int priority, bool enabled, 
     struct sched_param param = {0};
     param.sched_priority = priority;
 
-    cpu_set_t target = enabled ? getHighPerfCpuSet() : createOrGetCpuSet(false);
+    int cpu_group = enabled ? 0 : 1;
 
     for (auto [tid, name] : threads) {
         if (sched_setscheduler(tid, sched_policy, &param) != 0) {
             ALOGW("Failed to set scheduling for thread %d (%s): %s", tid, name, strerror(errno));
         }
-        if (sched_setaffinity(tid, sizeof(cpu_set_t), &target) == -1) {
-            ALOGW("Failed to set CPU affinity for thread %d (%s): %s", tid, name, strerror(errno));
+
+        if (!axion::process::SetThreadAffinity(tid, cpu_group)) {
+            ALOGW("Failed to set CPU affinity for thread %d (%s)", tid, name);
         } else {
             ALOGV("Set CPU affinity for thread %d (%s)", tid, name);
         }
