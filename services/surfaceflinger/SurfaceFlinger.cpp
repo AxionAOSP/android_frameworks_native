@@ -9885,7 +9885,7 @@ void SurfaceFlinger::setScheduler(int sched_policy, int priority, bool enabled, 
     struct sched_param param = {0};
     param.sched_priority = priority;
 
-    int cpu_group = enabled ? 0 : 1;
+    int cpu_group = enabled ? 0 : 2;
 
     for (auto [tid, name] : threads) {
         if (sched_setscheduler(tid, sched_policy, &param) != 0) {
@@ -9901,7 +9901,7 @@ void SurfaceFlinger::setScheduler(int sched_policy, int priority, bool enabled, 
 }
 
 void SurfaceFlinger::boostSF(bool enabled) {
-    setScheduler(SCHED_FIFO, enabled ? 10 : 2, enabled, enabled ? "big" : "display");
+    setScheduler(SCHED_FIFO, enabled ? 20 : 2, enabled, enabled ? "big" : "display");
 }
 
 void SurfaceFlinger::resetBoosts() {
