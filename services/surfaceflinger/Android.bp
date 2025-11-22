@@ -35,7 +35,13 @@ cc_defaults {
         "-Wthread-safety",
         "-Wunreachable-code",
         "-Wunused",
-    ],
+    ] + select(soong_config_variable("surfaceflinger", "has_mtk_udfps"), {
+        true: ["-DMTK_IN_DISPLAY_FINGERPRINT"],
+        default: [],
+    }) + select(soong_config_variable("surfaceflinger", "mtk_dim_layer"), {
+        any @ mtk_dim_layer: ["-DDITHER_LAYER_NAME=\"" + mtk_dim_layer + "\""],
+        default: ["-DDITHER_LAYER_NAME=\"OnScreenFingerprintDimLayer\""],
+    })
 }
 
 cc_defaults {
