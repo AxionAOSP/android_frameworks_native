@@ -216,7 +216,9 @@ public:
     static void setSchedFifo(bool enabled, const char* whence);
     static void setSchedAttr(bool enabled, const char* whence);
     
-    void sfBindControll(bool enabled);
+    void boostSF(bool enabled);
+    void resetBoosts();
+    void setScheduler(int sched_policy, int priority, bool enabled, const char* group_name);
     
     static char const* getServiceName() ANDROID_API { return "SurfaceFlinger"; }
 

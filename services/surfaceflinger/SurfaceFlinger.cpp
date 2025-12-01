@@ -942,7 +942,7 @@ void SurfaceFlinger::init() FTL_FAKE_GUARD(kMainThreadContext) {
             std::min(getRenderEngine().getMaxTextureSize(), getRenderEngine().getMaxViewportDims());
 
     // Set SF main policy after initializing RenderEngine which has its own policy.
-    if (!SetTaskProfiles(0, {"SvpPolicy"})) {
+    if (!SetTaskProfiles(0, {"SFMainPolicy"})) {
         ALOGW("Failed to set main task profile");
     }
 
@@ -5904,6 +5904,10 @@ void SurfaceFlinger::applyOptimizationPolicy(const char* whence) {
                 });
         mScheduler->enableSyntheticVsync(!disableSyntheticVsync);
     }
+    
+    if (!optimizeForPerformance) {
+        resetBoosts();
+    }
 }
 
 void SurfaceFlinger::setPowerMode(const sp<IBinder>& displayToken, int mode) {
@@ -7254,7 +7258,7 @@ status_t SurfaceFlinger::onTransact(uint32_t code, const Parcel& data, Parcel* r
             case 1048: {
                 int32_t res = data.readInt32();
                 bool enable = (res != 0);
-                sfBindControll(enable);
+                boostSF(enable);
                 if (reply) {
                     reply->writeInt32(1);
                 }
@@ -9874,33 +9878,36 @@ const DisplayDevice* SurfaceFlinger::getDisplayFromLayerStack(ui::LayerStack lay
     return nullptr;
 }
 
-void SurfaceFlinger::sfBindControll(bool enabled) {
-    auto renderTid = getRenderEngine().getRenderEngineTid();
-    const char* group_name = enabled ? "svp" : "bg";
-
-    std::vector<std::pair<pid_t, std::string>> threads = {
-        { mPid, group_name }
-    };
-
-    if (renderTid) {
+void SurfaceFlinger::setScheduler(int sched_policy, int priority, bool enabled, const char* group_name) {
+    std::vector<std::pair<pid_t, const char*>> threads = { { mPid, group_name } };
+    if (auto renderTid = getRenderEngine().getRenderEngineTid()) {
         threads.emplace_back(*renderTid, group_name);
     }
 
-    // dont preempt surfaceflinger to big or prime cores if not boosted
-    int cpu_group = enabled ? 0 : 1;
+    struct sched_param param = {0};
+    param.sched_priority = priority;
 
-    for (const auto& [tid, name] : threads) {
-        if (enabled) {
-            SetTaskProfiles(tid, {"SvpPolicy"});
-        } else {
-            SetTaskProfiles(tid, {"ServiceCapacityLow"});
+    int cpu_group = enabled ? 0 : 2;
+
+    for (auto [tid, name] : threads) {
+        if (sched_setscheduler(tid, sched_policy, &param) != 0) {
+            ALOGW("Failed to set scheduling for thread %d (%s): %s", tid, name, strerror(errno));
         }
+
         if (!axion::process::SetThreadAffinity(tid, cpu_group)) {
-            ALOGW("Failed to set CPU affinity for thread %d (%s)", tid, name.c_str());
+            ALOGW("Failed to set CPU affinity for thread %d (%s)", tid, name);
         } else {
-            ALOGV("Set CPU affinity for thread %d (%s)", tid, name.c_str());
+            ALOGV("Set CPU affinity for thread %d (%s)", tid, name);
         }
     }
+}
+
+void SurfaceFlinger::boostSF(bool enabled) {
+    setScheduler(SCHED_FIFO, enabled ? 20 : 2, enabled, enabled ? "big" : "display");
+}
+
+void SurfaceFlinger::resetBoosts() {
+    setScheduler(SCHED_OTHER, 0, false, "display");
 }
 
 } // namespace android
