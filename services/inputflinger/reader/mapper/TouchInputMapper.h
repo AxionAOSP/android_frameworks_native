@@ -238,7 +238,6 @@ protected:
         // DeviceType::TOUCH_SCREEN, and will otherwise use DeviceType::POINTER by default.
         // This can be overridden by IDC files, using the `touch.deviceType` config.
         DeviceType deviceType;
-        bool hasAssociatedDisplay = false;
         bool associatedDisplayIsExternal;
         bool orientationAware;
 

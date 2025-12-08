@@ -75,8 +75,14 @@ struct DispSyncIsSupportedVariant {
                     onDisplayModeChanged(DisplayModeFps(Fps::fromPeriodNsecs(DEFAULT_VSYNC_PERIOD)),
                                          false))
                 .Times(1);
-        EXPECT_CALL(static_cast<mock::VSyncTracker&>(vsyncSchedule->getTracker()), resetModel())
-                .Times(1);
+        if (FlagManager::getInstance().reset_model_flushes_fence()) {
+            EXPECT_CALL(static_cast<mock::VsyncController&>(vsyncSchedule->getController()),
+                        resetModel())
+                    .Times(1);
+        } else {
+            EXPECT_CALL(static_cast<mock::VSyncTracker&>(vsyncSchedule->getTracker()), resetModel())
+                    .Times(1);
+        }
     }
 };
 
@@ -333,9 +339,6 @@ void SetPhysicalDisplayPowerModeTest::transitionDisplayCommon() {
     const auto displayIdOpt = asPhysicalDisplayId(Case::Display::DISPLAY_ID::get());
     ASSERT_TRUE(displayIdOpt);
     injectMockScheduler(*displayIdOpt);
-    // TODO: b/389983418 - Remove once the Scheduler is no longer dependent on front internal
-    // display.
-    mFlinger.mutableFrontInternalDisplayId() = *displayIdOpt;
 
     Case::Doze::setupComposerCallExpectations(this);
     auto display =
