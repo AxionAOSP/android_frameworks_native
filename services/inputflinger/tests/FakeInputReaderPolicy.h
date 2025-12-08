@@ -78,8 +78,6 @@ public:
     PointerCaptureRequest setPointerCapture(PointerCaptureMode mode, const sp<IBinder>& window);
     void setDefaultPointerDisplayId(ui::LogicalDisplayId pointerDisplayId);
     void setPointerGestureEnabled(bool enabled);
-    float getPointerGestureMovementSpeedRatio();
-    float getPointerGestureZoomSpeedRatio();
     void setVelocityControlParams(const VelocityControlParameters& params);
     void setStylusButtonMotionEventsEnabled(bool enabled);
     void setStylusPointerIconEnabled(bool enabled);
