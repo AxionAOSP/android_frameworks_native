@@ -2017,9 +2017,7 @@ std::list<NotifyArgs> TouchInputMapper::dispatchButtonPress(nsecs_t when, nsecs_
                                      buttonState,
                                      mCurrentCookedState.cookedPointerData.pointerProperties,
                                      mCurrentCookedState.cookedPointerData.pointerCoords,
-                                     mCurrentCookedState.cookedPointerData.idToIndex, idBits, -1,
-                                     mOrientedXPrecision, mOrientedYPrecision, mDownTime,
-                                     MotionClassification::NONE));
+                                     mCurrentCookedState.cookedPointerData.idToIndex, idBits, -1));
     }
     return out;
 }
