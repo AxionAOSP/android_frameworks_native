@@ -26,4 +26,5 @@ PRODUCT_VENDOR_PROPERTIES += \
     dalvik.vm.usap_pool_enabled?=true \
     dalvik.vm.usap_pool_size_max?=5 \
     dalvik.vm.madvise.vdexfile.size?=209715200 \
-    dalvik.vm.madvise.odexfile.size?=209715200
+    dalvik.vm.madvise.odexfile.size?=209715200 \
+    persist.sys.pinner.quota_pct?=15
