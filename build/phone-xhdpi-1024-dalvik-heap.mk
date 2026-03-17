@@ -16,10 +16,14 @@
 
 # Provides overrides to configure the Dalvik heap for a xhdpi phone
 
-PRODUCT_VENDOR_PROPERTIES += \
+PRODUCT_PRODUCT_PROPERTIES += \
     dalvik.vm.heapstartsize?=8m \
     dalvik.vm.heapgrowthlimit?=96m \
     dalvik.vm.heapsize?=256m \
     dalvik.vm.heaptargetutilization?=0.75 \
     dalvik.vm.heapminfree?=512k \
-    dalvik.vm.heapmaxfree?=8m
+    dalvik.vm.heapmaxfree?=8m \
+    dalvik.vm.madvise.vdexfile.size?=31457280 \
+    dalvik.vm.madvise.odexfile.size?=31457280 \
+    dalvik.vm.madvise.artfile.size?=0 \
+    ro.lmk.medium?=700
