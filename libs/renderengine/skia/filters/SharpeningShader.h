@@ -1,0 +1,40 @@
+/*
+ * Copyright 2025-2026 AxionOS
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+#pragma once
+
+#include <SkPoint.h>
+#include <SkRuntimeEffect.h>
+#include <SkShader.h>
+
+#include "RuntimeEffectManager.h"
+
+namespace android {
+namespace renderengine {
+namespace skia {
+
+class SharpeningShader {
+public:
+    SharpeningShader(RuntimeEffectManager& effectManager);
+    sk_sp<SkShader> apply(sk_sp<SkShader> input, float width, float height);
+
+private:
+    sk_sp<SkRuntimeEffect> mEffect;
+    std::unique_ptr<SkRuntimeShaderBuilder> mBuilder;
+};
+
+} // namespace skia
+} // namespace renderengine
+} // namespace android
