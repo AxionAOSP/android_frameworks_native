@@ -49,7 +49,6 @@
 #include <SkString.h>
 #include <SkSurface.h>
 #include <SkTileMode.h>
-#include <android-base/properties.h>
 #include <android-base/stringprintf.h>
 #include <common/FlagManager.h>
 #include <common/trace.h>
@@ -608,12 +607,6 @@ sk_sp<SkShader> SkiaRenderEngine::createRuntimeEffectShader(
     if (graphicBuffer && parameters.layer.luts) {
         shader = mLutShader.lutShader(shader, parameters.layer.luts,
                                       parameters.layer.sourceDataspace);
-    }
-
-    if (graphicBuffer && base::GetBoolProperty("persist.sys.ax.sharpening", false)) {
-        shader = mSharpeningShader.apply(std::move(shader),
-                                         parameters.imageBounds.width(),
-                                         parameters.imageBounds.height());
     }
 
     if (parameters.requiresLinearEffect) {

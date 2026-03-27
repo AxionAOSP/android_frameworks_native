@@ -118,7 +118,6 @@ filegroup {
         "skia/filters/LutShader.cpp",
         "skia/filters/MouriMap.cpp",
         "skia/filters/RuntimeEffectManager.cpp",
-        "skia/filters/SharpeningShader.cpp",
         "skia/filters/StretchShaderFactory.cpp",
     ],
 }

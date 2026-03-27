@@ -44,7 +44,6 @@
 #include "filters/LutShader.h"
 #include "filters/MouriMap.h"
 #include "filters/RuntimeEffectManager.h"
-#include "filters/SharpeningShader.h"
 #include "filters/StretchShaderFactory.h"
 
 class SkData;
@@ -207,7 +206,6 @@ private:
     GainmapFactory mGainmapFactory = GainmapFactory(mRuntimeEffectManager);
     LutShader mLutShader = LutShader(mRuntimeEffectManager);
     MouriMap mLocalTonemapper = MouriMap(mRuntimeEffectManager);
-    SharpeningShader mSharpeningShader = SharpeningShader(mRuntimeEffectManager);
     StretchShaderFactory mStretchShaderFactory = StretchShaderFactory(mRuntimeEffectManager);
 
     sp<Fence> mLastDrawFence;
