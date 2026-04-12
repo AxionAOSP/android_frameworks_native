@@ -56,6 +56,9 @@ cc_defaults {
         "libsurfaceflingerflags",
         "libgui_window_info_static",
     ],
+    header_libs: [
+        "ax_blur_native_headers",
+    ],
     local_include_dirs: ["include"],
     export_include_dirs: ["include"],
 }
@@ -112,6 +115,7 @@ filegroup {
         "skia/filters/EdgeExtensionShaderFactory.cpp",
         "skia/filters/GainmapFactory.cpp",
         "skia/filters/GaussianBlurFilter.cpp",
+        ":ax_blur_native_sources",
         "skia/filters/KawaseBlurDualFilter.cpp",
         "skia/filters/KawaseBlurDualFilterV2.cpp",
         "skia/filters/KawaseBlurFilter.cpp",

@@ -202,6 +202,7 @@ std::optional<compositionengine::LayerFE::LayerSettings> LayerFE::prepareClientC
 void LayerFE::prepareClearClientComposition(LayerFE::LayerSettings& layerSettings,
                                             bool blackout) const {
     layerSettings.source.buffer.buffer = nullptr;
+    layerSettings.source.buffer.frameNumber = 0;
     layerSettings.source.solidColor = half3(0.0f, 0.0f, 0.0f);
     layerSettings.disableBlending = true;
     layerSettings.bufferId = 0;
@@ -246,6 +247,7 @@ void LayerFE::prepareBufferStateClientComposition(
     }
 
     layerSettings.source.buffer.buffer = mSnapshot->externalTexture;
+    layerSettings.source.buffer.frameNumber = mSnapshot->frameNumber;
     layerSettings.source.buffer.isOpaque = mSnapshot->contentOpaque;
     layerSettings.source.buffer.fence = mSnapshot->acquireFence;
     layerSettings.source.buffer.usePremultipliedAlpha = mSnapshot->premultipliedAlpha;

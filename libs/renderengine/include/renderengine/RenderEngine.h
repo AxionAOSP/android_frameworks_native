@@ -161,8 +161,9 @@ public:
         Kawase,
         KawaseDualFilter,
         KawaseDualFilterV2,
+        GlassBlur,
 
-        ftl_last = KawaseDualFilterV2
+        ftl_last = GlassBlur
     };
 
     static std::unique_ptr<RenderEngine> create(const RenderEngineCreationArgs& args);

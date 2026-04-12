@@ -310,6 +310,57 @@ skgpu::graphite::PaintOptions BlurFilterMix(RuntimeEffectManager& effectManager)
     return paintOptions;
 }
 
+skgpu::graphite::PaintOptions GlassBlurQuarterRes(RuntimeEffectManager& effectManager) {
+    sk_sp<SkRuntimeEffect> effect =
+            effectManager.mKnownEffects[kKawaseBlurDualFilterV2_QuarterResDownSampleBlurEffect];
+
+    SkColorInfo ci{kRGBA_8888_SkColorType, kPremul_SkAlphaType, nullptr};
+    sk_sp<PrecompileShader> img =
+            PrecompileShaders::Image(ImageShaderFlags::kExcludeCubic, {&ci, 1}, {});
+
+    sk_sp<PrecompileShader> shader =
+            PrecompileRuntimeEffects::MakePrecompileShader(std::move(effect), {{img}});
+
+    PaintOptions paintOptions;
+    paintOptions.setShaders({std::move(shader)});
+    paintOptions.setBlendModes({SkBlendMode::kSrc});
+    return paintOptions;
+}
+
+skgpu::graphite::PaintOptions GlassBlurHalfRes(RuntimeEffectManager& effectManager) {
+    sk_sp<SkRuntimeEffect> effect =
+            effectManager.mKnownEffects[kKawaseBlurDualFilterV2_HalfResDownSampleBlurEffect];
+
+    SkColorInfo ci{kRGBA_8888_SkColorType, kPremul_SkAlphaType, nullptr};
+    sk_sp<PrecompileShader> img =
+            PrecompileShaders::Image(ImageShaderFlags::kExcludeCubic, {&ci, 1}, {});
+
+    sk_sp<PrecompileShader> shader =
+            PrecompileRuntimeEffects::MakePrecompileShader(std::move(effect), {{img}});
+
+    PaintOptions paintOptions;
+    paintOptions.setShaders({std::move(shader)});
+    paintOptions.setBlendModes({SkBlendMode::kSrc});
+    return paintOptions;
+}
+
+skgpu::graphite::PaintOptions GlassBlurUpSample(RuntimeEffectManager& effectManager) {
+    sk_sp<SkRuntimeEffect> effect =
+            effectManager.mKnownEffects[kGlassBlurFilter_UpSampleEffect];
+
+    SkColorInfo ci{kRGBA_8888_SkColorType, kPremul_SkAlphaType, nullptr};
+    sk_sp<PrecompileShader> img =
+            PrecompileShaders::Image(ImageShaderFlags::kExcludeCubic, {&ci, 1}, {});
+
+    sk_sp<PrecompileShader> shader =
+            PrecompileRuntimeEffects::MakePrecompileShader(std::move(effect), {{img}});
+
+    PaintOptions paintOptions;
+    paintOptions.setShaders({std::move(shader)});
+    paintOptions.setBlendModes({SkBlendMode::kSrc, SkBlendMode::kSrcOver});
+    return paintOptions;
+}
+
 PaintOptions ImagePremulYCbCr238Srcover(bool narrow) {
     PaintOptions paintOptions;
 
@@ -596,6 +647,14 @@ std::vector<PrecompileSettings> chooseBlurPrecompileSettings(RuntimeEffectManage
         case RenderEngine::BlurAlgorithm::KawaseDualFilterV2:
             ALOGW("Pipeline precompilation for %s is not yet supported",
                   ftl::enum_string_full(effectManager.getChosenBlurAlgorithm()).c_str());
+            break;
+        case RenderEngine::BlurAlgorithm::GlassBlur:
+            settingsList.push_back({GlassBlurQuarterRes(effectManager),
+                                    DrawTypeFlags::kNonAAFillRect, kRGBA_1_D});
+            settingsList.push_back(
+                    {GlassBlurHalfRes(effectManager), DrawTypeFlags::kNonAAFillRect, kRGBA_1_D});
+            settingsList.push_back(
+                    {GlassBlurUpSample(effectManager), DrawTypeFlags::kNonAAFillRect, kRGBA_1_D});
             break;
     }
 
