@@ -28,6 +28,9 @@ Y(0x188a0000__DISPLAY_P3__false__0x90a0000__Shader,         17)
 Y(V0_SRGB__V0_SRGB__true__UNKNOWN__Shader,                  18)
 Y(0x188a0000__V0_SRGB__true__0x9010000__Shader,             19)
 X(BoxShadowEffect,                                          20)
+X(KawaseDarkmoon_QuarterResDownSampleBlurEffect,            21)
+X(KawaseDarkmoon_HalfResDownSampleBlurEffect,               22)
+X(KawaseDarkmoon_UpSampleBlurEffect,                        23)
 
  // IMPORTANT: Do not change the order of existing effects in this list.
  //

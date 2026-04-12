@@ -81,6 +81,7 @@
 #include "filters/KawaseBlurDualFilter.h"
 #include "filters/KawaseBlurDualFilterV2.h"
 #include "filters/KawaseBlurFilter.h"
+#include "filters/KawaseDarkmoon.h"
 #include "filters/LutShader.h"
 #include "filters/MouriMap.h"
 #include "filters/RuntimeEffectManager.h"
@@ -349,6 +350,11 @@ SkiaRenderEngine::SkiaRenderEngine(Threaded threaded, PixelFormat pixelFormat,
         case BlurAlgorithm::KawaseDualFilterV2: {
             ALOGD("Background Blurs Enabled (Kawase dual-filtering V2 algorithm)");
             mBlurFilter = new KawaseBlurDualFilterV2(mRuntimeEffectManager);
+            break;
+        }
+        case BlurAlgorithm::KawaseDarkmoon: {
+            ALOGD("Background Blurs Enabled (Kawase Darkmoon algorithm)");
+            mBlurFilter = new KawaseDarkmoon(mRuntimeEffectManager);
             break;
         }
     }
