@@ -35,12 +35,15 @@ inline bool equalIgnoringSource(const renderengine::LayerSettings& lhs,
     return lhs.geometry == rhs.geometry && lhs.alpha == rhs.alpha &&
             lhs.sourceDataspace == rhs.sourceDataspace &&
             lhs.colorTransform == rhs.colorTransform &&
-            lhs.disableBlending == rhs.disableBlending && lhs.shadow == rhs.shadow &&
+            lhs.disableBlending == rhs.disableBlending &&
+            lhs.skipContentDraw == rhs.skipContentDraw && lhs.shadow == rhs.shadow &&
             lhs.backgroundBlurRadius == rhs.backgroundBlurRadius &&
             lhs.backgroundBlurScale == rhs.backgroundBlurScale &&
+            lhs.blurRegions == rhs.blurRegions &&
+            lhs.blurRegionTransform == rhs.blurRegionTransform &&
             lhs.stretchEffect == rhs.stretchEffect &&
             lhs.edgeExtensionEffect == rhs.edgeExtensionEffect &&
-            lhs.whitePointNits == rhs.whitePointNits;
+            lhs.whitePointNits == rhs.whitePointNits && lhs.luts == rhs.luts;
 }
 
 inline bool equalIgnoringBuffer(const renderengine::Buffer& lhs, const renderengine::Buffer& rhs) {

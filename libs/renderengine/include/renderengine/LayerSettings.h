@@ -38,6 +38,7 @@
 #include <ui/Transform.h>
 #include "ui/EdgeExtensionEffect.h"
 
+#include <cstdint>
 #include <iosfwd>
 
 namespace android {
@@ -49,6 +50,8 @@ struct Buffer {
     // If buffer == nullptr, then the rest of the fields in this struct will be
     // ignored.
     std::shared_ptr<ExternalTexture> buffer = nullptr;
+
+    uint64_t frameNumber = 0;
 
     // Fence that will fire when the buffer is ready to be bound.
     sp<Fence> fence = nullptr;
@@ -171,7 +174,8 @@ struct LayerSettings {
 // Keep in sync with custom comparison function in
 // compositionengine/impl/ClientCompositionRequestCache.cpp
 static inline bool operator==(const Buffer& lhs, const Buffer& rhs) {
-    return lhs.buffer == rhs.buffer && lhs.fence == rhs.fence &&
+    return lhs.buffer == rhs.buffer && lhs.frameNumber == rhs.frameNumber &&
+            lhs.fence == rhs.fence &&
             lhs.useTextureFiltering == rhs.useTextureFiltering &&
             lhs.textureTransform == rhs.textureTransform &&
             lhs.usePremultipliedAlpha == rhs.usePremultipliedAlpha &&
@@ -217,6 +221,7 @@ static inline void PrintTo(const Buffer& settings, ::std::ostream* os) {
     *os << "\n    .buffer = " << settings.buffer.get() << " "
         << (settings.buffer.get() ? decodePixelFormat(settings.buffer->getPixelFormat()).c_str()
                                   : "");
+    *os << "\n    .frameNumber = " << settings.frameNumber;
     *os << "\n    .fence = " << settings.fence.get();
     *os << "\n    .useTextureFiltering = " << settings.useTextureFiltering;
     *os << "\n    .textureTransform = ";
