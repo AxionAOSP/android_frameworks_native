@@ -33,7 +33,7 @@ namespace skia {
 class BlurFilter {
 public:
     // Downsample FBO to improve performance
-    static constexpr float kInputScale = 0.25f;
+    static constexpr float kInputScale = 0.20f;
     // Downsample scale factor used to improve performance
     static constexpr float kInverseInputScale = 1.0f / kInputScale;
 
