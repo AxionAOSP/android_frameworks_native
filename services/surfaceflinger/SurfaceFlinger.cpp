@@ -10447,6 +10447,7 @@ binder::Status SurfaceComposerAIDL::getSchedulingPolicy(gui::SchedulingPolicy* o
 }
 
 void SurfaceFlinger::sfBindControll(bool enabled) {
+    axion::process::RefreshCpuSets();
     auto renderTid = getRenderEngine().getRenderEngineTid();
     const char* group_name = enabled ? "svp" : "top";
 
@@ -10458,7 +10459,7 @@ void SurfaceFlinger::sfBindControll(bool enabled) {
         threads.emplace_back(*renderTid, group_name);
     }
 
-    int cpu_group = enabled ? 0 : 2;
+    int cpu_group = enabled ? 4 : 2;
 
     for (const auto& [tid, name] : threads) {
         if (enabled) {
