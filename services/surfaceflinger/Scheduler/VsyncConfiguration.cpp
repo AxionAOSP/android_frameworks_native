@@ -36,6 +36,31 @@ std::optional<nsecs_t> getProperty(const char* name) {
     return std::nullopt;
 }
 
+bool dynamicDurationEnabled() {
+    return property_get_bool("persist.sys.sf.duration.switch", false);
+}
+
+int bucketHzFromVsync(nsecs_t vsyncDuration) {
+    if (vsyncDuration <= 0) return 0;
+    const int hz = static_cast<int>((1000000000LL + vsyncDuration / 2) / vsyncDuration);
+    if (hz >= 110) return 120;
+    if (hz >= 80) return 90;
+    if (hz >= 50) return 60;
+    return 0;
+}
+
+nsecs_t durationOverride(const char* kind, int hz, nsecs_t fallback) {
+    if (!dynamicDurationEnabled()) return fallback;
+    char key[PROPERTY_VALUE_MAX];
+    if (hz > 0) {
+        snprintf(key, sizeof(key), "persist.sys.sf.duration.%s.%d", kind, hz);
+        if (auto v = getProperty(key); v.has_value() && *v > 0) return *v;
+    }
+    snprintf(key, sizeof(key), "persist.sys.sf.duration.%s", kind);
+    if (auto v = getProperty(key); v.has_value() && *v > 0) return *v;
+    return fallback;
+}
+
 } // namespace
 
 namespace android::scheduler::impl {
@@ -297,12 +322,16 @@ VsyncConfigSet WorkDuration::constructOffsets(nsecs_t vsyncDuration) const {
                               : std::chrono::nanoseconds(duration);
     };
 
-    const auto sfEarlyDuration = sfDurationFixup(mSfEarlyDuration);
-    const auto appEarlyDuration = appDurationFixup(mAppEarlyDuration);
-    const auto sfEarlyGpuDuration = sfDurationFixup(mSfEarlyGpuDuration);
-    const auto appEarlyGpuDuration = appDurationFixup(mAppEarlyGpuDuration);
-    const auto sfDuration = sfDurationFixup(mSfDuration);
-    const auto appDuration = appDurationFixup(mAppDuration);
+    const int hz = bucketHzFromVsync(vsyncDuration);
+    const auto sfEarlyDuration = sfDurationFixup(durationOverride("sf.early", hz, mSfEarlyDuration));
+    const auto appEarlyDuration =
+            appDurationFixup(durationOverride("app.early", hz, mAppEarlyDuration));
+    const auto sfEarlyGpuDuration =
+            sfDurationFixup(durationOverride("sf.earlyGl", hz, mSfEarlyGpuDuration));
+    const auto appEarlyGpuDuration =
+            appDurationFixup(durationOverride("app.earlyGl", hz, mAppEarlyGpuDuration));
+    const auto sfDuration = sfDurationFixup(durationOverride("sf.late", hz, mSfDuration));
+    const auto appDuration = appDurationFixup(durationOverride("app.late", hz, mAppDuration));
 
     return {
             .early =
