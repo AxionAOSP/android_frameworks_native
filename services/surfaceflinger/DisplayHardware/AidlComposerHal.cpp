@@ -37,6 +37,8 @@
 
 #include "HWC2.h"
 
+#include "Scheduler/SfCpuPolicy.h"
+
 namespace android {
 
 using aidl::android::hardware::graphics::composer3::BnComposerCallback;
@@ -173,6 +175,7 @@ public:
     AidlIComposerCallbackWrapper(HWC2::ComposerCallback& callback) : mCallback(callback) {}
 
     ::ndk::ScopedAStatus onHotplug(int64_t in_display, bool in_connected) override {
+        android::scheduler::SfCpuPolicy::notifyHwcHwbinderTid();
         const auto event = in_connected ? AidlDisplayHotplugEvent::CONNECTED
                                         : AidlDisplayHotplugEvent::DISCONNECTED;
         mCallback.onComposerHalHotplugEvent(translate<Display>(in_display), event);

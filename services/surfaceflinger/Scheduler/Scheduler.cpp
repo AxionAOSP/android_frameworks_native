@@ -48,8 +48,10 @@
 #include "FrameTimeline.h"
 #include "FrontEnd/LayerHandle.h"
 #include "Layer.h"
+#include "AxVsyncDuration.h"
 #include "OneShotTimer.h"
 #include "RefreshRateStats.h"
+#include "SfCpuPolicy.h"
 #include "SurfaceFlingerFactory.h"
 #include "SurfaceFlingerProperties.h"
 #include "TimeStats/TimeStats.h"
@@ -798,6 +800,8 @@ void Scheduler::updatePhaseConfiguration(PhysicalDisplayId displayId, Fps refres
         return mVsyncConfiguration->getCurrentConfigs();
     }();
     setVsyncConfig(mVsyncModulator->setVsyncConfigSet(currentConfigs), refreshRate.getPeriod());
+    AxVsyncDuration::getInstance().updateDecoupleDurations(refreshRate.getPeriod().ns());
+    SfCpuPolicy::onRefreshRateChanged(refreshRate);
 }
 #pragma clang diagnostic pop
 
@@ -1253,6 +1257,8 @@ void Scheduler::dump(utils::Dumper& dumper) const {
     {
         std::scoped_lock lock{mVsyncConfigLock};
         mVsyncConfiguration->dump(dumper.out());
+        dumper.eol();
+        AxVsyncDuration::getInstance().dump(dumper.out());
         dumper.eol();
     }
 

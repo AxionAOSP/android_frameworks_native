@@ -36,6 +36,7 @@
 
 #include "HWC2.h"
 #include "Hal.h"
+#include "Scheduler/SfCpuPolicy.h"
 
 #include <algorithm>
 #include <cinttypes>
@@ -73,6 +74,7 @@ public:
     // replaced `onComposerHalHotplug` with `onComposerHalHotplugEvent` by converting
     // from HIDL's connection into an AIDL DisplayHotplugEvent.
     Return<void> onHotplug(Display display, Connection connection) override {
+        android::scheduler::SfCpuPolicy::notifyHwcHwbinderTid();
         const auto event = connection == Connection::CONNECTED ? DisplayHotplugEvent::CONNECTED
                                                                : DisplayHotplugEvent::DISCONNECTED;
         mCallback.onComposerHalHotplugEvent(display, event);

@@ -162,6 +162,8 @@
 #include "Scheduler/FrameTimeline.h"
 #include "Scheduler/LayerHistory.h"
 #include "Scheduler/Scheduler.h"
+#include "Scheduler/AxVsyncDuration.h"
+#include "Scheduler/SfCpuPolicy.h"
 #include "Scheduler/VsyncConfiguration.h"
 #include "Scheduler/VsyncModulator.h"
 #include "ScreenCaptureOutput.h"
@@ -494,6 +496,7 @@ SurfaceFlinger::SurfaceFlinger(Factory& factory) : SurfaceFlinger(factory, SkipI
     useHwcForRgbToYuv = force_hwc_copy_for_virtual_displays(false);
 
     maxFrameBufferAcquiredBuffers = max_frame_buffer_acquired_buffers(2);
+
     minAcquiredBuffers =
             SurfaceFlingerProperties::min_acquired_buffers().value_or(minAcquiredBuffers);
     maxAcquiredBuffersOpt = SurfaceFlingerProperties::max_acquired_buffers();
@@ -967,6 +970,9 @@ void SurfaceFlinger::init() FTL_FAKE_GUARD(kMainThreadContext) {
                                            : renderengine::RenderEngine::ContextPriority::Medium);
     chooseRenderEngineType(builder);
     mRenderEngine = renderengine::RenderEngine::create(builder.build());
+    if (std::optional<pid_t> renderEngineTid = getRenderEngine().getRenderEngineTid()) {
+        scheduler::SfCpuPolicy::onSpeedUpRE(*renderEngineTid);
+    }
     mCompositionEngine->setRenderEngine(mRenderEngine.get());
     mOffloadedCompositionEngine->setRenderEngine(mRenderEngine.get());
     mMaxRenderTargetSize =
@@ -2865,6 +2871,10 @@ bool SurfaceFlinger::commit(PhysicalDisplayId pacesetterId,
     const VsyncId vsyncId = pacesetterFrameTarget.vsyncId();
     SFTRACE_NAME(ftl::Concat(__func__, ' ', ftl::to_underlying(vsyncId)).c_str());
 
+    scheduler::SfCpuPolicy::onFrameStart(pacesetterFrameTarget.frameBeginTime().ns(),
+                                         mScheduler->getVsyncSchedule()->period().ns());
+    AxVsyncDuration::getInstance().onDisplayRefresh();
+
     if (pacesetterFrameTarget.didMissFrame()) {
         mTimeStats->incrementMissedFrames();
     }
@@ -3017,6 +3027,20 @@ bool SurfaceFlinger::commit(PhysicalDisplayId pacesetterId,
                                   pacesetterFrameTarget.frameBeginTime(), vsyncId);
 
     mLastCommittedVsyncId = vsyncId;
+
+    {
+        bool screenRecording = false;
+        for (const auto& [layer, _] : mLayersWithQueuedFrames) {
+            if (layer->getName().find("Record") != std::string::npos) {
+                screenRecording = true;
+                break;
+            }
+        }
+        scheduler::SfCpuPolicy::onScreenRecording(screenRecording);
+
+        const Fps pacesetterFps = mScheduler->getPacesetterRefreshRate();
+        scheduler::SfCpuPolicy::onVpLpEnable(pacesetterFps.getValue() <= 30.0f);
+    }
 
     persistDisplayBrightness(mustComposite);
 
@@ -3434,6 +3458,8 @@ CompositeResultsPerDisplay SurfaceFlinger::composite(
     if (mPowerHintSessionEnabled) {
         mPowerAdvisor->setCompositeEnd(TimePoint::now());
     }
+
+    scheduler::SfCpuPolicy::onFrameEnd(systemTime());
 
     CompositeResultsPerDisplay resultsPerDisplay;
 
@@ -4407,6 +4433,8 @@ void SurfaceFlinger::processDisplayAdded(const wp<IBinder>& displayToken,
                                             .value_or(ui::DisplayConnectionType::External);
         mScheduler->registerDisplay(displayId, connectionType, display->holdRefreshRateSelector(),
                                     getDefaultPacesetterDisplay());
+        AxVsyncDuration::getInstance().onNewInternalDisplay(displayId);
+        AxVsyncDuration::getInstance().updateActiveDisplayId(displayId);
     }
 
     if (display->isVirtual()) {
@@ -6143,6 +6171,15 @@ void SurfaceFlinger::setPhysicalDisplayPowerMode(const sp<DisplayDevice>& displa
                                            .transform(&PhysicalDisplay::isInternal)
                                            .value_or(false);
 
+    if (isInternalDisplay) {
+        const bool powerSuspended = (mode == hal::PowerMode::OFF ||
+                                     mode == hal::PowerMode::DOZE_SUSPEND);
+        const bool foreground = (mode == hal::PowerMode::ON ||
+                                 mode == hal::PowerMode::DOZE);
+        scheduler::SfCpuPolicy::onPowerSuspend(powerSuspended);
+        scheduler::SfCpuPolicy::onForeground(foreground);
+    }
+
     const bool couldRefresh = display->isRefreshable();
     display->setPowerMode(mode);
     const bool canRefresh = display->isRefreshable();
@@ -7822,25 +7859,8 @@ void SurfaceFlinger::setSchedFifo(bool enabled, const char* whence) {
 }
 
 void SurfaceFlinger::setSchedAttr(bool enabled, const char* whence) {
-    static const unsigned int kUclampMin =
-            base::GetUintProperty<unsigned int>("ro.surface_flinger.uclamp.min"s, 0U);
-
-    if (!kUclampMin) {
-        // uclamp.min set to 0 (default), skip setting
-        return;
-    }
-
-    sched_attr attr = {};
-    attr.size = sizeof(attr);
-
-    attr.sched_flags = (SCHED_FLAG_KEEP_ALL | SCHED_FLAG_UTIL_CLAMP);
-    attr.sched_util_min = enabled ? kUclampMin : 0;
-    attr.sched_util_max = 1024;
-
-    if (syscall(__NR_sched_setattr, 0, &attr, 0)) {
-        const char* kAction[] = {"disable", "enable"};
-        ALOGW("%s: Failed to %s uclamp.min: %s", whence, kAction[enabled], strerror(errno));
-    }
+    (void)whence;
+    scheduler::SfCpuPolicy::onPerformanceMode(enabled);
 }
 
 namespace {
