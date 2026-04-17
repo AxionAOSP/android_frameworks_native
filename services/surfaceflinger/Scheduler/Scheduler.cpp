@@ -50,6 +50,7 @@
 #include "Layer.h"
 #include "OneShotTimer.h"
 #include "RefreshRateStats.h"
+#include "SfCpuPolicy.h"
 #include "SurfaceFlingerFactory.h"
 #include "SurfaceFlingerProperties.h"
 #include "TimeStats/TimeStats.h"
@@ -798,6 +799,7 @@ void Scheduler::updatePhaseConfiguration(PhysicalDisplayId displayId, Fps refres
         return mVsyncConfiguration->getCurrentConfigs();
     }();
     setVsyncConfig(mVsyncModulator->setVsyncConfigSet(currentConfigs), refreshRate.getPeriod());
+    SfCpuPolicy::onRefreshRateChanged(refreshRate);
 }
 #pragma clang diagnostic pop
 

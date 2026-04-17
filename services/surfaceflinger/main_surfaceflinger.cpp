@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <hidl/LegacySupport.h>
 #include <processgroup/sched_policy.h>
+#include "Scheduler/SfCpuPolicy.h"
 #include "SurfaceFlinger.h"
 #include "SurfaceFlingerFactory.h"
 #include "SurfaceFlingerProperties.h"
@@ -88,6 +89,8 @@ int main() {
     // When SF is launched in its own process, limit the number of
     // binder threads to 4.
     ProcessState::self()->setThreadPoolMaxThreadCount(4);
+
+    android::scheduler::SfCpuPolicy::registerMainThread();
 
     // Set uclamp.min setting on all threads, maybe an overkill but we want
     // to cover important threads like RenderEngine.

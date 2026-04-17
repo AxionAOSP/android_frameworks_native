@@ -166,6 +166,7 @@
 #include "Scheduler/FrameTimeline.h"
 #include "Scheduler/LayerHistory.h"
 #include "Scheduler/Scheduler.h"
+#include "Scheduler/SfCpuPolicy.h"
 #include "Scheduler/VsyncConfiguration.h"
 #include "Scheduler/VsyncModulator.h"
 #include "ScreenCaptureOutput.h"
@@ -7837,25 +7838,8 @@ void SurfaceFlinger::setSchedFifo(bool enabled, const char* whence) {
 }
 
 void SurfaceFlinger::setSchedAttr(bool enabled, const char* whence) {
-    static const unsigned int kUclampMin =
-            base::GetUintProperty<unsigned int>("ro.surface_flinger.uclamp.min"s, 0U);
-
-    if (!kUclampMin) {
-        // uclamp.min set to 0 (default), skip setting
-        return;
-    }
-
-    sched_attr attr = {};
-    attr.size = sizeof(attr);
-
-    attr.sched_flags = (SCHED_FLAG_KEEP_ALL | SCHED_FLAG_UTIL_CLAMP);
-    attr.sched_util_min = enabled ? kUclampMin : 0;
-    attr.sched_util_max = 1024;
-
-    if (syscall(__NR_sched_setattr, 0, &attr, 0)) {
-        const char* kAction[] = {"disable", "enable"};
-        ALOGW("%s: Failed to %s uclamp.min: %s", whence, kAction[enabled], strerror(errno));
-    }
+    (void)whence;
+    scheduler::SfCpuPolicy::onPerformanceMode(enabled);
 }
 
 namespace {
