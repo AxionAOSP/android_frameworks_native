@@ -58,7 +58,7 @@ RenderEngineThreaded::~RenderEngineThreaded() {
 }
 
 status_t RenderEngineThreaded::setSchedFifo(bool enabled) {
-    static constexpr int kFifoPriority = 2;
+    static constexpr int kFifoPriority = 3;
     static constexpr int kOtherPriority = 0;
 
     struct sched_param param = {0};
