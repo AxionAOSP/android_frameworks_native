@@ -17,13 +17,34 @@
 #pragma once
 
 #include <scheduler/Fps.h>
+#include <utils/Timers.h>
 
 namespace android::scheduler::SfCpuPolicy {
 
+struct Config {
+    nsecs_t vsyncPeriod;
+    int timeout;
+    nsecs_t midVsyncPeriod;
+    int midTimeout;
+
+    Config(nsecs_t vp = 0, int t = 0, nsecs_t mvp = 0, int mt = 0)
+          : vsyncPeriod(vp), timeout(t), midVsyncPeriod(mvp), midTimeout(mt) {}
+};
+
 void registerMainThread();
 
+void onFrameStart(nsecs_t timestamp, nsecs_t vsyncPeriod);
+void onFrameEnd(nsecs_t timestamp);
+void onSpeedUpRE(int tid);
+void notifyHwcHwbinderTid();
+
 void onRefreshRateChanged(Fps fps);
-
 void onPerformanceMode(bool enabled);
+void onPowerSuspend(bool suspended);
+void onVpLpEnable(bool enabled);
+void onScreenRecording(bool recording);
+void onForeground(bool foreground);
 
-}
+void setupConfig(const Config& config);
+
+} // namespace android::scheduler::SfCpuPolicy

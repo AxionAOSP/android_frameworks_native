@@ -2873,6 +2873,8 @@ bool SurfaceFlinger::commit(PhysicalDisplayId pacesetterId,
     const VsyncId vsyncId = pacesetterFrameTarget.vsyncId();
     SFTRACE_NAME(ftl::Concat(__func__, ' ', ftl::to_underlying(vsyncId)).c_str());
 
+    scheduler::SfCpuPolicy::onFrameStart(pacesetterFrameTarget.frameBeginTime().ns(),
+                                         mScheduler->getVsyncSchedule()->period().ns());
     AxVsyncDuration::getInstance().onDisplayRefresh();
 
     if (pacesetterFrameTarget.didMissFrame()) {
@@ -3027,6 +3029,20 @@ bool SurfaceFlinger::commit(PhysicalDisplayId pacesetterId,
                                   pacesetterFrameTarget.frameBeginTime(), vsyncId);
 
     mLastCommittedVsyncId = vsyncId;
+
+    {
+        bool screenRecording = false;
+        for (const auto& [layer, _] : mLayersWithQueuedFrames) {
+            if (layer->getName().find("Record") != std::string::npos) {
+                screenRecording = true;
+                break;
+            }
+        }
+        scheduler::SfCpuPolicy::onScreenRecording(screenRecording);
+
+        const Fps pacesetterFps = mScheduler->getPacesetterRefreshRate();
+        scheduler::SfCpuPolicy::onVpLpEnable(pacesetterFps.getValue() <= 30.0f);
+    }
 
     persistDisplayBrightness(mustComposite);
 
@@ -3444,6 +3460,8 @@ CompositeResultsPerDisplay SurfaceFlinger::composite(
     if (mPowerHintSessionEnabled) {
         mPowerAdvisor->setCompositeEnd(TimePoint::now());
     }
+
+    scheduler::SfCpuPolicy::onFrameEnd(systemTime());
 
     CompositeResultsPerDisplay resultsPerDisplay;
 
@@ -6154,6 +6172,15 @@ void SurfaceFlinger::setPhysicalDisplayPowerMode(const sp<DisplayDevice>& displa
     const bool isInternalDisplay = mPhysicalDisplays.get(displayId)
                                            .transform(&PhysicalDisplay::isInternal)
                                            .value_or(false);
+
+    if (isInternalDisplay) {
+        const bool powerSuspended = (mode == hal::PowerMode::OFF ||
+                                     mode == hal::PowerMode::DOZE_SUSPEND);
+        const bool foreground = (mode == hal::PowerMode::ON ||
+                                 mode == hal::PowerMode::DOZE);
+        scheduler::SfCpuPolicy::onPowerSuspend(powerSuspended);
+        scheduler::SfCpuPolicy::onForeground(foreground);
+    }
 
     const bool couldRefresh = display->isRefreshable();
     display->setPowerMode(mode);
