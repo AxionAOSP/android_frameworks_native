@@ -40,10 +40,10 @@ void set_thread_priority(bool highPriority) {
     
     if (highPriority) {
         SetTaskProfiles(gettid(), {"SvpPolicy"});
-        axion::process::SetThreadAffinity(gettid(), 4);
+        axion::process::SetThreadAffinity(gettid(), 0);
     } else {
         SetTaskProfiles(gettid(), {"ProcessCapacityMax"});
-        axion::process::SetThreadAffinity(gettid(), 2);
+        axion::process::SetThreadAffinity(gettid(), 1);
     }
 }
 

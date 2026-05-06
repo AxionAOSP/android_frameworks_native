@@ -10475,7 +10475,7 @@ void SurfaceFlinger::sfBindControll(bool enabled) {
         threads.emplace_back(*renderTid, group_name);
     }
 
-    int cpu_group = enabled ? 4 : 2;
+    int cpu_group = enabled ? 0 : 2;
 
     for (const auto& [tid, name] : threads) {
         if (enabled) {
