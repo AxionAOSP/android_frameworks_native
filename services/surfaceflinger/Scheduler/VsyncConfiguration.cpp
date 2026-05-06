@@ -23,11 +23,10 @@
 #include <cutils/properties.h>
 #include <log/log.h>
 
+#include "AxVsyncDuration.h"
 #include "SurfaceFlingerProperties.h"
 
 namespace {
-
-using namespace std::chrono_literals;
 
 std::optional<nsecs_t> getProperty(const char* name) {
     char value[PROPERTY_VALUE_MAX];
@@ -36,32 +35,7 @@ std::optional<nsecs_t> getProperty(const char* name) {
     return std::nullopt;
 }
 
-bool dynamicDurationEnabled() {
-    return property_get_bool("persist.sys.sf.duration.switch", false);
 }
-
-int bucketHzFromVsync(nsecs_t vsyncDuration) {
-    if (vsyncDuration <= 0) return 0;
-    const int hz = static_cast<int>((1000000000LL + vsyncDuration / 2) / vsyncDuration);
-    if (hz >= 110) return 120;
-    if (hz >= 80) return 90;
-    if (hz >= 50) return 60;
-    return 0;
-}
-
-nsecs_t durationOverride(const char* kind, int hz, nsecs_t fallback) {
-    if (!dynamicDurationEnabled()) return fallback;
-    char key[PROPERTY_VALUE_MAX];
-    if (hz > 0) {
-        snprintf(key, sizeof(key), "persist.sys.sf.duration.%s.%d", kind, hz);
-        if (auto v = getProperty(key); v.has_value() && *v > 0) return *v;
-    }
-    snprintf(key, sizeof(key), "persist.sys.sf.duration.%s", kind);
-    if (auto v = getProperty(key); v.has_value() && *v > 0) return *v;
-    return fallback;
-}
-
-} // namespace
 
 namespace android::scheduler::impl {
 
@@ -301,80 +275,84 @@ static void validateSysprops() {
 }
 
 namespace {
-nsecs_t sfDurationToOffset(std::chrono::nanoseconds sfDuration, nsecs_t vsyncDuration) {
-    return vsyncDuration - sfDuration.count() % vsyncDuration;
+
+nsecs_t alignSfOffset(nsecs_t sfDuration, nsecs_t vsync) {
+    if (vsync <= 0) return 0;
+    nsecs_t floor = (sfDuration / vsync) * vsync;
+    nsecs_t pad = (vsync <= sfDuration) ? 0 : vsync;
+    return pad + (floor - sfDuration);
 }
 
-nsecs_t appDurationToOffset(std::chrono::nanoseconds appDuration,
-                            std::chrono::nanoseconds sfDuration, nsecs_t vsyncDuration) {
-    return vsyncDuration - (appDuration + sfDuration).count() % vsyncDuration;
+nsecs_t alignAppOffset(nsecs_t sfDuration, nsecs_t appDuration, nsecs_t vsync) {
+    if (vsync <= 0) return 0;
+    nsecs_t total = sfDuration + appDuration;
+    nsecs_t floor = (total / vsync) * vsync;
+    return vsync + (floor - total);
 }
-} // namespace
+
+}
 
 VsyncConfigSet WorkDuration::constructOffsets(nsecs_t vsyncDuration) const {
-    const auto sfDurationFixup = [vsyncDuration](nsecs_t duration) {
-        return duration == -1 ? std::chrono::nanoseconds(vsyncDuration) - 1ms
-                              : std::chrono::nanoseconds(duration);
+    auto& axVc = AxVsyncDuration::getInstance();
+
+    const auto sfFixup = [vsyncDuration](nsecs_t dur) {
+        return dur == -1 ? (vsyncDuration - 1000000) : dur;
+    };
+    const auto appFixup = [vsyncDuration](nsecs_t dur) {
+        return dur == -1 ? vsyncDuration : dur;
     };
 
-    const auto appDurationFixup = [vsyncDuration](nsecs_t duration) {
-        return duration == -1 ? std::chrono::nanoseconds(vsyncDuration)
-                              : std::chrono::nanoseconds(duration);
-    };
+    nsecs_t sfEarlyDur =
+            sfFixup(axVc.loadPerHzDuration("sf.early.", vsyncDuration, mSfEarlyDuration));
+    nsecs_t appEarlyDur =
+            appFixup(axVc.loadPerHzDuration("app.early.", vsyncDuration, mAppEarlyDuration));
+    nsecs_t sfEarlyGpuDur =
+            sfFixup(axVc.loadPerHzDuration("sf.earlyGl.", vsyncDuration, mSfEarlyGpuDuration));
+    nsecs_t appEarlyGpuDur =
+            appFixup(axVc.loadPerHzDuration("app.earlyGl.", vsyncDuration, mAppEarlyGpuDuration));
+    nsecs_t sfLateDur = sfFixup(axVc.loadPerHzDuration("sf.late.", vsyncDuration, mSfDuration));
+    nsecs_t appLateDur = appFixup(axVc.loadPerHzDuration("app.late.", vsyncDuration, mAppDuration));
 
-    const int hz = bucketHzFromVsync(vsyncDuration);
-    const auto sfEarlyDuration = sfDurationFixup(durationOverride("sf.early", hz, mSfEarlyDuration));
-    const auto appEarlyDuration =
-            appDurationFixup(durationOverride("app.early", hz, mAppEarlyDuration));
-    const auto sfEarlyGpuDuration =
-            sfDurationFixup(durationOverride("sf.earlyGl", hz, mSfEarlyGpuDuration));
-    const auto appEarlyGpuDuration =
-            appDurationFixup(durationOverride("app.earlyGl", hz, mAppEarlyGpuDuration));
-    const auto sfDuration = sfDurationFixup(durationOverride("sf.late", hz, mSfDuration));
-    const auto appDuration = appDurationFixup(durationOverride("app.late", hz, mAppDuration));
+    if (axVc.isDecoupleActive()) {
+        axVc.updateDecoupleDurations(vsyncDuration);
+
+        VsyncConfig fallback{
+                .sfOffset = 0,
+                .appOffset = 0,
+                .sfWorkDuration = std::chrono::nanoseconds(sfLateDur),
+                .appWorkDuration = std::chrono::nanoseconds(appLateDur),
+        };
+
+        VsyncConfig cfg = axVc.getDecoupleConfig(fallback);
+        return {
+                .early = cfg,
+                .earlyGpu = cfg,
+                .late = cfg,
+                .hwcMinWorkDuration = std::chrono::nanoseconds(mHwcMinWorkDuration),
+        };
+    }
 
     return {
             .early =
                     {
-
-                            .sfOffset = sfEarlyDuration.count() < vsyncDuration
-                                    ? sfDurationToOffset(sfEarlyDuration, vsyncDuration)
-                                    : sfDurationToOffset(sfEarlyDuration, vsyncDuration) -
-                                            vsyncDuration,
-
-                            .appOffset = appDurationToOffset(appEarlyDuration, sfEarlyDuration,
-                                                             vsyncDuration),
-
-                            .sfWorkDuration = sfEarlyDuration,
-                            .appWorkDuration = appEarlyDuration,
+                            .sfOffset = alignSfOffset(sfEarlyDur, vsyncDuration),
+                            .appOffset = alignAppOffset(sfEarlyDur, appEarlyDur, vsyncDuration),
+                            .sfWorkDuration = std::chrono::nanoseconds(sfEarlyDur),
+                            .appWorkDuration = std::chrono::nanoseconds(appEarlyDur),
                     },
             .earlyGpu =
                     {
-
-                            .sfOffset = sfEarlyGpuDuration.count() < vsyncDuration
-
-                                    ? sfDurationToOffset(sfEarlyGpuDuration, vsyncDuration)
-                                    : sfDurationToOffset(sfEarlyGpuDuration, vsyncDuration) -
-                                            vsyncDuration,
-
-                            .appOffset = appDurationToOffset(appEarlyGpuDuration,
-                                                             sfEarlyGpuDuration, vsyncDuration),
-                            .sfWorkDuration = sfEarlyGpuDuration,
-                            .appWorkDuration = appEarlyGpuDuration,
+                            .sfOffset = alignSfOffset(sfEarlyGpuDur, vsyncDuration),
+                            .appOffset = alignAppOffset(sfEarlyGpuDur, appEarlyGpuDur, vsyncDuration),
+                            .sfWorkDuration = std::chrono::nanoseconds(sfEarlyGpuDur),
+                            .appWorkDuration = std::chrono::nanoseconds(appEarlyGpuDur),
                     },
             .late =
                     {
-
-                            .sfOffset = sfDuration.count() < vsyncDuration
-
-                                    ? sfDurationToOffset(sfDuration, vsyncDuration)
-                                    : sfDurationToOffset(sfDuration, vsyncDuration) - vsyncDuration,
-
-                            .appOffset =
-                                    appDurationToOffset(appDuration, sfDuration, vsyncDuration),
-
-                            .sfWorkDuration = sfDuration,
-                            .appWorkDuration = appDuration,
+                            .sfOffset = alignSfOffset(sfLateDur, vsyncDuration),
+                            .appOffset = alignAppOffset(sfLateDur, appLateDur, vsyncDuration),
+                            .sfWorkDuration = std::chrono::nanoseconds(sfLateDur),
+                            .appWorkDuration = std::chrono::nanoseconds(appLateDur),
                     },
             .hwcMinWorkDuration = std::chrono::nanoseconds(mHwcMinWorkDuration),
     };

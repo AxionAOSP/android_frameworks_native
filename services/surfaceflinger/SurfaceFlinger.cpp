@@ -166,6 +166,7 @@
 #include "Scheduler/FrameTimeline.h"
 #include "Scheduler/LayerHistory.h"
 #include "Scheduler/Scheduler.h"
+#include "Scheduler/AxVsyncDuration.h"
 #include "Scheduler/SfCpuPolicy.h"
 #include "Scheduler/VsyncConfiguration.h"
 #include "Scheduler/VsyncModulator.h"
@@ -2872,6 +2873,8 @@ bool SurfaceFlinger::commit(PhysicalDisplayId pacesetterId,
     const VsyncId vsyncId = pacesetterFrameTarget.vsyncId();
     SFTRACE_NAME(ftl::Concat(__func__, ' ', ftl::to_underlying(vsyncId)).c_str());
 
+    AxVsyncDuration::getInstance().onDisplayRefresh();
+
     if (pacesetterFrameTarget.didMissFrame()) {
         mTimeStats->incrementMissedFrames();
     }
@@ -4414,6 +4417,8 @@ void SurfaceFlinger::processDisplayAdded(const wp<IBinder>& displayToken,
                                             .value_or(ui::DisplayConnectionType::External);
         mScheduler->registerDisplay(displayId, connectionType, display->holdRefreshRateSelector(),
                                     getDefaultPacesetterDisplay());
+        AxVsyncDuration::getInstance().onNewInternalDisplay(displayId);
+        AxVsyncDuration::getInstance().updateActiveDisplayId(displayId);
     }
 
     if (display->isVirtual()) {

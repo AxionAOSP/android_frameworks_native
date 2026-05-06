@@ -270,6 +270,7 @@ filegroup {
         "Scheduler/RefreshRateSelector.cpp",
         "Scheduler/Scheduler.cpp",
         "Scheduler/SfCpuPolicy.cpp",
+        "Scheduler/AxVsyncDuration.cpp",
         "Scheduler/SmallAreaDetectionAllowMappings.cpp",
         "Scheduler/VSyncDispatchTimerQueue.cpp",
         "Scheduler/VSyncPredictor.cpp",
