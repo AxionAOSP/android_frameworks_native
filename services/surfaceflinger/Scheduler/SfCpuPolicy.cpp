@@ -20,7 +20,9 @@
 #include "SfCpuPolicy.h"
 
 #include <atomic>
+#include <cerrno>
 #include <cstdio>
+#include <cstring>
 #include <linux/sched.h>
 #include <linux/sched/types.h>
 #include <mutex>
@@ -36,8 +38,6 @@
 namespace android::scheduler::SfCpuPolicy {
 
 namespace {
-
-constexpr unsigned int kUclampMax = 1024;
 
 constexpr nsecs_t kNsPerSec = 1000000000LL;
 constexpr nsecs_t kFrameIntervalWindow = 300000000LL;
@@ -114,6 +114,7 @@ std::atomic<bool> sVpLpEnabled{false};
 std::atomic<bool> sIsForeground{true};
 std::atomic<bool> sScreenRecording{false};
 std::atomic<bool> sEarlyFrameBoost{false};
+std::atomic<bool> sUclampSupported{true};
 std::atomic<int> sCurrentAffinityGroup{kAffinityGroupAll};
 
 std::atomic<nsecs_t> sLastFrameStart{0};
@@ -298,15 +299,25 @@ void applyAffinity() {
 
 void writeUclampForThread(int tid, unsigned int uclampMin) {
     if (tid <= 0) return;
+    if (!sUclampSupported.load(std::memory_order_relaxed)) return;
 
     sched_attr attr = {};
     attr.size = sizeof(attr);
-    attr.sched_flags = (SCHED_FLAG_KEEP_ALL | SCHED_FLAG_UTIL_CLAMP);
+    attr.sched_flags = (SCHED_FLAG_KEEP_ALL | SCHED_FLAG_UTIL_CLAMP_MIN);
     attr.sched_util_min = uclampMin;
-    attr.sched_util_max = kUclampMax;
 
     if (syscall(__NR_sched_setattr, tid, &attr, 0)) {
-        ALOGW("sched_setattr uclamp_min=%u tid=%d failed: %s", uclampMin, tid, strerror(errno));
+        const int savedErrno = errno;
+        if (savedErrno == E2BIG || savedErrno == EINVAL || savedErrno == ENOSYS ||
+            savedErrno == EOPNOTSUPP || savedErrno == EPERM) {
+            if (sUclampSupported.exchange(false, std::memory_order_relaxed)) {
+                ALOGW("sched_setattr uclamp_min unsupported, disabling SfCpuPolicy uclamp writes: %s",
+                      strerror(savedErrno));
+            }
+            return;
+        }
+        ALOGW("sched_setattr uclamp_min=%u tid=%d failed: %s", uclampMin, tid,
+              strerror(savedErrno));
     }
 }
 
