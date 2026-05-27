@@ -32,6 +32,7 @@
 #include <android-base/properties.h>
 #include <cutils/properties.h>
 #include <log/log.h>
+#include <processgroup/processgroup.h>
 
 #include "ax_process_utils.h"
 
@@ -48,6 +49,12 @@ constexpr int kAffinityGroupAll = 2;
 constexpr int kAffinityGroupBalanced = 3;
 constexpr int kAffinityGroupBig = 0;
 constexpr int kAffinityGroupPrime = 4;
+constexpr int kAffinityGroupInvalid = -1;
+constexpr int kAffinityProfileInvalid = -1;
+constexpr int kAffinityProfileTopApp = 0;
+constexpr int kAffinityProfileSvp = 1;
+constexpr nsecs_t kAffinityWarnInterval = 5LL * kNsPerSec;
+constexpr nsecs_t kAffinityRetryInterval = 1LL * kNsPerSec;
 
 constexpr int kFgVsyncPeriodNs = 25000000;
 constexpr int kFgTimeoutMs = 30;
@@ -115,7 +122,12 @@ std::atomic<bool> sIsForeground{true};
 std::atomic<bool> sScreenRecording{false};
 std::atomic<bool> sEarlyFrameBoost{false};
 std::atomic<bool> sUclampSupported{true};
-std::atomic<int> sCurrentAffinityGroup{kAffinityGroupAll};
+std::atomic<int> sCurrentAffinityGroup{kAffinityGroupInvalid};
+std::atomic<int> sCurrentAffinityProfile{kAffinityProfileInvalid};
+std::atomic<int> sFailedAffinityGroup{kAffinityGroupInvalid};
+std::atomic<int> sFailedAffinityProfile{kAffinityProfileInvalid};
+std::atomic<nsecs_t> sNextAffinityWarn{0};
+std::atomic<nsecs_t> sNextAffinityRetry{0};
 
 std::atomic<nsecs_t> sLastFrameStart{0};
 std::atomic<nsecs_t> sLastFrameEnd{0};
@@ -277,23 +289,91 @@ int computeAffinityGroup() {
     return kAffinityGroupAll;
 }
 
+int profileForGroup(int group) {
+    return group == kAffinityGroupBig || group == kAffinityGroupPrime ? kAffinityProfileSvp
+                                                                      : kAffinityProfileTopApp;
+}
+
+const char* profileName(int profile) {
+    return profile == kAffinityProfileSvp ? "SvpPolicy" : "ProcessCapacityMax";
+}
+
+bool shouldLogAffinityWarning() {
+    const nsecs_t now = systemTime();
+    if (now < sNextAffinityWarn.load(std::memory_order_relaxed)) return false;
+    sNextAffinityWarn.store(now + kAffinityWarnInterval, std::memory_order_relaxed);
+    return true;
+}
+
+void warnAffinityFailure(const char* message, int tid, int group) {
+    if (shouldLogAffinityWarning()) {
+        ALOGW("%s tid=%d group=%d", message, tid, group);
+    }
+}
+
+void warnAffinityProfileFailure(int tid, int profile, const char* name) {
+    if (shouldLogAffinityWarning()) {
+        ALOGW("SetTaskProfiles failed tid=%d profile=%d name=%s", tid, profile, name);
+    }
+}
+
+bool shouldSkipAffinityAttempt(int group, int profile) {
+    if (sFailedAffinityGroup.load(std::memory_order_relaxed) != group) return false;
+    if (sFailedAffinityProfile.load(std::memory_order_relaxed) != profile) return false;
+    return systemTime() < sNextAffinityRetry.load(std::memory_order_relaxed);
+}
+
+void recordAffinityFailure(int group, int profile) {
+    sFailedAffinityGroup.store(group, std::memory_order_relaxed);
+    sFailedAffinityProfile.store(profile, std::memory_order_relaxed);
+    sNextAffinityRetry.store(systemTime() + kAffinityRetryInterval, std::memory_order_relaxed);
+}
+
+void clearAffinityFailure() {
+    sFailedAffinityGroup.store(kAffinityGroupInvalid, std::memory_order_relaxed);
+    sFailedAffinityProfile.store(kAffinityProfileInvalid, std::memory_order_relaxed);
+    sNextAffinityRetry.store(0, std::memory_order_relaxed);
+}
+
+bool applyAffinityProfile(int tid, int profile) {
+    if (sCurrentAffinityProfile.load(std::memory_order_relaxed) == profile) return true;
+
+    const char* name = profileName(profile);
+    if (SetTaskProfiles(tid, {name})) {
+        sCurrentAffinityProfile.store(profile, std::memory_order_relaxed);
+        return true;
+    }
+
+    warnAffinityProfileFailure(tid, profile, name);
+    return false;
+}
+
 void applyAffinity() {
     const int tid = sMainTid.load(std::memory_order_relaxed);
     if (tid <= 0) return;
 
     const int targetGroup = computeAffinityGroup();
+    const int targetProfile = profileForGroup(targetGroup);
     const int currentGroup = sCurrentAffinityGroup.load(std::memory_order_relaxed);
-    if (targetGroup == currentGroup) return;
+    const int currentProfile = sCurrentAffinityProfile.load(std::memory_order_relaxed);
+    if (targetGroup == currentGroup && targetProfile == currentProfile) return;
+    if (shouldSkipAffinityAttempt(targetGroup, targetProfile)) return;
 
-    axion::process::RefreshCpuSets();
-    if (axion::process::SetThreadAffinity(tid, targetGroup)) {
+    if (!applyAffinityProfile(tid, targetProfile)) {
+        recordAffinityFailure(targetGroup, targetProfile);
+        return;
+    }
+
+    if (axion::process::SetSingleThreadAffinity(tid, targetGroup)) {
         sCurrentAffinityGroup.store(targetGroup, std::memory_order_relaxed);
+        clearAffinityFailure();
         if (base::GetBoolProperty("persist.sys.sf.cpupolicy.log", false)) {
             ALOGI("affinity tid=%d group=%d hz=%d", tid, targetGroup,
                   sCurrentHz.load(std::memory_order_relaxed));
         }
     } else {
-        ALOGW("SetThreadAffinity tid=%d group=%d failed", tid, targetGroup);
+        recordAffinityFailure(targetGroup, targetProfile);
+        warnAffinityFailure("SetSingleThreadAffinity failed", tid, targetGroup);
     }
 }
 
@@ -369,6 +449,7 @@ void updateFps(nsecs_t now) {
 void registerMainThread() {
     sMainTid.store(gettid(), std::memory_order_relaxed);
     initProps();
+    axion::process::RefreshCpuSets();
 }
 
 void onFrameStart(nsecs_t timestamp, nsecs_t vsyncPeriod) {
@@ -406,8 +487,7 @@ void onFrameEnd(nsecs_t timestamp) {
 void onSpeedUpRE(int tid) {
     if (tid <= 0) return;
     sReTid.store(tid, std::memory_order_relaxed);
-    axion::process::RefreshCpuSets();
-    axion::process::SetThreadAffinity(tid, kAffinityGroupBig);
+    axion::process::SetSingleThreadAffinity(tid, kAffinityGroupBig);
     const unsigned int uclampMin = computeUclampMin();
     writeUclampForThread(tid, uclampMin);
     if (base::GetBoolProperty("persist.sys.sf.cpupolicy.log", false)) {

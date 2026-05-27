@@ -10463,7 +10463,6 @@ binder::Status SurfaceComposerAIDL::getSchedulingPolicy(gui::SchedulingPolicy* o
 }
 
 void SurfaceFlinger::sfBindControll(bool enabled) {
-    axion::process::RefreshCpuSets();
     auto renderTid = getRenderEngine().getRenderEngineTid();
     const char* group_name = enabled ? "svp" : "top";
 
@@ -10483,7 +10482,7 @@ void SurfaceFlinger::sfBindControll(bool enabled) {
         } else {
             SetTaskProfiles(tid, {"ProcessCapacityMax"});
         }
-        if (!axion::process::SetThreadAffinity(tid, cpu_group)) {
+        if (!axion::process::SetSingleThreadAffinity(tid, cpu_group)) {
             ALOGW("Failed to set CPU affinity for thread %d (%s)", tid, name.c_str());
         } else {
             ALOGV("Set CPU affinity for thread %d (%s)", tid, name.c_str());
