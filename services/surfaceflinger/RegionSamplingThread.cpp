@@ -56,7 +56,7 @@ enum class samplingStep {
 };
 
 constexpr auto defaultRegionSamplingWorkDuration = 3ms;
-constexpr auto defaultRegionSamplingPeriod = 100ms;
+constexpr auto defaultRegionSamplingPeriod = 200ms;
 constexpr auto defaultRegionSamplingTimerTimeout = 100ms;
 constexpr auto maxRegionSamplingDelay = 100ms;
 // TODO: (b/127403193) duration to string conversion could probably be constexpr
