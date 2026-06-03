@@ -101,7 +101,7 @@ struct Props {
             powerDown120(-1),
             powerDown90(-1),
             powerDownMargin(-1),
-            earlyHeavy(3),
+            earlyHeavy(2),
             refreshAsFps(-1),
             boostSr(-1),
             boostEarly(-1),
@@ -180,7 +180,7 @@ void initProps() {
     sProps.powerDown120 = readInt("persist.sys.sf.cpupolicy.power_down_120", -1);
     sProps.powerDown90 = readInt("persist.sys.sf.cpupolicy.power_down_90", -1);
     sProps.powerDownMargin = readInt("persist.sys.sf.cpupolicy.power_down_margin", -1);
-    sProps.earlyHeavy = readInt("persist.sys.sf.cpupolicy.early_heavy", 3);
+    sProps.earlyHeavy = readInt("persist.sys.sf.cpupolicy.early_heavy", 2);
     sProps.refreshAsFps = readInt("persist.sys.sf.cpupolicy.refresh_as_fps", -1);
     sProps.boostSr = readInt("persist.sys.sf.cpupolicy.boost_sr", -1);
     sProps.boostEarly = readInt("persist.sys.sf.cpupolicy.boost_early", -1);
@@ -229,9 +229,8 @@ bool boostScreenRecord(bool recording, int hz) {
     return recording && hz > 60;
 }
 
-bool boostEarlyFrame(bool earlyFrame, int hz) {
-    if (sProps.boostEarly <= 0) return false;
-    return earlyFrame && hz > 60;
+bool earlyFrameBoostActive(int hz) {
+    return sEarlyFrameBoost.load(std::memory_order_relaxed) && hz >= 50;
 }
 
 unsigned int computeUclampMin() {
@@ -241,6 +240,8 @@ unsigned int computeUclampMin() {
     if (hz <= 0) return 0;
 
     unsigned int target = perHzMin(hz);
+    const unsigned int upper = readUint("persist.sys.sf.cpupolicy.upbound_uclamp_min", 344);
+    const unsigned int lower = readUint("persist.sys.sf.cpupolicy.lowbound_uclamp_min", 106);
 
     const float fps = sCurrentFps.load(std::memory_order_relaxed);
     if (fps > 0.0f && sProps.refreshAsFps > 0) {
@@ -253,12 +254,12 @@ unsigned int computeUclampMin() {
         target = static_cast<unsigned int>(sProps.boostSr);
     }
 
-    if (boostEarlyFrame(sEarlyFrameBoost.load(std::memory_order_relaxed), hz)) {
-        target = static_cast<unsigned int>(sProps.boostEarly);
+    if (earlyFrameBoostActive(hz)) {
+        const unsigned int earlyTarget = sProps.boostEarly > 0
+                ? static_cast<unsigned int>(sProps.boostEarly)
+                : upper;
+        if (earlyTarget > target) target = earlyTarget;
     }
-
-    const unsigned int upper = readUint("persist.sys.sf.cpupolicy.upbound_uclamp_min", 344);
-    const unsigned int lower = readUint("persist.sys.sf.cpupolicy.lowbound_uclamp_min", 106);
 
     if (target < lower) target = lower;
     if (target > upper) target = upper;
@@ -269,8 +270,8 @@ unsigned int computeUclampMin() {
 int computeAffinityGroup() {
     if (shouldSuspend()) return kAffinityGroupSmall;
 
-    if (boostScreenRecord(sScreenRecording.load(std::memory_order_relaxed),
-                          sCurrentHz.load(std::memory_order_relaxed))) {
+    const int hz = sCurrentHz.load(std::memory_order_relaxed);
+    if (boostScreenRecord(sScreenRecording.load(std::memory_order_relaxed), hz)) {
         return kAffinityGroupPrime;
     }
 
@@ -278,12 +279,10 @@ int computeAffinityGroup() {
         return kAffinityGroupBig;
     }
 
-    if (boostEarlyFrame(sEarlyFrameBoost.load(std::memory_order_relaxed),
-                        sCurrentHz.load(std::memory_order_relaxed))) {
+    if (earlyFrameBoostActive(hz)) {
         return kAffinityGroupBig;
     }
 
-    const int hz = sCurrentHz.load(std::memory_order_relaxed);
     if (hz >= 90) return kAffinityGroupBig;
 
     return kAffinityGroupAll;
