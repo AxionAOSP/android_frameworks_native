@@ -21,20 +21,56 @@
 #include <processgroup/sched_policy.h>
 #include <pthread.h>
 #include <sched.h>
+#include <sys/resource.h>
+#include <system/thread_defs.h>
 #include <utils/Log.h>
 #include <mutex>
+#include <unistd.h>
 
+#include "ax_process_utils.h"
 #include "BackgroundExecutor.h"
 
 namespace android {
 
 namespace {
 
+void apply_thread_policy(SchedPolicy policy, int priority) {
+    const int tid = gettid();
+    if (axion::process::SetThreadPolicy(tid, policy, priority)) {
+        return;
+    }
+    setpriority(PRIO_PROCESS, static_cast<id_t>(tid), priority);
+}
+
+void set_thread_affinity(bool highPriority) {
+    const int group =
+            highPriority ? axion::process::kCpuGroupAll : axion::process::kCpuGroupBalanced;
+    if (axion::process::SetSingleThreadAffinity(gettid(), group)) {
+        return;
+    }
+
+    cpu_set_t mask;
+    CPU_ZERO(&mask);
+
+    const long cpuCount = sysconf(_SC_NPROCESSORS_ONLN);
+    if (cpuCount <= 0 || cpuCount > CPU_SETSIZE) {
+        return;
+    }
+
+    for (int cpu = 0; cpu < cpuCount; cpu++) {
+        CPU_SET(cpu, &mask);
+    }
+    sched_setaffinity(gettid(), sizeof(mask), &mask);
+}
+
 void set_thread_priority(bool highPriority) {
-    set_sched_policy(0, highPriority ? SP_FOREGROUND : SP_BACKGROUND);
+    const SchedPolicy policy = highPriority ? SP_FOREGROUND_WINDOW : SP_FOREGROUND;
+    const int priority = highPriority ? ANDROID_PRIORITY_DISPLAY : ANDROID_PRIORITY_NORMAL;
+    apply_thread_policy(policy, priority);
+    set_thread_affinity(highPriority);
     struct sched_param param = {0};
-    param.sched_priority = highPriority ? 2 : 0 /* must be 0 for non-RT */;
-    sched_setscheduler(gettid(), highPriority ? SCHED_FIFO : SCHED_NORMAL, &param);
+    sched_setscheduler(gettid(), SCHED_NORMAL, &param);
+    apply_thread_policy(policy, priority);
 }
 
 } // anonymous namespace

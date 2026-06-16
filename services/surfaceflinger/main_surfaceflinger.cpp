@@ -21,6 +21,8 @@
 #include <sys/resource.h>
 
 #include <sched.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <android/frameworks/displayservice/1.0/IDisplayService.h>
 #include <android/hardware/configstore/1.0/ISurfaceFlingerConfigs.h>
@@ -34,13 +36,31 @@
 #include <displayservice/DisplayService.h>
 #include <errno.h>
 #include <hidl/LegacySupport.h>
-#include <processgroup/sched_policy.h>
+#include "ax_process_utils.h"
 #include "Scheduler/SfCpuPolicy.h"
 #include "SurfaceFlinger.h"
 #include "SurfaceFlingerFactory.h"
 #include "SurfaceFlingerProperties.h"
 
 using namespace android;
+
+static void resetThreadAffinity() {
+    cpu_set_t mask;
+    CPU_ZERO(&mask);
+
+    const long cpuCount = sysconf(_SC_NPROCESSORS_ONLN);
+    if (cpuCount <= 0 || cpuCount > CPU_SETSIZE) {
+        return;
+    }
+
+    for (int cpu = 0; cpu < cpuCount; cpu++) {
+        CPU_SET(cpu, &mask);
+    }
+
+    if (sched_setaffinity(0, sizeof(mask), &mask) != 0) {
+        ALOGW("Failed to reset SurfaceFlinger thread affinity: %s", strerror(errno));
+    }
+}
 
 static status_t startGraphicsAllocatorService() {
     using android::hardware::configstore::getBool;
@@ -95,6 +115,8 @@ int main() {
     // Set uclamp.min setting on all threads, maybe an overkill but we want
     // to cover important threads like RenderEngine.
     SurfaceFlinger::setSchedAttr(true, __func__);
+    axion::process::SetCurrentThreadCpusetPolicy(SP_FOREGROUND);
+    resetThreadAffinity();
 
     // The binder threadpool we start will inherit sched policy and priority
     // of (this) creating thread. We want the binder thread pool to have
@@ -140,7 +162,7 @@ int main() {
 
     setpriority(PRIO_PROCESS, 0, PRIORITY_URGENT_DISPLAY);
 
-    set_sched_policy(0, SP_FOREGROUND);
+    axion::process::SetCurrentThreadSchedPolicy(SP_FOREGROUND);
 
     // initialize before clients can connect
     flinger->init();

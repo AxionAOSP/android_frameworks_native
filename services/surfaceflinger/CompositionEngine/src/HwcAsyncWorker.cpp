@@ -15,15 +15,11 @@
  */
 
 #include <compositionengine/impl/HwcAsyncWorker.h>
-#include <processgroup/sched_policy.h>
 #include <pthread.h>
 #include <sched.h>
 #include <sys/prctl.h>
-#include <sys/resource.h>
-#include <system/thread_defs.h>
 
 #include <android-base/thread_annotations.h>
-#include <cutils/sched_policy.h>
 #include <ftl/fake_guard.h>
 
 namespace android::compositionengine::impl {
@@ -53,7 +49,6 @@ std::future<bool> HwcAsyncWorker::send(std::function<bool()> task) {
 }
 
 void HwcAsyncWorker::run() {
-    set_sched_policy(0, SP_FOREGROUND);
     struct sched_param param = {0};
     param.sched_priority = 2;
     sched_setscheduler(gettid(), SCHED_FIFO, &param);
