@@ -8276,7 +8276,9 @@ void SurfaceFlinger::captureScreenCommon(ScreenshotArgs& args, ui::PixelFormat r
     std::shared_ptr<renderengine::impl::ExternalTexture> hdrTexture;
     std::shared_ptr<renderengine::impl::ExternalTexture> gainmapTexture;
 
-    if (layersHasHdrLayer(args.layers) && !args.preserveDisplayColors &&
+    static const bool sUseOglForMedia =
+            base::GetBoolProperty("persist.sys.vk_use_ogl_for_media", false);
+    if (layersHasHdrLayer(args.layers) && !args.preserveDisplayColors && !sUseOglForMedia &&
         FlagManager::getInstance().true_hdr_screenshots()) {
         const auto hdrBuffer =
                 getFactory().createGraphicBuffer(buffer->getWidth(), buffer->getHeight(),
