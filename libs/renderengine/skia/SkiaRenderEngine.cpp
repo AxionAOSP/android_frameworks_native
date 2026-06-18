@@ -18,6 +18,7 @@
 
 #include "SkiaRenderEngine.h"
 
+#include <ax_graphics/MediaBufferConverter.h>
 #include <SkBlendMode.h>
 #include <SkBlurTypes.h>
 #include <SkCanvas.h>
@@ -493,6 +494,15 @@ void SkiaRenderEngine::mapExternalTextureBuffer(const sp<GraphicBuffer>& buffer,
     if (isProtectedBuffer || isProtected() || !isGpuSampleable) {
         return;
     }
+    if (axion::graphics::MediaBufferConverter::isConversionEnabled()) {
+        AHardwareBuffer_Desc desc;
+        AHardwareBuffer_describe(buffer->toAHardwareBuffer(), &desc);
+        ui::Dataspace dataspace = ui::Dataspace::UNKNOWN;
+        buffer->getDataspace(&dataspace);
+        if (axion::graphics::MediaBufferConverter::isMediaOrHdrBuffer(desc, static_cast<int32_t>(dataspace))) {
+            return;
+        }
+    }
     SFTRACE_CALL();
 
     // If we were to support caching protected buffers then we will need to switch the
@@ -611,8 +621,26 @@ void SkiaRenderEngine::storeTransientBackendTexture(
 
 std::shared_ptr<AutoBackendTexture::LocalRef> SkiaRenderEngine::getOrCreateBackendTexture(
         const sp<GraphicBuffer>& buffer, bool isOutputBuffer) {
+    AHardwareBuffer* bufferToUse = buffer->toAHardwareBuffer();
+    AHardwareBuffer* convertedBuffer = nullptr;
+    bool isMedia = false;
+    if (!isOutputBuffer &&
+        axion::graphics::MediaBufferConverter::isConversionEnabled()) {
+        AHardwareBuffer_Desc desc;
+        AHardwareBuffer_describe(bufferToUse, &desc);
+        ui::Dataspace dataspace = ui::Dataspace::UNKNOWN;
+        buffer->getDataspace(&dataspace);
+        if (axion::graphics::MediaBufferConverter::isMediaOrHdrBuffer(desc, static_cast<int32_t>(dataspace))) {
+            isMedia = true;
+            convertedBuffer = axion::graphics::MediaBufferConverter::convertToRgba8888(bufferToUse);
+            if (convertedBuffer) {
+                bufferToUse = convertedBuffer;
+            }
+        }
+    }
+
     // Do not lookup the buffer in the cache for protected contexts
-    if (!isProtected()) {
+    if (!isProtected() && !isMedia) {
         if (const auto& it = mTextureCache.find(buffer->getId()); it != mTextureCache.end()) {
             return it->second;
         }
@@ -622,10 +650,15 @@ std::shared_ptr<AutoBackendTexture::LocalRef> SkiaRenderEngine::getOrCreateBacke
         }
     }
     std::unique_ptr<SkiaBackendTexture> backendTexture =
-            getActiveContext()->makeBackendTexture(buffer->toAHardwareBuffer(), isOutputBuffer);
+            getActiveContext()->makeBackendTexture(bufferToUse, isOutputBuffer);
+    if (convertedBuffer) {
+        AHardwareBuffer_release(convertedBuffer);
+    }
     auto texture = std::make_shared<AutoBackendTexture::LocalRef>(std::move(backendTexture),
                                                                   mTextureCleanupMgr);
-    storeTransientBackendTexture(buffer, isOutputBuffer, texture);
+    if (!isMedia) {
+        storeTransientBackendTexture(buffer, isOutputBuffer, texture);
+    }
     return texture;
 }
 

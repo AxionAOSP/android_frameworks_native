@@ -34,6 +34,7 @@
 #include <android-base/macros.h>
 #include <log/log_main.h>
 #include <memory>
+#include <utility>
 
 namespace android::renderengine::skia {
 
@@ -58,8 +59,14 @@ std::unique_ptr<SkiaGpuContext> SkiaGpuContext::MakeGL_Ganesh(
 std::unique_ptr<SkiaGpuContext> SkiaGpuContext::MakeVulkan_Ganesh(
         const skgpu::VulkanBackendContext& vkBackendContext,
         GrContextOptions::PersistentCache& skSLCacheMonitor) {
-    return std::make_unique<GaneshGpuContext>(
-            GrDirectContexts::MakeVulkan(vkBackendContext, ganeshOptions(skSLCacheMonitor)));
+    auto grContext =
+            GrDirectContexts::MakeVulkan(vkBackendContext, ganeshOptions(skSLCacheMonitor));
+    LOG_ALWAYS_FATAL_IF(!grContext && vkBackendContext.fProtectedContext == GrProtected::kYes,
+                        "GrDirectContext creation failed");
+    if (!grContext) {
+        return nullptr;
+    }
+    return std::make_unique<GaneshGpuContext>(std::move(grContext));
 }
 
 GaneshGpuContext::GaneshGpuContext(sk_sp<GrDirectContext> grContext) : mGrContext(grContext) {

@@ -58,6 +58,7 @@ cc_defaults {
         "libsurfaceflinger_common",
         "libsurfaceflingerflags",
         "libgui_window_info_static",
+        "ax_graphics",
     ],
     local_include_dirs: ["include"],
     export_include_dirs: ["include"],
@@ -142,6 +143,7 @@ cc_defaults {
         "libEGL_blobCache",
         "libgui_window_info_static",
         "libskia_renderengine",
+        "ax_graphics",
     ],
     shared_libs: [
         "libbinder",
