@@ -79,6 +79,7 @@ void OutputLayerCompositionState::dump(std::string& out) const {
     dumpVal(out, "override acquire fence", overrideInfo.acquireFence.get());
     dumpVal(out, "override display frame", overrideInfo.displayFrame);
     dumpVal(out, "override dataspace", toString(overrideInfo.dataspace), overrideInfo.dataspace);
+    dumpVal(out, "override ax content hint", renderengine::toString(overrideInfo.axContentHint));
     dumpVal(out, "override display space", to_string(overrideInfo.displaySpace));
     std::string damageRegionString;
     overrideInfo.damageRegion.dump(damageRegionString, "");

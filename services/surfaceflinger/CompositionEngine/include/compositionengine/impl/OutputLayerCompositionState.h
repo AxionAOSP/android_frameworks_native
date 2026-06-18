@@ -19,6 +19,7 @@
 #include <compositionengine/ProjectionSpace.h>
 #include <compositionengine/impl/HwcBufferCache.h>
 #include <gui/DisplayLuts.h>
+#include <renderengine/AxRenderEngineTypes.h>
 #include <renderengine/ExternalTexture.h>
 #include <ui/FloatRect.h>
 #include <ui/GraphicTypes.h>
@@ -27,6 +28,7 @@
 #include <ui/Region.h>
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -114,6 +116,8 @@ struct OutputLayerCompositionState {
         sp<Fence> acquireFence = nullptr;
         Rect displayFrame = {};
         ui::Dataspace dataspace{ui::Dataspace::UNKNOWN};
+        renderengine::AxBufferContentHint axContentHint{
+                renderengine::AxBufferContentHint::Unknown};
         ProjectionSpace displaySpace;
         Region damageRegion = Region::INVALID_REGION;
         Region visibleRegion;

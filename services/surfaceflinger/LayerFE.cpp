@@ -21,6 +21,7 @@
 #include <common/trace.h>
 #include <gui/GLConsumer.h>
 #include <math/vec3.h>
+#include <renderengine/AxRenderEngineMedia.h>
 #include <system/window.h>
 
 #include "LayerFE.h"
@@ -274,6 +275,11 @@ void LayerFE::prepareBufferStateClientComposition(
         }
     }
     layerSettings.source.buffer.maxLuminanceNits = maxLuminance;
+    layerSettings.source.buffer.axContentHint =
+            renderengine::AxRenderEngineMedia::getContentHint(
+                    layerSettings.source.buffer, layerSettings.sourceDataspace,
+                    static_cast<bool>(mSnapshot->pictureProfileHandle),
+                    mSnapshot->currentHdrSdrRatio, mSnapshot->desiredHdrSdrRatio);
     layerSettings.frameNumber = mSnapshot->frameNumber;
     layerSettings.bufferId = mSnapshot->externalTexture->getId();
     layerSettings.sequence = mSnapshot->sequence;

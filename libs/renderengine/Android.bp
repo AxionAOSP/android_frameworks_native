@@ -73,6 +73,7 @@ cc_library_static {
 filegroup {
     name: "librenderengine_sources",
     srcs: [
+        "AxRenderEngineMedia.cpp",
         "ExternalTexture.cpp",
         "RenderEngine.cpp",
     ],

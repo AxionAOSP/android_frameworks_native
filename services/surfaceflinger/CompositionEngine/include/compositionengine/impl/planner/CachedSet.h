@@ -20,9 +20,11 @@
 #include <compositionengine/ProjectionSpace.h>
 #include <compositionengine/impl/planner/LayerState.h>
 #include <compositionengine/impl/planner/TexturePool.h>
+#include <renderengine/AxRenderEngineTypes.h>
 #include <renderengine/RenderEngine.h>
 
 #include <chrono>
+#include <memory>
 
 namespace android {
 
@@ -77,6 +79,7 @@ public:
     const sp<Fence>& getDrawFence() const { return mDrawFence; }
     const ProjectionSpace& getOutputSpace() const { return mOutputSpace; }
     ui::Dataspace getOutputDataspace() const { return mOutputDataspace; }
+    renderengine::AxBufferContentHint getAxContentHint() const { return mAxContentHint; }
     const std::vector<Layer>& getConstituentLayers() const { return mLayers; }
 
     NonBufferHash getNonBufferHash() const;
@@ -98,6 +101,7 @@ public:
     void append(const CachedSet& other) {
         mTexture.reset();
         mOutputDataspace = ui::Dataspace::UNKNOWN;
+        mAxContentHint = renderengine::AxBufferContentHint::Unknown;
         mDrawFence = nullptr;
         mBlurLayer = nullptr;
         mHolePunchLayer = nullptr;
@@ -170,6 +174,7 @@ private:
     sp<Fence> mDrawFence;
     ProjectionSpace mOutputSpace;
     ui::Dataspace mOutputDataspace;
+    renderengine::AxBufferContentHint mAxContentHint = renderengine::AxBufferContentHint::Unknown;
     ui::Transform::RotationFlags mOrientation = ui::Transform::ROT_0;
 
     static const bool sDebugHighlighLayers;

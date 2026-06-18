@@ -87,6 +87,7 @@ namespace renderengine {
 
 class ExternalTexture;
 class Image;
+class MediaFallbackRenderEngine;
 class Mesh;
 class Texture;
 struct RenderEngineCreationArgs;
@@ -324,6 +325,7 @@ protected:
     virtual bool canSkipPostRenderCleanup() const = 0;
 
     friend class impl::ExternalTexture;
+    friend class MediaFallbackRenderEngine;
     friend class threaded::RenderEngineThreaded;
     friend class RenderEngineTest_cleanupPostRender_cleansUpOnce_Test;
     const Threaded mThreaded;

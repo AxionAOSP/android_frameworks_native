@@ -1094,6 +1094,7 @@ std::optional<LayerFE::LayerSettings> OutputLayer::getOverrideCompositionSetting
                     // need to undo the rotation in the texture transform
                     .textureTransform =
                             ui::Transform(transform.inverse().getOrientation(), 1, 1).asMatrix4(),
+                    .axContentHint = getState().overrideInfo.axContentHint,
             }};
     settings.sourceDataspace = getState().overrideInfo.dataspace;
     settings.alpha = 1.0f;

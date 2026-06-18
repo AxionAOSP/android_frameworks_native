@@ -23,10 +23,13 @@
 #include <compositionengine/impl/OutputCompositionState.h>
 #include <compositionengine/impl/planner/CachedSet.h>
 #include <math/HashCombine.h>
+#include <renderengine/AxRenderEngineMedia.h>
 #include <renderengine/DisplaySettings.h>
 #include <renderengine/RenderEngine.h>
 #include <ui/DebugUtils.h>
 #include <ui/HdrRenderTypeUtils.h>
+
+#include <algorithm>
 
 namespace android::compositionengine::impl::planner {
 
@@ -265,6 +268,14 @@ void CachedSet::render(renderengine::RenderEngine& renderEngine, TexturePool& te
         layerSettings.emplace_back(highlight);
     }
 
+    const auto axContentHint =
+            std::any_of(layerSettings.begin(), layerSettings.end(),
+                        [](const renderengine::LayerSettings& layer) {
+                            return renderengine::AxRenderEngineMedia::hasVisualMediaContent(layer);
+                        })
+            ? renderengine::AxBufferContentHint::VisualMedia
+            : renderengine::AxBufferContentHint::Unknown;
+
     auto texture = texturePool.borrowTexture();
     LOG_ALWAYS_FATAL_IF(texture->get()->getBuffer()->initCheck() != OK);
 
@@ -289,10 +300,12 @@ void CachedSet::render(renderengine::RenderEngine& renderEngine, TexturePool& te
         mTexture->setReadyFence(mDrawFence);
         mOutputSpace.setOrientation(outputState.framebufferSpace.getOrientation());
         mOutputDataspace = outputDataspace;
+        mAxContentHint = axContentHint;
         mOrientation = orientation;
         mSkipCount = 0;
     } else {
         mTexture.reset();
+        mAxContentHint = renderengine::AxBufferContentHint::Unknown;
     }
 }
 
