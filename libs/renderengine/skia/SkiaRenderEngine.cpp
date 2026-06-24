@@ -70,6 +70,7 @@
 #include <deque>
 #include <memory>
 #include <numeric>
+#include <utility>
 
 #include "Cache.h"
 #include "ColorSpaces.h"
@@ -360,6 +361,8 @@ void SkiaRenderEngine::finishRenderingAndAbandonContexts() {
     std::lock_guard<std::mutex> lock(mRenderingMutex);
 
     mBlurCache.clear();
+    mTransientTextureCache.clear();
+    mTextureCacheOutputBuffers.clear();
 
     if (mBlurFilter) {
         delete mBlurFilter;
@@ -499,18 +502,25 @@ void SkiaRenderEngine::mapExternalTextureBuffer(const sp<GraphicBuffer>& buffer,
     auto& cache = mTextureCache;
 
     std::lock_guard<std::mutex> lock(mRenderingMutex);
-    mGraphicBufferExternalRefs[buffer->getId()]++;
+    const auto id = buffer->getId();
+    mGraphicBufferExternalRefs[id]++;
 
-    if (const auto& iter = cache.find(buffer->getId()); iter == cache.end()) {
+    if (const auto& iter = cache.find(id); iter == cache.end()) {
+        bool outputBuffer = isRenderable;
         if (FlagManager::getInstance().renderable_buffer_usage()) {
             isRenderable = buffer->getUsage() & GRALLOC_USAGE_HW_RENDER;
+            outputBuffer = isRenderable;
         }
-        std::unique_ptr<SkiaBackendTexture> backendTexture =
-                context->makeBackendTexture(buffer->toAHardwareBuffer(), isRenderable);
-        auto imageTextureRef =
-                std::make_shared<AutoBackendTexture::LocalRef>(std::move(backendTexture),
-                                                               mTextureCleanupMgr);
-        cache.insert({buffer->getId(), imageTextureRef});
+        auto imageTextureRef = takeTransientBackendTexture(buffer, outputBuffer);
+        if (!imageTextureRef) {
+            std::unique_ptr<SkiaBackendTexture> backendTexture =
+                    context->makeBackendTexture(buffer->toAHardwareBuffer(), isRenderable);
+            imageTextureRef =
+                    std::make_shared<AutoBackendTexture::LocalRef>(std::move(backendTexture),
+                                                                   mTextureCleanupMgr);
+        }
+        cache.insert({id, imageTextureRef});
+        mTextureCacheOutputBuffers[id] = outputBuffer;
     }
 }
 
@@ -540,7 +550,13 @@ void SkiaRenderEngine::unmapExternalTextureBuffer(sp<GraphicBuffer>&& buffer) {
         useProtectedContext(buffer->getUsage() & GRALLOC_USAGE_PROTECTED);
 
         if (iter->second == 0) {
+            const auto cacheIter = mTextureCache.find(buffer->getId());
+            const auto outputIter = mTextureCacheOutputBuffers.find(buffer->getId());
+            if (cacheIter != mTextureCache.end() && outputIter != mTextureCacheOutputBuffers.end()) {
+                storeTransientBackendTexture(buffer, outputIter->second, cacheIter->second);
+            }
             mTextureCache.erase(buffer->getId());
+            mTextureCacheOutputBuffers.erase(buffer->getId());
             mGraphicBufferExternalRefs.erase(buffer->getId());
         }
 
@@ -552,6 +568,47 @@ void SkiaRenderEngine::unmapExternalTextureBuffer(sp<GraphicBuffer>&& buffer) {
     }
 }
 
+std::shared_ptr<AutoBackendTexture::LocalRef> SkiaRenderEngine::takeTransientBackendTexture(
+        const sp<GraphicBuffer>& buffer, bool isOutputBuffer) {
+    if (isProtected()) {
+        return nullptr;
+    }
+
+    const auto id = buffer->getId();
+    for (auto it = mTransientTextureCache.begin(); it != mTransientTextureCache.end(); ++it) {
+        if (it->id != id || it->isOutputBuffer != isOutputBuffer) {
+            continue;
+        }
+
+        auto texture = it->texture;
+        mTransientTextureCache.erase(it);
+        return texture;
+    }
+    return nullptr;
+}
+
+void SkiaRenderEngine::storeTransientBackendTexture(
+        const sp<GraphicBuffer>& buffer, bool isOutputBuffer,
+        const std::shared_ptr<AutoBackendTexture::LocalRef>& texture) {
+    if (isProtected() || (buffer->getUsage() & GRALLOC_USAGE_PROTECTED)) {
+        return;
+    }
+
+    const auto id = buffer->getId();
+    for (auto it = mTransientTextureCache.begin(); it != mTransientTextureCache.end();) {
+        if (it->id == id && it->isOutputBuffer == isOutputBuffer) {
+            it = mTransientTextureCache.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    mTransientTextureCache.push_front({id, buffer, isOutputBuffer, texture});
+    while (mTransientTextureCache.size() > kTransientBackendTextureCacheMaxEntries) {
+        mTransientTextureCache.pop_back();
+    }
+}
+
 std::shared_ptr<AutoBackendTexture::LocalRef> SkiaRenderEngine::getOrCreateBackendTexture(
         const sp<GraphicBuffer>& buffer, bool isOutputBuffer) {
     // Do not lookup the buffer in the cache for protected contexts
@@ -559,11 +616,17 @@ std::shared_ptr<AutoBackendTexture::LocalRef> SkiaRenderEngine::getOrCreateBacke
         if (const auto& it = mTextureCache.find(buffer->getId()); it != mTextureCache.end()) {
             return it->second;
         }
+        if (auto texture = takeTransientBackendTexture(buffer, isOutputBuffer)) {
+            storeTransientBackendTexture(buffer, isOutputBuffer, texture);
+            return texture;
+        }
     }
     std::unique_ptr<SkiaBackendTexture> backendTexture =
             getActiveContext()->makeBackendTexture(buffer->toAHardwareBuffer(), isOutputBuffer);
-    return std::make_shared<AutoBackendTexture::LocalRef>(std::move(backendTexture),
-                                                          mTextureCleanupMgr);
+    auto texture = std::make_shared<AutoBackendTexture::LocalRef>(std::move(backendTexture),
+                                                                  mTextureCleanupMgr);
+    storeTransientBackendTexture(buffer, isOutputBuffer, texture);
+    return texture;
 }
 
 bool SkiaRenderEngine::canSkipPostRenderCleanup() const {
@@ -1611,6 +1674,7 @@ void SkiaRenderEngine::onActiveDisplaySizeChanged(ui::Size size) {
     {
         std::lock_guard<std::mutex> lock(mRenderingMutex);
         mBlurCache.clear();
+        mTransientTextureCache.clear();
     }
 
     // This cache multiplier was selected based on review of cache sizes relative
