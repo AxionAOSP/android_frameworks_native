@@ -45,6 +45,9 @@ namespace {
 static const std::string kCacheAvailableProp = "service.sf.cache_dir_available";
 static const char* kEglShaderCachePath = "/data/misc/surfaceflinger/egl_shaders";
 static const char* kSkiaShaderCachePath = "/data/misc/surfaceflinger/skia_shaders";
+static constexpr const char* kPrimeDisplayBlurProp = "persist.sys.sf.gb_warm";
+static constexpr int kPrimeDisplayBlurWidth = 1080;
+static constexpr int kPrimeDisplayBlurHeight = 2400;
 
 // clang-format off
 // Any non-identity matrix will do.
@@ -303,6 +306,36 @@ static void drawBlurLayers(SkiaRenderEngine* renderengine, const DisplaySettings
         layer.backgroundBlurRadius = radius;
         auto layers = std::vector<LayerSettings>{layer};
         renderengine->drawLayers(display, layers, dstTexture, base::unique_fd());
+    }
+}
+
+static void primeDisplayBlur(SkiaRenderEngine* renderengine) {
+    const Rect displayRect(0, 0, kPrimeDisplayBlurWidth, kPrimeDisplayBlurHeight);
+    DisplaySettings display{
+            .physicalDisplay = displayRect,
+            .clip = displayRect,
+            .maxLuminance = 500,
+            .outputDataspace = kDestDataSpace,
+    };
+    const int64_t usage = GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_TEXTURE;
+    sp<GraphicBuffer> dstBuffer =
+            sp<GraphicBuffer>::make(displayRect.width(), displayRect.height(),
+                                    PIXEL_FORMAT_RGBA_8888, 1, usage,
+                                    "primeShaderCache_display_blur");
+    if (dstBuffer->initCheck() != 0) {
+        return;
+    }
+    const auto dstTexture =
+            std::make_shared<impl::ExternalTexture>(dstBuffer, *renderengine,
+                                                    impl::ExternalTexture::Usage::WRITEABLE);
+    drawBlurLayers(renderengine, display, dstTexture);
+    LayerSettings layer{
+            .source = PixelSource{.solidColor = half3(0.f, 0.f, 0.f)},
+    };
+    auto layers = std::vector<LayerSettings>{layer};
+    {
+        SFTRACE_NAME("finalDisplayBlurLayer");
+        renderengine->drawLayers(display, layers, dstTexture, base::unique_fd()).get();
     }
 }
 
@@ -1058,6 +1091,11 @@ void Cache::primeShaderCache(SkiaRenderEngine* renderengine, PrimeCacheConfig co
         const float compileTimeMs = static_cast<float>(timeAfter - timeBefore) / 1.0E6;
         const int shadersCompiled = renderengine->reportShadersCompiled() - previousCount;
         ALOGD("Shader cache generated %d shaders in %f ms\n", shadersCompiled, compileTimeMs);
+    }
+    if (renderengine->supportsBackgroundBlur()
+            && base::GetBoolProperty(kPrimeDisplayBlurProp, false)) {
+        SFTRACE_NAME("primeDisplayBlur");
+        primeDisplayBlur(renderengine);
     }
 }
 
