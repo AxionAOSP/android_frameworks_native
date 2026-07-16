@@ -238,6 +238,7 @@ public:
     // Round the requested refresh rate to match a divisor of the pacesetter
     // display's refresh rate. Only supported for virtual displays.
     void adjustRefreshRate(Fps pacesetterDisplayRefreshRate);
+    void setRequestedRefreshRate(Fps requestedRefreshRate, Fps pacesetterDisplayRefreshRate);
 
     // release HWC resources (if any) for removable displays
     void disconnect();
@@ -274,7 +275,7 @@ private:
     // Requested refresh rate in fps, supported only for virtual displays.
     // when this value is non zero, SurfaceFlinger will try to drop frames
     // for virtual displays to match this requested refresh rate.
-    const Fps mRequestedRefreshRate;
+    Fps mRequestedRefreshRate;
 
     // Adjusted refresh rate, rounded to match a divisor of the pacesetter
     // display's refresh rate. Only supported for virtual displays.

@@ -505,6 +505,7 @@ void DisplayDevice::animateHdrSdrRatioOverlay() {
 }
 
 void DisplayDevice::adjustRefreshRate(Fps pacesetterDisplayRefreshRate) {
+    mAdjustedRefreshRate = 0_Hz;
     using fps_approx_ops::operator<=;
     if (mRequestedRefreshRate <= 0_Hz) {
         return;
@@ -524,6 +525,12 @@ void DisplayDevice::adjustRefreshRate(Fps pacesetterDisplayRefreshRate) {
     }
 
     mAdjustedRefreshRate = pacesetterDisplayRefreshRate / divisor;
+}
+
+void DisplayDevice::setRequestedRefreshRate(Fps requestedRefreshRate,
+                                            Fps pacesetterDisplayRefreshRate) {
+    mRequestedRefreshRate = requestedRefreshRate;
+    adjustRefreshRate(pacesetterDisplayRefreshRate);
 }
 
 std::atomic<int32_t> DisplayDeviceState::sNextSequenceId(1);

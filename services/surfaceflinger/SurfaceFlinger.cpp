@@ -1043,6 +1043,13 @@ void SurfaceFlinger::init() FTL_FAKE_GUARD(kMainThreadContext) {
                             if (const auto display = getDisplayDeviceLocked(displayId)) {
                                 display->updateRefreshRateOverlayRate(vsyncRate, renderRate);
                             }
+                            if (displayId == mScheduler->getPacesetterDisplayId()) {
+                                for (const auto& [_, display] : mDisplays) {
+                                    if (display->isVirtual()) {
+                                        display->adjustRefreshRate(renderRate);
+                                    }
+                                }
+                            }
                         }));
                     }));
 
@@ -8838,8 +8845,13 @@ status_t SurfaceFlinger::setDesiredDisplayModeSpecs(const sp<IBinder>& displayTo
                   displayToken.get());
             return NAME_NOT_FOUND;
         } else if (display->isVirtual()) {
-            ALOGW("Attempt to set desired display modes for virtual display");
-            return INVALID_OPERATION;
+            const FpsRange renderRange = translate(specs.primaryRanges).render;
+            const bool hasFixedRenderRate =
+                    renderRange.min.isValid() && isApproxEqual(renderRange.min, renderRange.max);
+            const Fps requestedRefreshRate = hasFixedRenderRate ? renderRange.min : 0_Hz;
+            display->setRequestedRefreshRate(requestedRefreshRate,
+                                             mScheduler->getPacesetterRefreshRate());
+            return NO_ERROR;
         } else {
             using Policy = scheduler::RefreshRateSelector::DisplayManagerPolicy;
             const Policy policy{DisplayModeId(specs.defaultMode), translate(specs.primaryRanges),
@@ -9114,6 +9126,12 @@ void SurfaceFlinger::onNewPacesetterDisplay() {
     getRenderEngine().onActiveDisplaySizeChanged(findLargestFramebufferSizeLocked());
     const auto pacesetter = getPacesetterDisplayLocked();
     applyRefreshRateSelectorPolicy(pacesetter->getPhysicalId(), pacesetter->refreshRateSelector());
+    const Fps renderRate = mScheduler->getPacesetterRefreshRate();
+    for (const auto& [_, display] : mDisplays) {
+        if (display->isVirtual()) {
+            display->adjustRefreshRate(renderRate);
+        }
+    }
 }
 
 status_t SurfaceFlinger::addWindowInfosListener(const sp<IWindowInfosListener>& windowInfosListener,
