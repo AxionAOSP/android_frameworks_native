@@ -69,12 +69,20 @@ bool hasProtectedBuffer(std::initializer_list<const ExternalTexture*> buffers) {
                        });
 }
 
+RenderEngineCreationArgs createMediaFallbackArgs(const RenderEngineCreationArgs& args);
+
 std::unique_ptr<RenderEngine> createRenderEngineForArgs(const RenderEngineCreationArgs& args) {
     if (args.skiaBackend == RenderEngine::SkiaBackend::Graphite) {
         return android::renderengine::skia::GraphiteVkRenderEngine::create(args);
     } else { // GANESH
         if (args.graphicsApi == RenderEngine::GraphicsApi::Vk) {
-            return android::renderengine::skia::GaneshVkRenderEngine::create(args);
+            auto engine = android::renderengine::skia::GaneshVkRenderEngine::create(args);
+            if (engine) {
+                return engine;
+            }
+            ALOGE("Falling back to OpenGL RenderEngine after Vulkan context creation failed");
+            return android::renderengine::skia::SkiaGLRenderEngine::create(
+                    createMediaFallbackArgs(args));
         } else { // GL
             return android::renderengine::skia::SkiaGLRenderEngine::create(args);
         }

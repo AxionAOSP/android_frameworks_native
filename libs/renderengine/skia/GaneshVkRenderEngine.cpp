@@ -35,15 +35,15 @@ std::unique_ptr<GaneshVkRenderEngine> GaneshVkRenderEngine::create(
     std::unique_ptr<GaneshVkRenderEngine> engine(new GaneshVkRenderEngine(args));
     engine->ensureContextsCreated();
 
-    if (getVulkanInterface(false).isInitialized()) {
-        ALOGD("GaneshVkRenderEngine::%s: successfully initialized GaneshVkRenderEngine", __func__);
-        return engine;
-    } else {
+    if (!engine->mContext) {
         ALOGE("GaneshVkRenderEngine::%s: could not create GaneshVkRenderEngine. "
               "Likely insufficient Vulkan support",
               __func__);
         return {};
     }
+
+    ALOGD("GaneshVkRenderEngine::%s: successfully initialized GaneshVkRenderEngine", __func__);
+    return engine;
 }
 
 // Ganesh-specific function signature for fFinishedProc callback.
