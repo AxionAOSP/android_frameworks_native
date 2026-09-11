@@ -76,6 +76,9 @@ public:
     virtual HalResult<void> sendCompositionData(
             const std::vector<hal::CompositionData>& data) override;
     virtual HalResult<void> sendCompositionUpdate(const hal::CompositionUpdate& update) override;
+    virtual HalResult<void> setNodeCeiling(const std::string& nodePath, int64_t maxCeiling,
+                                           int64_t minFloor) override;
+    virtual HalResult<void> clearNodeCeiling(const std::string& nodePath) override;
 
 private:
     std::mutex mConnectedHalMutex;
