@@ -123,6 +123,17 @@ HalResult<void> PowerHalController::setMode(aidl::android::hardware::power::Mode
     return processHalResult(handle->setMode(mode, enabled), "setMode");
 }
 
+HalResult<void> PowerHalController::setNodeCeiling(const std::string& nodePath, int64_t maxCeiling,
+                                                   int64_t minFloor) {
+    std::shared_ptr<HalWrapper> handle = initHal();
+    return processHalResult(handle->setNodeCeiling(nodePath, maxCeiling, minFloor), "setNodeCeiling");
+}
+
+HalResult<void> PowerHalController::clearNodeCeiling(const std::string& nodePath) {
+    std::shared_ptr<HalWrapper> handle = initHal();
+    return processHalResult(handle->clearNodeCeiling(nodePath), "clearNodeCeiling");
+}
+
 // Aidl-only methods
 
 HalResult<std::shared_ptr<PowerHintSessionWrapper>> PowerHalController::createHintSession(
