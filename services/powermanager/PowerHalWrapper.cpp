@@ -310,6 +310,14 @@ HalResult<void> AidlHalWrapper::sendCompositionUpdate(const hal::CompositionUpda
     return HalResult<void>::fromStatus(mHandle->sendCompositionUpdate(update));
 }
 
+HalResult<void> AidlHalWrapper::setNodeCeiling(const std::string& nodePath, int64_t maxCeiling, int64_t minFloor) {
+    return HalResult<void>::fromStatus(mHandle->setNodeCeiling(nodePath, maxCeiling, minFloor));
+}
+
+HalResult<void> AidlHalWrapper::clearNodeCeiling(const std::string& nodePath) {
+    return HalResult<void>::fromStatus(mHandle->clearNodeCeiling(nodePath));
+}
+
 const char* AidlHalWrapper::getUnsupportedMessage() {
     return "Power HAL doesn't support it";
 }

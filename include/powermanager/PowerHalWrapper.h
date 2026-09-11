@@ -67,6 +67,13 @@ public:
     virtual HalResult<aidl::android::hardware::power::SupportInfo> getSupportInfo() = 0;
     virtual HalResult<void> sendCompositionData(const std::vector<hal::CompositionData>& data) = 0;
     virtual HalResult<void> sendCompositionUpdate(const hal::CompositionUpdate& update) = 0;
+    virtual HalResult<void> setNodeCeiling(const std::string& /*nodePath*/, int64_t /*maxCeiling*/,
+                                           int64_t /*minFloor*/) {
+        return HalResult<void>::unsupported();
+    }
+    virtual HalResult<void> clearNodeCeiling(const std::string& /*nodePath*/) {
+        return HalResult<void>::unsupported();
+    }
 };
 
 // Empty Power HAL wrapper that ignores all api calls.
@@ -171,6 +178,9 @@ public:
     HalResult<aidl::android::hardware::power::SupportInfo> getSupportInfo() override;
     HalResult<void> sendCompositionData(const std::vector<hal::CompositionData>& data) override;
     HalResult<void> sendCompositionUpdate(const hal::CompositionUpdate& update) override;
+    HalResult<void> setNodeCeiling(const std::string& nodePath, int64_t maxCeiling,
+                                   int64_t minFloor) override;
+    HalResult<void> clearNodeCeiling(const std::string& nodePath) override;
 
 protected:
     const char* getUnsupportedMessage() override;
