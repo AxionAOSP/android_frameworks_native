@@ -54,15 +54,14 @@ constexpr const char* kGlassInputScaleProperty = "persist.sys.sf.gb_scale";
 
 float readGlassInputScale() {
     const std::string value = base::GetProperty(kGlassInputScaleProperty, "");
-    if (value.empty()) {
-        return BlurFilter::kInputScale;
+    if (!value.empty()) {
+        char* end = nullptr;
+        const float scale = std::strtof(value.c_str(), &end);
+        if (end != value.c_str() && std::isfinite(scale)) {
+            return std::clamp(scale, 0.05f, 0.25f);
+        }
     }
-    char* end = nullptr;
-    const float scale = std::strtof(value.c_str(), &end);
-    if (end == value.c_str() || !std::isfinite(scale)) {
-        return BlurFilter::kInputScale;
-    }
-    return std::clamp(scale, 0.10f, 0.25f);
+    return 0.20f;
 }
 
 }
@@ -70,8 +69,6 @@ float readGlassInputScale() {
 const SkString kEffectSource_GlassBlurFilter_UpSampleEffect(R"(
     uniform shader child;
     uniform float in_blurOffset;
-    uniform float in_crossFade;
-    uniform float in_weightedCrossFade;
 
     const float2 STEP_0 = float2( 1.0, 0.0);
     const float2 STEP_1 = float2( 0.623489802,  0.781831482);
@@ -82,23 +79,23 @@ const SkString kEffectSource_GlassBlurFilter_UpSampleEffect(R"(
     const float2 STEP_6 = float2( 0.623489802, -0.781831482);
 
     half4 main(float2 xy) {
+        float step = in_blurOffset;
         half3 c = child.eval(xy).rgb;
-        c += child.eval(xy + STEP_0 * in_blurOffset).rgb;
-        c += child.eval(xy + STEP_1 * in_blurOffset).rgb;
-        c += child.eval(xy + STEP_2 * in_blurOffset).rgb;
-        c += child.eval(xy + STEP_3 * in_blurOffset).rgb;
-        c += child.eval(xy + STEP_4 * in_blurOffset).rgb;
-        c += child.eval(xy + STEP_5 * in_blurOffset).rgb;
-        c += child.eval(xy + STEP_6 * in_blurOffset).rgb;
-        return half4(c * in_weightedCrossFade, in_crossFade);
+        c += child.eval(xy + STEP_0 * step).rgb;
+        c += child.eval(xy + STEP_1 * step).rgb;
+        c += child.eval(xy + STEP_2 * step).rgb;
+        c += child.eval(xy + STEP_3 * step).rgb;
+        c += child.eval(xy + STEP_4 * step).rgb;
+        c += child.eval(xy + STEP_5 * step).rgb;
+        c += child.eval(xy + STEP_6 * step).rgb;
+
+        return half4(c * 0.125, 1.0);
     }
 )");
 
 const SkString kEffectSource_GlassBlurFilter_FinalUpSampleEffect(R"(
     uniform shader child;
     uniform float in_blurOffset;
-    uniform float in_crossFade;
-    uniform float in_weightedCrossFade;
 
     const float2 STEP_0 = float2( 0.900968868,  0.433883739);
     const float2 STEP_1 = float2( 0.222520934,  0.974927912);
@@ -109,177 +106,232 @@ const SkString kEffectSource_GlassBlurFilter_FinalUpSampleEffect(R"(
     const float2 STEP_6 = float2( 0.900968868, -0.433883739);
 
     half4 main(float2 xy) {
+        float step = in_blurOffset;
         half3 c = child.eval(xy).rgb;
-        c += child.eval(xy + STEP_0 * in_blurOffset).rgb;
-        c += child.eval(xy + STEP_1 * in_blurOffset).rgb;
-        c += child.eval(xy + STEP_2 * in_blurOffset).rgb;
-        c += child.eval(xy + STEP_3 * in_blurOffset).rgb;
-        c += child.eval(xy + STEP_4 * in_blurOffset).rgb;
-        c += child.eval(xy + STEP_5 * in_blurOffset).rgb;
-        c += child.eval(xy + STEP_6 * in_blurOffset).rgb;
-        return half4(c * in_weightedCrossFade, in_crossFade);
+        c += child.eval(xy + STEP_0 * step).rgb;
+        c += child.eval(xy + STEP_1 * step).rgb;
+        c += child.eval(xy + STEP_2 * step).rgb;
+        c += child.eval(xy + STEP_3 * step).rgb;
+        c += child.eval(xy + STEP_4 * step).rgb;
+        c += child.eval(xy + STEP_5 * step).rgb;
+        c += child.eval(xy + STEP_6 * step).rgb;
+
+        return half4(c * 0.125, 1.0);
     }
 )");
 
 GlassBlurFilter::GlassBlurFilter(RuntimeEffectManager& effectManager)
-      : BlurFilter(effectManager, 0.0f, readGlassInputScale()) {
+      : BlurFilter(effectManager, 0.0f, BlurFilter::kInputScale) {
     mQuarterResDownSampleBlurEffect =
             effectManager.mKnownEffects[kKawaseBlurDualFilterV2_QuarterResDownSampleBlurEffect];
     mHalfResDownSampleBlurEffect =
             effectManager.mKnownEffects[kKawaseBlurDualFilterV2_HalfResDownSampleBlurEffect];
     mUpSampleBlurEffect = effectManager.mKnownEffects[kGlassBlurFilter_UpSampleEffect];
     mRotatedUpSampleBlurEffect = effectManager.mKnownEffects[kGlassBlurFilter_FinalUpSampleEffect];
+    mInputScale = readGlassInputScale();
+    mRadiusToScaledRadius = mInputScale * 0.57735f;
 }
 
 uint32_t GlassBlurFilter::effectiveRadius(uint32_t radius) const {
     if (radius < 8) {
         return radius;
     }
-    return (radius + 3u) & ~3u;
+    return (radius + 15u) & ~15u;
 }
 
 sk_sp<SkSurface> GlassBlurFilter::obtainSurface(SkiaGpuContext* context, const SkImageInfo& info,
                                                 int index) const {
-    const int target = mNextSurface[index];
-    mNextSurface[index] = (target + 1) % kSurfaceRingSize;
-    SurfaceSlot& slot = mSurfaces[index][target];
-    if (slot.surface && slot.context == context && slot.info == info) {
-        return slot.surface;
+    if (index < 0 || index >= kMaxSurfaces || !context) {
+        return nullptr;
     }
+
+    if (index == 0) {
+        ++mFrameCounter;
+        SurfaceSlot* candidate = nullptr;
+        for (size_t i = 0; i < mLevel0Count; ++i) {
+            auto& slot = mLevel0Pool[i];
+            if (slot.surface && slot.context == context && slot.info == info) {
+                if (slot.lastUsedFrame == mFrameCounter - 1) {
+                    candidate = &slot;
+                    continue;
+                }
+                slot.lastUsedFrame = mFrameCounter;
+                if (i > 1) {
+                    std::swap(mLevel0Pool[0], mLevel0Pool[i]);
+                    return mLevel0Pool[0].surface;
+                }
+                return slot.surface;
+            }
+        }
+        if (candidate && mLevel0Count >= kLevel0PoolCapacity) {
+            candidate->lastUsedFrame = mFrameCounter;
+            return candidate->surface;
+        }
+
+        ATRACE_NAME("GlassBlurSurfaceCreate");
+        sk_sp<SkSurface> surface = context->createRenderTarget(info);
+        if (!surface) {
+            return nullptr;
+        }
+
+        if (mLevel0Count < kLevel0PoolCapacity) {
+            mLevel0Pool[mLevel0Count] = {info, context, surface, mFrameCounter};
+            ++mLevel0Count;
+        } else {
+            size_t lruIndex = 0;
+            uint64_t oldest = mLevel0Pool[0].lastUsedFrame;
+            for (size_t i = 1; i < mLevel0Count; ++i) {
+                if (mLevel0Pool[i].lastUsedFrame < oldest) {
+                    oldest = mLevel0Pool[i].lastUsedFrame;
+                    lruIndex = i;
+                }
+            }
+            mLevel0Pool[lruIndex] = {info, context, surface, mFrameCounter};
+        }
+        return surface;
+    }
+
+    const size_t interIndex = static_cast<size_t>(index - 1);
+    auto& pool = mIntermediatePools[interIndex];
+    size_t& count = mIntermediateCounts[interIndex];
+
+    for (size_t i = 0; i < count; ++i) {
+        if (pool[i].surface && pool[i].context == context && pool[i].info == info) {
+            pool[i].lastUsedFrame = mFrameCounter;
+            if (i > 0) {
+                std::swap(pool[0], pool[i]);
+                return pool[0].surface;
+            }
+            return pool[i].surface;
+        }
+    }
+
     ATRACE_NAME("GlassBlurSurfaceCreate");
     sk_sp<SkSurface> surface = context->createRenderTarget(info);
-    LOG_ALWAYS_FATAL_IF(!surface, "%s: Failed to create surface for blurring!", __func__);
-    slot.context = context;
-    slot.info = info;
-    slot.surface = surface;
+    if (!surface) {
+        return nullptr;
+    }
+
+    if (count < kIntermediatePoolCapacity) {
+        pool[count] = {info, context, surface, mFrameCounter};
+        ++count;
+    } else {
+        size_t lruIndex = 0;
+        uint64_t oldest = pool[0].lastUsedFrame;
+        for (size_t i = 1; i < count; ++i) {
+            if (pool[i].lastUsedFrame < oldest) {
+                oldest = pool[i].lastUsedFrame;
+                lruIndex = i;
+            }
+        }
+        pool[lruIndex] = {info, context, surface, mFrameCounter};
+    }
     return surface;
 }
 
+static const SkSamplingOptions kLinearSampling(SkFilterMode::kLinear, SkMipmapMode::kNone);
+
 void GlassBlurFilter::blurInto(const sk_sp<SkSurface>& drawSurface,
-                                const sk_sp<SkImage>& readImage, const float radius,
-                                const float alpha,
+                                const sk_sp<SkImage>& readImage,
+                                const sk_sp<const SkData>& uniforms,
                                 const sk_sp<SkRuntimeEffect>& blurEffect) const {
     SkMatrix blurMatrix =
             SkMatrix::Scale(static_cast<float>(drawSurface->width()) / readImage->width(),
                             static_cast<float>(drawSurface->height()) / readImage->height());
     blurInto(drawSurface,
              readImage->makeShader(SkTileMode::kClamp, SkTileMode::kClamp,
-                                   SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kNone),
-                                   blurMatrix),
-             radius, alpha, blurEffect);
+                                   kLinearSampling, blurMatrix),
+             uniforms, blurEffect);
 }
 
-void GlassBlurFilter::blurInto(const sk_sp<SkSurface>& drawSurface, sk_sp<SkShader> input,
-                               const float radius, const float alpha,
-                               const sk_sp<SkRuntimeEffect>& blurEffect) const {
+void GlassBlurFilter::blurInto(const sk_sp<SkSurface>& drawSurface,
+                                sk_sp<SkShader> input,
+                                const sk_sp<const SkData>& uniforms,
+                                const sk_sp<SkRuntimeEffect>& blurEffect) const {
+    sk_sp<SkShader> children[1] = {std::move(input)};
+    sk_sp<SkShader> shader = blurEffect->makeShader(uniforms, children, 1);
     SkPaint paint;
-    const bool isUpsample =
-            blurEffect == mUpSampleBlurEffect || blurEffect == mRotatedUpSampleBlurEffect;
-    if (isUpsample) {
-        if (radius == 0) {
-            paint.setShader(std::move(input));
-            paint.setAlphaf(alpha);
-        } else {
-            SkRuntimeShaderBuilder blurBuilder(blurEffect);
-            blurBuilder.child("child") = std::move(input);
-            blurBuilder.uniform("in_crossFade") = alpha;
-            blurBuilder.uniform("in_weightedCrossFade") = alpha * 0.125f;
-            blurBuilder.uniform("in_blurOffset") = radius;
-            paint.setShader(blurBuilder.makeShader(nullptr));
-        }
-    } else {
-        SkRuntimeShaderBuilder blurBuilder(blurEffect);
-        blurBuilder.child("child") = std::move(input);
-        paint.setShader(blurBuilder.makeShader(nullptr));
-    }
-    paint.setBlendMode(alpha == 1.0f ? SkBlendMode::kSrc : SkBlendMode::kSrcOver);
-    drawSurface->getCanvas()->drawPaint(paint);
+    paint.setShader(std::move(shader));
+    paint.setBlendMode(SkBlendMode::kSrc);
+    SkCanvas* canvas = drawSurface->getCanvas();
+    canvas->discard();
+    canvas->drawPaint(paint);
 }
 
 sk_sp<SkImage> GlassBlurFilter::generate(SkiaGpuContext* context, const uint32_t blurRadius,
                                           const sk_sp<SkImage> input,
                                           const SkRect& blurRect) const {
-    const float radius = blurRadius * 0.57735f;
-    const float scale = inputScale();
-    const float inverseScale = inverseInputScale();
+    if (!context || !input) {
+        return nullptr;
+    }
+    const uint32_t effRadius = effectiveRadius(blurRadius);
+    const float scaledRadius = effRadius * mRadiusToScaledRadius;
 
-    const float scaledRadius = radius * scale;
-    const float baseDepth = std::min(2.0f, scaledRadius / 3.0f);
-    constexpr float kTargetBlurOffset = 7.0f;
-    constexpr float kRadiusVarianceRatio = 0.5f;
-    const float requiredStepWeight = scaledRadius * scaledRadius /
-            (kTargetBlurOffset * kTargetBlurOffset + kRadiusVarianceRatio);
-    float requiredDepth = 0.0f;
-    float accumulatedStepWeight = 0.0f;
-    float passStepWeight = 1.0f;
-    while (requiredDepth < kMaxSurfaces - 1 &&
-           accumulatedStepWeight + passStepWeight < requiredStepWeight) {
-        accumulatedStepWeight += passStepWeight;
-        passStepWeight *= 4.0f;
-        requiredDepth += 1.0f;
+    int filterPasses = 3;
+    if (scaledRadius < 3.5f) {
+        filterPasses = 1;
+    } else if (scaledRadius < 8.0f) {
+        filterPasses = 2;
     }
-    if (requiredDepth < kMaxSurfaces - 1 && requiredStepWeight > accumulatedStepWeight) {
-        requiredDepth += sqrtf((requiredStepWeight - accumulatedStepWeight) / passStepWeight);
-    }
-    const float filterDepth = std::min(kMaxSurfaces - 1.0f, std::max(baseDepth, requiredDepth));
-    const int filterPasses = std::min(kMaxSurfaces - 1, static_cast<int>(ceil(filterDepth)));
 
     SkIRect targetBlurRect;
     blurRect.roundOut(&targetBlurRect);
 
-    auto makeSurface = [&](float scale, int index) -> sk_sp<SkSurface> {
-        const int newW = std::max(1,
-                                  static_cast<int>(ceilf(
-                                          static_cast<float>(targetBlurRect.width()) / scale)));
-        const int newH = std::max(1,
-                                  static_cast<int>(ceilf(
-                                          static_cast<float>(targetBlurRect.height()) / scale)));
+    const int rawW0 = std::max(1, (targetBlurRect.width() + 4) / 5);
+    const int rawH0 = std::max(1, (targetBlurRect.height() + 4) / 5);
+    const int w0 = std::max(32, (rawW0 + 31) & ~31);
+    const int h0 = std::max(32, (rawH0 + 63) & ~63);
+
+    auto makeSurface = [&](int index) -> sk_sp<SkSurface> {
+        const int newW = std::max(1, w0 >> index);
+        const int newH = std::max(1, h0 >> index);
         return obtainSurface(context, input->imageInfo().makeWH(newW, newH), index);
     };
 
     std::array<sk_sp<SkSurface>, kMaxSurfaces> surfaces = {};
     for (int i = 0; i <= filterPasses; i++) {
-        surfaces[i] = makeSurface(static_cast<float>(1 << i) * inverseScale, i);
+        surfaces[i] = makeSurface(i);
+        if (!surfaces[i]) {
+            return input;
+        }
     }
-
-    float sumSquaredR = 0;
-    float sumSquaredStep = 0;
-    for (int i = 0; i < filterPasses; i++) {
-        const float alpha = std::min(1.0f, filterDepth - i);
-        const float passScale = static_cast<float>(1 << i);
-        const float radiusContribution = passScale * 0.5f * alpha;
-        const float stepContribution = passScale * alpha;
-        sumSquaredR += radiusContribution * radiusContribution * 2.0f;
-        sumSquaredStep += stepContribution * stepContribution;
-    }
-    const float step = sqrtf(std::max(0.0f, scaledRadius * scaledRadius - sumSquaredR) /
-                             (sumSquaredStep == 0 ? 1.0f : sumSquaredStep));
 
     {
-        SkMatrix blurMatrix = SkMatrix::Translate(-blurRect.fLeft, -blurRect.fTop);
-        blurMatrix.postScale(static_cast<float>(surfaces[0]->width()) / blurRect.width(),
-                             static_cast<float>(surfaces[0]->height()) / blurRect.height());
+        SkMatrix blurMatrix;
+        const float sx = static_cast<float>(surfaces[0]->width()) / blurRect.width();
+        const float sy = static_cast<float>(surfaces[0]->height()) / blurRect.height();
+        if (blurRect.fLeft == 0.0f && blurRect.fTop == 0.0f) {
+            blurMatrix.setScale(sx, sy);
+        } else {
+            blurMatrix.setTranslate(-blurRect.fLeft, -blurRect.fTop);
+            blurMatrix.postScale(sx, sy);
+        }
         const auto sourceShader =
                 input->makeShader(SkTileMode::kClamp, SkTileMode::kClamp,
-                                  SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kNone),
-                                  blurMatrix);
-        blurInto(surfaces[0], std::move(sourceShader), 0, 1.0f,
-                 mQuarterResDownSampleBlurEffect);
+                                  kLinearSampling, blurMatrix);
+        blurInto(surfaces[0], sourceShader, nullptr, mQuarterResDownSampleBlurEffect);
     }
 
     for (int i = 0; i < filterPasses; i++) {
-        blurInto(surfaces[i + 1], surfaces[i]->makeTemporaryImage(), 0, 1.0f,
+        blurInto(surfaces[i + 1], surfaces[i]->makeTemporaryImage(), nullptr,
                  mHalfResDownSampleBlurEffect);
     }
+
+    const float step = std::max(2.0f, scaledRadius * 0.40f);
+    if (step != mLastStep || !mLastUniforms) {
+        mLastStep = step;
+        mLastUniforms = SkData::MakeWithCopy(&step, sizeof(step));
+    }
+    const auto& upsampleUniforms = mLastUniforms;
 
     for (int i = filterPasses - 1; i >= 0; i--) {
         const sk_sp<SkRuntimeEffect>& upEffect =
                 (i % 2 == 0) ? mRotatedUpSampleBlurEffect : mUpSampleBlurEffect;
-        blurInto(surfaces[i], surfaces[i + 1]->makeTemporaryImage(), step,
-                 std::min(1.0f, filterDepth - i), upEffect);
+        blurInto(surfaces[i], surfaces[i + 1]->makeTemporaryImage(), upsampleUniforms, upEffect);
     }
 
-    return surfaces[0]->makeImageSnapshot();
+    sk_sp<SkImage> result = surfaces[0]->makeTemporaryImage();
+    return result ? result : input;
 }
 
 } // namespace skia
