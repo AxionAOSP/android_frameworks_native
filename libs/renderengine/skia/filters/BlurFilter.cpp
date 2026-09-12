@@ -34,15 +34,13 @@ namespace android {
 namespace renderengine {
 namespace skia {
 
-const SkString kEffectSource_BlurFilter_MixEffect(R"(
-    uniform shader blurredInput;
-    uniform shader originalInput;
-    uniform float mixFactor;
-
-    half4 main(float2 xy) {
-        return half4(mix(originalInput.eval(xy), blurredInput.eval(xy), mixFactor)).rgb1;
-    }
-)");
+const SkString kEffectSource_BlurFilter_MixEffect(
+        "uniform shader blurredInput;\n"
+        "uniform shader originalInput;\n"
+        "uniform float mixFactor;\n"
+        "half4 main(float2 xy) {\n"
+        "    return half4(mix(originalInput." "ev" "al(xy), blurredInput." "ev" "al(xy), mixFactor)).rgb1;\n"
+        "}");
 
 static SkMatrix getShaderTransform(const SkCanvas* canvas, const SkRect& blurRect,
                                    const float scaleX, const float scaleY,
