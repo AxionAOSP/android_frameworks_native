@@ -839,6 +839,8 @@ private:
                              FrameHint = FrameHint::kActive,
                              std::vector<gui::EarlyWakeupInfo> earlyWakeupInfo = {});
 
+    void bindSFThread(bool enable, uint32_t cpuset);
+
     // Clears and returns the masked bits.
     uint32_t clearTransactionFlags(uint32_t mask);
 
