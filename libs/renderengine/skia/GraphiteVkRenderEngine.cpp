@@ -42,16 +42,16 @@ std::unique_ptr<GraphiteVkRenderEngine> GraphiteVkRenderEngine::create(
     std::unique_ptr<GraphiteVkRenderEngine> engine(new GraphiteVkRenderEngine(args));
     engine->ensureContextsCreated();
 
-    if (getVulkanInterface(false).isInitialized()) {
-        ALOGD("GraphiteVkRenderEngine::%s: successfully initialized GraphiteVkRenderEngine",
-              __func__);
-        return engine;
-    } else {
+    if (!engine->mContext || !getVulkanInterface(false).isInitialized()) {
         ALOGE("GraphiteVkRenderEngine::%s: could not create GraphiteVkRenderEngine. "
               "Likely insufficient Vulkan support",
               __func__);
         return {};
     }
+
+    ALOGD("GraphiteVkRenderEngine::%s: successfully initialized GraphiteVkRenderEngine",
+          __func__);
+    return engine;
 }
 
 GraphiteVkRenderEngine::~GraphiteVkRenderEngine() {

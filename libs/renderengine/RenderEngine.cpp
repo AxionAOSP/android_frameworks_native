@@ -40,16 +40,31 @@ std::unique_ptr<RenderEngine> RenderEngine::create(const RenderEngineCreationArg
           ftl::enum_string(args.graphicsApi).c_str(), ftl::enum_string(args.skiaBackend).c_str());
 
     if (args.skiaBackend == SkiaBackend::Graphite) {
-        createInstanceFactory = [args]() {
-            return android::renderengine::skia::GraphiteVkRenderEngine::create(args);
+        createInstanceFactory = [args]() -> std::unique_ptr<RenderEngine> {
+            auto engine = android::renderengine::skia::GraphiteVkRenderEngine::create(args);
+            if (!engine) {
+                ALOGE("Failed to create GraphiteVkRenderEngine, falling back to SkiaGLRenderEngine");
+                RenderEngineCreationArgs glArgs = args;
+                glArgs.graphicsApi = GraphicsApi::GL;
+                glArgs.skiaBackend = SkiaBackend::Ganesh;
+                return android::renderengine::skia::SkiaGLRenderEngine::create(glArgs);
+            }
+            return engine;
         };
     } else { // GANESH
         if (args.graphicsApi == GraphicsApi::Vk) {
-            createInstanceFactory = [args]() {
-                return android::renderengine::skia::GaneshVkRenderEngine::create(args);
+            createInstanceFactory = [args]() -> std::unique_ptr<RenderEngine> {
+                auto engine = android::renderengine::skia::GaneshVkRenderEngine::create(args);
+                if (!engine) {
+                    ALOGE("Failed to create GaneshVkRenderEngine, falling back to SkiaGLRenderEngine");
+                    RenderEngineCreationArgs glArgs = args;
+                    glArgs.graphicsApi = GraphicsApi::GL;
+                    return android::renderengine::skia::SkiaGLRenderEngine::create(glArgs);
+                }
+                return engine;
             };
         } else { // GL
-            createInstanceFactory = [args]() {
+            createInstanceFactory = [args]() -> std::unique_ptr<RenderEngine> {
                 return android::renderengine::skia::SkiaGLRenderEngine::create(args);
             };
         }
