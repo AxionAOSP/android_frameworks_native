@@ -41,7 +41,7 @@ namespace android::renderengine::skia {
 namespace {
 static GrContextOptions ganeshOptions(GrContextOptions::PersistentCache& skSLCacheMonitor) {
     GrContextOptions options;
-    options.fDisableDriverCorrectnessWorkarounds = true;
+    options.fDisableDriverCorrectnessWorkarounds = false;
     options.fDisableDistanceFieldPaths = true;
     options.fReducedShaderVariations = true;
     options.fPersistentCache = &skSLCacheMonitor;

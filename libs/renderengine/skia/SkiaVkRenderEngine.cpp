@@ -48,9 +48,10 @@ static skia::VulkanInterface sProtectedContentVulkanInterface;
 static void sSetupVulkanInterface() {
     if (!sVulkanInterface.isInitialized()) {
         sVulkanInterface.init(false /* no protected content */);
-        // We will have to abort if non-protected VkDevice creation fails (then nothing works).
-        LOG_ALWAYS_FATAL_IF(!sVulkanInterface.isInitialized(),
-                            "Could not initialize Vulkan RenderEngine!");
+        if (!sVulkanInterface.isInitialized()) {
+            ALOGE("Could not initialize Vulkan RenderEngine!");
+            return;
+        }
     }
     if (!sProtectedContentVulkanInterface.isInitialized()) {
         sProtectedContentVulkanInterface.init(true /* protected content */);
@@ -119,17 +120,17 @@ SkiaRenderEngine::Contexts SkiaVkRenderEngine::createContexts() {
     sSetupVulkanInterface();
     // More work would need to be done in order to have multiple RenderEngine instances. In
     // particular, they would not be able to share the same VulkanInterface(s).
-    LOG_ALWAYS_FATAL_IF(!sVulkanInterface.takeOwnership(),
-                        "SkiaVkRenderEngine couldn't take ownership of existing unprotected "
-                        "VulkanInterface! Only one SkiaVkRenderEngine instance may exist at a "
-                        "time.");
+    if (!sVulkanInterface.isInitialized() || !sVulkanInterface.takeOwnership()) {
+        ALOGE("SkiaVkRenderEngine couldn't initialize or take ownership of unprotected "
+              "VulkanInterface!");
+        return {};
+    }
     if (sProtectedContentVulkanInterface.isInitialized()) {
         // takeOwnership fails on an uninitialized VulkanInterface, but protected content support is
         // optional.
-        LOG_ALWAYS_FATAL_IF(!sProtectedContentVulkanInterface.takeOwnership(),
-                            "SkiaVkRenderEngine couldn't take ownership of existing protected "
-                            "VulkanInterface! Only one SkiaVkRenderEngine instance may exist at a "
-                            "time.");
+        if (!sProtectedContentVulkanInterface.takeOwnership()) {
+            ALOGW("SkiaVkRenderEngine couldn't take ownership of protected VulkanInterface!");
+        }
     }
 
     SkiaRenderEngine::Contexts contexts;

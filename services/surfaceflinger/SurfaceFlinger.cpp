@@ -886,6 +886,9 @@ void chooseRenderEngineType(renderengine::RenderEngineCreationArgs::Builder& bui
     char prop[PROPERTY_VALUE_MAX];
     property_get(PROPERTY_DEBUG_RENDERENGINE_BACKEND, prop, "");
 
+    const auto kVulkan = renderengine::RenderEngine::GraphicsApi::Vk;
+    const bool canSupportVk = renderengine::RenderEngine::canSupport(kVulkan);
+
     // TODO: b/293371537 - Once GraphiteVk is deemed relatively stable, log a warning that
     // PROPERTY_DEBUG_RENDERENGINE_BACKEND is deprecated
     if (strcmp(prop, "skiagl") == 0) {
@@ -895,18 +898,30 @@ void chooseRenderEngineType(renderengine::RenderEngineCreationArgs::Builder& bui
         builder.setThreaded(renderengine::RenderEngine::Threaded::Yes)
                 .setGraphicsApi(renderengine::RenderEngine::GraphicsApi::GL);
     } else if (strcmp(prop, "skiavk") == 0) {
-        builder.setThreaded(renderengine::RenderEngine::Threaded::No)
-                .setGraphicsApi(renderengine::RenderEngine::GraphicsApi::Vk);
+        if (!canSupportVk) {
+            ALOGW("Vulkan requested via %s, but not supported on this device; falling back to GL",
+                  PROPERTY_DEBUG_RENDERENGINE_BACKEND);
+            builder.setThreaded(renderengine::RenderEngine::Threaded::No)
+                    .setGraphicsApi(renderengine::RenderEngine::GraphicsApi::GL);
+        } else {
+            builder.setThreaded(renderengine::RenderEngine::Threaded::No)
+                    .setGraphicsApi(kVulkan);
+        }
     } else if (strcmp(prop, "skiavkthreaded") == 0) {
-        builder.setThreaded(renderengine::RenderEngine::Threaded::Yes)
-                .setGraphicsApi(renderengine::RenderEngine::GraphicsApi::Vk);
+        if (!canSupportVk) {
+            ALOGW("Vulkan requested via %s, but not supported on this device; falling back to GL",
+                  PROPERTY_DEBUG_RENDERENGINE_BACKEND);
+            builder.setThreaded(renderengine::RenderEngine::Threaded::Yes)
+                    .setGraphicsApi(renderengine::RenderEngine::GraphicsApi::GL);
+        } else {
+            builder.setThreaded(renderengine::RenderEngine::Threaded::Yes)
+                    .setGraphicsApi(kVulkan);
+        }
     } else {
-        const auto kVulkan = renderengine::RenderEngine::GraphicsApi::Vk;
         const bool useGraphite =
-                shouldUseGraphiteIfSupported() && renderengine::RenderEngine::canSupport(kVulkan);
+                shouldUseGraphiteIfSupported() && canSupportVk;
         const bool useVulkan = useGraphite ||
-                (FlagManager::getInstance().vulkan_renderengine() &&
-                 renderengine::RenderEngine::canSupport(kVulkan));
+                (FlagManager::getInstance().vulkan_renderengine() && canSupportVk);
 
         builder.setSkiaBackend(useGraphite ? renderengine::RenderEngine::SkiaBackend::Graphite
                                            : renderengine::RenderEngine::SkiaBackend::Ganesh);
