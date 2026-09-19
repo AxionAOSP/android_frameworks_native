@@ -31,6 +31,7 @@
 #include "GaneshBackendTexture.h"
 #include "skia/compat/SkiaBackendTexture.h"
 
+#include <ax_graphics/MediaBufferConverter.h>
 #include <android-base/macros.h>
 #include <log/log_main.h>
 #include <memory>
@@ -43,6 +44,9 @@ static GrContextOptions ganeshOptions(GrContextOptions::PersistentCache& skSLCac
     GrContextOptions options;
     options.fDisableDriverCorrectnessWorkarounds = false;
     options.fDisableDistanceFieldPaths = true;
+    if (axion::graphics::MediaBufferConverter::isConversionEnabled()) {
+        options.fDisableTessellationPathRenderer = true;
+    }
     options.fReducedShaderVariations = true;
     options.fPersistentCache = &skSLCacheMonitor;
     return options;
@@ -61,8 +65,6 @@ std::unique_ptr<SkiaGpuContext> SkiaGpuContext::MakeVulkan_Ganesh(
         GrContextOptions::PersistentCache& skSLCacheMonitor) {
     auto grContext =
             GrDirectContexts::MakeVulkan(vkBackendContext, ganeshOptions(skSLCacheMonitor));
-    LOG_ALWAYS_FATAL_IF(!grContext && vkBackendContext.fProtectedContext == GrProtected::kYes,
-                        "GrDirectContext creation failed");
     if (!grContext) {
         return nullptr;
     }

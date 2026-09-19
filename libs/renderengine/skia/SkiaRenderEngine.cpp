@@ -505,11 +505,12 @@ void SkiaRenderEngine::mapExternalTextureBuffer(const sp<GraphicBuffer>& buffer,
         return;
     }
     if (axion::graphics::MediaBufferConverter::isConversionEnabled()) {
-        AHardwareBuffer_Desc desc;
-        AHardwareBuffer_describe(buffer->toAHardwareBuffer(), &desc);
         ui::Dataspace dataspace = ui::Dataspace::UNKNOWN;
         buffer->getDataspace(&dataspace);
-        if (axion::graphics::MediaBufferConverter::isMediaOrHdrBuffer(desc, static_cast<int32_t>(dataspace))) {
+        if (axion::graphics::MediaBufferConverter::isMediaOrHdrBuffer(
+                    static_cast<uint32_t>(buffer->getPixelFormat()),
+                    buffer->getUsage(),
+                    static_cast<int32_t>(dataspace))) {
             return;
         }
     }
@@ -577,30 +578,31 @@ void SkiaRenderEngine::unmapExternalTextureBuffer(sp<GraphicBuffer>&& buffer) {
 
 std::shared_ptr<AutoBackendTexture::LocalRef> SkiaRenderEngine::getOrCreateBackendTexture(
         const sp<GraphicBuffer>& buffer, bool isOutputBuffer) {
+    if (!isProtected()) {
+        if (const auto& it = mTextureCache.find(buffer->getId()); it != mTextureCache.end()) {
+            return it->second;
+        }
+    }
+
     AHardwareBuffer* bufferToUse = buffer->toAHardwareBuffer();
     AHardwareBuffer* convertedBuffer = nullptr;
-    bool isMedia = false;
-    if (!isOutputBuffer &&
+    const bool isProtectedBuffer = (buffer->getUsage() & GRALLOC_USAGE_PROTECTED) != 0;
+    if (!isOutputBuffer && !isProtected() && !isProtectedBuffer &&
         axion::graphics::MediaBufferConverter::isConversionEnabled()) {
-        AHardwareBuffer_Desc desc;
-        AHardwareBuffer_describe(bufferToUse, &desc);
         ui::Dataspace dataspace = ui::Dataspace::UNKNOWN;
         buffer->getDataspace(&dataspace);
-        if (axion::graphics::MediaBufferConverter::isMediaOrHdrBuffer(desc, static_cast<int32_t>(dataspace))) {
-            isMedia = true;
-            convertedBuffer = axion::graphics::MediaBufferConverter::convertToRgba8888(bufferToUse);
+        if (axion::graphics::MediaBufferConverter::isMediaOrHdrBuffer(
+                    static_cast<uint32_t>(buffer->getPixelFormat()),
+                    buffer->getUsage(),
+                    static_cast<int32_t>(dataspace))) {
+            convertedBuffer = axion::graphics::MediaBufferConverter::convertToRgba8888(
+                    bufferToUse, nullptr, static_cast<int32_t>(dataspace));
             if (convertedBuffer) {
                 bufferToUse = convertedBuffer;
             }
         }
     }
 
-    // Do not lookup the buffer in the cache for protected contexts
-    if (!isProtected() && !isMedia) {
-        if (const auto& it = mTextureCache.find(buffer->getId()); it != mTextureCache.end()) {
-            return it->second;
-        }
-    }
     std::unique_ptr<SkiaBackendTexture> backendTexture =
             getActiveContext()->makeBackendTexture(bufferToUse, isOutputBuffer);
     if (convertedBuffer) {
@@ -677,6 +679,18 @@ sk_sp<SkShader> SkiaRenderEngine::createRuntimeEffectShader(
         auto inputDataspace = usingLocalTonemap || (graphicBuffer && parameters.layer.luts)
                 ? parameters.outputDataSpace
                 : parameters.layer.sourceDataspace;
+        if (graphicBuffer && !isProtected() &&
+            !(graphicBuffer->getUsage() & GRALLOC_USAGE_PROTECTED) &&
+            axion::graphics::MediaBufferConverter::isConversionEnabled()) {
+            ui::Dataspace bufferDataspace = ui::Dataspace::UNKNOWN;
+            graphicBuffer->getDataspace(&bufferDataspace);
+            if (axion::graphics::MediaBufferConverter::isMediaOrHdrBuffer(
+                        static_cast<uint32_t>(graphicBuffer->getPixelFormat()),
+                        graphicBuffer->getUsage(),
+                        static_cast<int32_t>(bufferDataspace))) {
+                inputDataspace = parameters.outputDataSpace;
+            }
+        }
         auto effect =
                 shaders::LinearEffect{.inputDataspace = inputDataspace,
                                       .outputDataspace = parameters.outputDataSpace,
@@ -1291,7 +1305,24 @@ void SkiaRenderEngine::drawLayersInternal(
             continue;
         }
 
-        const ui::Dataspace layerDataspace = layer.sourceDataspace;
+        ui::Dataspace layerDataspace = layer.sourceDataspace;
+        if (layer.source.buffer.buffer &&
+            axion::graphics::MediaBufferConverter::isConversionEnabled()) {
+            const auto graphicBuffer = layer.source.buffer.buffer->getBuffer();
+            if (graphicBuffer && !isProtected() &&
+                !(graphicBuffer->getUsage() & GRALLOC_USAGE_PROTECTED)) {
+                ui::Dataspace bufferDataspace = ui::Dataspace::UNKNOWN;
+                graphicBuffer->getDataspace(&bufferDataspace);
+                if (axion::graphics::MediaBufferConverter::isMediaOrHdrBuffer(
+                            static_cast<uint32_t>(graphicBuffer->getPixelFormat()),
+                            graphicBuffer->getUsage(),
+                            static_cast<int32_t>(bufferDataspace))) {
+                    layerDataspace = display.outputDataspace != ui::Dataspace::UNKNOWN
+                            ? display.outputDataspace
+                            : ui::Dataspace::V0_SRGB;
+                }
+            }
+        }
 
         SkPaint paint;
         if (layer.source.buffer.buffer) {

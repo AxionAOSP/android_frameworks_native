@@ -85,6 +85,8 @@ protected:
 
     // TODO: b/300533018 - refactor this to be non-static
     static VulkanInterface& getVulkanInterface(bool protectedContext);
+
+    bool mEnableProtectedContext = false;
 };
 
 } // namespace skia
