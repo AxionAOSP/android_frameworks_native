@@ -29,6 +29,7 @@
 #include <include/gpu/ganesh/vk/GrVkDirectContext.h>
 #include <include/gpu/ganesh/vk/GrVkTypes.h>
 
+#include <android-base/properties.h>
 #include <android-base/stringprintf.h>
 #include <common/trace.h>
 #include <sync/sync.h>
@@ -45,7 +46,7 @@ namespace renderengine {
 static skia::VulkanInterface sVulkanInterface;
 static skia::VulkanInterface sProtectedContentVulkanInterface;
 
-static void sSetupVulkanInterface() {
+static void sSetupVulkanInterface(bool enableProtectedContent) {
     if (!sVulkanInterface.isInitialized()) {
         sVulkanInterface.init(false /* no protected content */);
         if (!sVulkanInterface.isInitialized()) {
@@ -53,7 +54,7 @@ static void sSetupVulkanInterface() {
             return;
         }
     }
-    if (!sProtectedContentVulkanInterface.isInitialized()) {
+    if (enableProtectedContent && !sProtectedContentVulkanInterface.isInitialized()) {
         sProtectedContentVulkanInterface.init(true /* protected content */);
         if (!sProtectedContentVulkanInterface.isInitialized()) {
             ALOGE("Could not initialize protected content Vulkan RenderEngine.");
@@ -108,7 +109,9 @@ using base::StringAppendF;
 
 SkiaVkRenderEngine::SkiaVkRenderEngine(const RenderEngineCreationArgs& args)
       : SkiaRenderEngine(args.threaded, static_cast<PixelFormat>(args.pixelFormat),
-                         args.blurAlgorithm) {}
+                         args.blurAlgorithm),
+        mEnableProtectedContext(args.enableProtectedContext &&
+                                !base::GetBoolProperty("persist.sys.vk_use_ogl_for_media", false)) {}
 
 SkiaVkRenderEngine::~SkiaVkRenderEngine() {
     finishRenderingAndAbandonContexts();
@@ -117,7 +120,7 @@ SkiaVkRenderEngine::~SkiaVkRenderEngine() {
 }
 
 SkiaRenderEngine::Contexts SkiaVkRenderEngine::createContexts() {
-    sSetupVulkanInterface();
+    sSetupVulkanInterface(mEnableProtectedContext);
     // More work would need to be done in order to have multiple RenderEngine instances. In
     // particular, they would not be able to share the same VulkanInterface(s).
     if (!sVulkanInterface.isInitialized() || !sVulkanInterface.takeOwnership()) {
@@ -125,7 +128,7 @@ SkiaRenderEngine::Contexts SkiaVkRenderEngine::createContexts() {
               "VulkanInterface!");
         return {};
     }
-    if (sProtectedContentVulkanInterface.isInitialized()) {
+    if (mEnableProtectedContext && sProtectedContentVulkanInterface.isInitialized()) {
         // takeOwnership fails on an uninitialized VulkanInterface, but protected content support is
         // optional.
         if (!sProtectedContentVulkanInterface.takeOwnership()) {
@@ -135,7 +138,7 @@ SkiaRenderEngine::Contexts SkiaVkRenderEngine::createContexts() {
 
     SkiaRenderEngine::Contexts contexts;
     contexts.first = createContext(sVulkanInterface);
-    if (contexts.first && supportsProtectedContentImpl()) {
+    if (contexts.first && mEnableProtectedContext && sProtectedContentVulkanInterface.isInitialized()) {
         contexts.second = createContext(sProtectedContentVulkanInterface);
     }
 
@@ -143,10 +146,13 @@ SkiaRenderEngine::Contexts SkiaVkRenderEngine::createContexts() {
 }
 
 bool SkiaVkRenderEngine::supportsProtectedContentImpl() const {
-    return sProtectedContentVulkanInterface.isInitialized();
+    return mEnableProtectedContext && hasProtectedContext();
 }
 
-bool SkiaVkRenderEngine::useProtectedContextImpl(GrProtected) {
+bool SkiaVkRenderEngine::useProtectedContextImpl(GrProtected isProtected) {
+    if (isProtected == GrProtected::kYes) {
+        return mEnableProtectedContext && hasProtectedContext();
+    }
     return true;
 }
 

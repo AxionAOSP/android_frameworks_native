@@ -113,6 +113,7 @@ protected:
     SkiaGpuContext* getActiveContext();
 
     bool isProtected() const { return mInProtectedContext; }
+    bool hasProtectedContext() const { return mProtectedContext != nullptr; }
 
     void rdocCaptureNextFrame() override { mRenderDocCaptureNextFrame = true; }
 

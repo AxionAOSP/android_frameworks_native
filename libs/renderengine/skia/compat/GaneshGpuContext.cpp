@@ -61,8 +61,6 @@ std::unique_ptr<SkiaGpuContext> SkiaGpuContext::MakeVulkan_Ganesh(
         GrContextOptions::PersistentCache& skSLCacheMonitor) {
     auto grContext =
             GrDirectContexts::MakeVulkan(vkBackendContext, ganeshOptions(skSLCacheMonitor));
-    LOG_ALWAYS_FATAL_IF(!grContext && vkBackendContext.fProtectedContext == GrProtected::kYes,
-                        "GrDirectContext creation failed");
     if (!grContext) {
         return nullptr;
     }
