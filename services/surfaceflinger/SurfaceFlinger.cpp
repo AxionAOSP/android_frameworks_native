@@ -5147,6 +5147,7 @@ void SurfaceFlinger::setTransactionFlags(uint32_t mask, TransactionSchedule sche
 }
 
 void SurfaceFlinger::bindSFThread(bool enable, uint32_t cpuset) {
+    pid_t sfPid = getpid();
     pid_t sfTid = gettid();
     std::optional<pid_t> reTid = getRenderEngine().getRenderEngineTid();
 
@@ -5159,12 +5160,24 @@ void SurfaceFlinger::bindSFThread(bool enable, uint32_t cpuset) {
         }
     }
 
-    if (sfTid > 0) {
+    if (sfPid > 0) {
+        sched_setaffinity(sfPid, sizeof(cpu_set_t), &mask);
+    }
+    if (sfTid > 0 && sfTid != sfPid) {
         sched_setaffinity(sfTid, sizeof(cpu_set_t), &mask);
     }
     if (reTid.has_value() && *reTid > 0) {
         sched_setaffinity(*reTid, sizeof(cpu_set_t), &mask);
     }
+}
+
+void SurfaceFlinger::boostVsyncPhase(bool enable, int32_t phaseMode) {
+    if (!mScheduler) return;
+    const auto schedule = enable ? ((phaseMode == 2) ? scheduler::TransactionSchedule::EarlyStart
+                                                      : scheduler::TransactionSchedule::EarlyEnd)
+                                  : scheduler::TransactionSchedule::Late;
+    mScheduler->modulateVsync({}, &scheduler::VsyncModulator::setTransactionSchedule, schedule,
+                              std::vector<gui::EarlyWakeupInfo>{});
 }
 
 TransactionHandler::TransactionReadiness SurfaceFlinger::transactionReadyTimelineCheck(
@@ -7153,7 +7166,7 @@ status_t SurfaceFlinger::CheckTransactCodeCredentials(uint32_t code) {
     }
     // Numbers from 1000 to 1047 are currently used for backdoors. The code
     // in onTransact verifies that the user is root, and has access to use SF.
-    if ((code >= 1000 && code <= 1047) || code == 2007) {
+    if ((code >= 1000 && code <= 1047) || code == 2007 || code == 2008) {
         ALOGV("Accessing SurfaceFlinger through backdoor code: %u", code);
         return OK;
     }
@@ -7455,6 +7468,15 @@ status_t SurfaceFlinger::onTransact(uint32_t code, const Parcel& data, Parcel* r
                     cpuset = static_cast<uint32_t>(data.readInt32());
                 }
                 bindSFThread(enable != 0, cpuset);
+                return NO_ERROR;
+            }
+            case 2008: {
+                int32_t enable = data.readInt32();
+                int32_t phaseMode = 1;
+                if (data.dataAvail() > 0) {
+                    phaseMode = data.readInt32();
+                }
+                boostVsyncPhase(enable != 0, phaseMode);
                 return NO_ERROR;
             }
             // Turn on/off frame rate flexibility mode. When turned on it overrides the display
