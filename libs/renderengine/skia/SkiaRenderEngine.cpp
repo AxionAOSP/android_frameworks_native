@@ -255,6 +255,32 @@ static inline bool layerHasBlur(const android::renderengine::LayerSettings& laye
     return false;
 }
 
+static inline bool isLayerFullyTransparent(const android::renderengine::LayerSettings& layer) {
+    return layer.alpha <= 0.001f;
+}
+
+static inline bool isBlurCoveringMostOfScreen(const android::renderengine::LayerSettings& layer,
+                                             const android::renderengine::DisplaySettings& display) {
+    if (layer.backgroundBlurRadius <= 0) {
+        return false;
+    }
+    const float layerW = layer.geometry.boundaries.getWidth();
+    const float clipW = static_cast<float>(display.clip.getWidth());
+    if (clipW <= 0.0f) {
+        return false;
+    }
+    return layerW >= clipW * 0.7f;
+}
+
+static inline float computeOccludedBlurScale(float higherBlur) {
+    if (higherBlur <= 0.0f) {
+        return 1.0f;
+    }
+    constexpr float kMaxOcclusionRadius = 120.0f;
+    const float t = std::clamp(higherBlur / kMaxOcclusionRadius, 0.0f, 1.0f);
+    return 1.0f - (t * t * (3.0f - 2.0f * t));
+}
+
 static inline SkColor getSkColor(const android::vec4& color) {
     return SkColorSetARGB(color.a * 255, color.r * 255, color.g * 255, color.b * 255);
 }
@@ -1010,7 +1036,54 @@ void SkiaRenderEngine::drawLayersInternal(
         const auto [bounds, roundRectClip] =
                 getBoundsAndClip(layer.geometry.boundaries, layer.geometry.roundedCornersCrop,
                                  layer.geometry.roundedCornersRadii);
-        if (mBlurFilter && layerHasBlur(layer, ctModifiesAlpha)) {
+
+        bool shouldProcessBlur = (mBlurFilter && layerHasBlur(layer, ctModifiesAlpha));
+        float blurScale = 1.0f;
+        float regionBlurScale = 1.0f;
+        uint32_t effectiveBackgroundBlurRadius = 0;
+
+        if (shouldProcessBlur) {
+            float higherBlurRadius = 0.0f;
+            for (const auto* higherLayer = &layer + 1;
+                 higherLayer < layers.data() + layers.size(); ++higherLayer) {
+                if (isLayerFullyTransparent(*higherLayer)) {
+                    continue;
+                }
+                if (isBlurCoveringMostOfScreen(*higherLayer, display)) {
+                    higherBlurRadius = std::max(higherBlurRadius,
+                            static_cast<float>(higherLayer->backgroundBlurRadius));
+                }
+            }
+
+            blurScale = computeOccludedBlurScale(higherBlurRadius);
+
+            float higherBlurForRegions = higherBlurRadius;
+            if (layer.backgroundBlurRadius > 0) {
+                higherBlurForRegions = std::max(higherBlurForRegions,
+                        static_cast<float>(layer.backgroundBlurRadius));
+            }
+
+            regionBlurScale = computeOccludedBlurScale(higherBlurForRegions);
+
+            effectiveBackgroundBlurRadius =
+                    static_cast<uint32_t>(std::round(layer.backgroundBlurRadius * blurScale));
+
+            bool hasEffectiveBlurRegion = false;
+            if (regionBlurScale > 0.001f) {
+                for (const auto& r : layer.blurRegions) {
+                    if (r.blurRadius > 0 && r.alpha > 0.001f) {
+                        hasEffectiveBlurRegion = true;
+                        break;
+                    }
+                }
+            }
+
+            if (effectiveBackgroundBlurRadius == 0 && !hasEffectiveBlurRegion) {
+                shouldProcessBlur = false;
+            }
+        }
+
+        if (shouldProcessBlur) {
             std::unordered_map<uint32_t, sk_sp<SkImage>> cachedBlurs;
 
             auto computeBlurInputHash = [&]() -> std::pair<bool, uint64_t> {
@@ -1127,9 +1200,9 @@ void SkiaRenderEngine::drawLayersInternal(
                 const SkIRect blurRectI = blurRect.roundOut();
                 const auto [cacheableBlurInput, blurInputHash] = computeBlurInputHash();
 
-                if (layer.backgroundBlurRadius > 0) {
+                if (effectiveBackgroundBlurRadius > 0) {
                     const uint32_t blurRadius =
-                            mBlurFilter->effectiveRadius(layer.backgroundBlurRadius);
+                            mBlurFilter->effectiveRadius(effectiveBackgroundBlurRadius);
                     SFTRACE_NAME("BackgroundBlur");
                     sk_sp<SkImage> blurredImage;
                     if (cacheableBlurInput) {
@@ -1146,12 +1219,16 @@ void SkiaRenderEngine::drawLayersInternal(
                     cachedBlurs[blurRadius] = blurredImage;
 
                     mBlurFilter->drawBlurRegion(canvas, bounds, blurRadius,
-                                                layer.backgroundBlurScale, 1.0f, blurRect,
+                                                layer.backgroundBlurScale, blurScale, blurRect,
                                                 blurredImage, blurInput);
                 }
 
                 canvas->concat(getSkM44(layer.blurRegionTransform).asM33());
                 for (auto region : layer.blurRegions) {
+                    const float effectiveAlpha = region.alpha * regionBlurScale;
+                    if (effectiveAlpha <= 0.001f || region.blurRadius == 0) {
+                        continue;
+                    }
                     const uint32_t blurRadius = mBlurFilter->effectiveRadius(region.blurRadius);
                     if (cachedBlurs[blurRadius] == nullptr) {
                         SFTRACE_NAME("BlurRegion");
@@ -1171,7 +1248,7 @@ void SkiaRenderEngine::drawLayersInternal(
                     }
 
                     mBlurFilter->drawBlurRegion(canvas, getBlurRRect(region), blurRadius, 1.0f,
-                                                region.alpha, blurRect, cachedBlurs[blurRadius],
+                                                effectiveAlpha, blurRect, cachedBlurs[blurRadius],
                                                 blurInput);
                 }
             }
