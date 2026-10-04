@@ -27,7 +27,6 @@
 #include <android-base/stringprintf.h>
 #include <common/FlagManager.h>
 #include <common/trace.h>
-#include <log/log.h>
 #include <private/gui/SyncFeatures.h>
 #include <processgroup/processgroup.h>
 
@@ -93,8 +92,6 @@ void RenderEngineThreaded::threadMain(CreateInstanceFactory factory) NO_THREAD_S
     skia::Cache::initializeDiskCache();
 
     mRenderEngine = factory();
-    LOG_ALWAYS_FATAL_IF(!mRenderEngine,
-                        "RenderEngineThreaded: factory failed to create RenderEngine instance!");
 
     pthread_setname_np(pthread_self(), mThreadName);
 

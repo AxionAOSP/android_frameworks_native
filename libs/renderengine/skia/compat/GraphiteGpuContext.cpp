@@ -39,7 +39,7 @@ namespace android::renderengine::skia {
 namespace {
 static skgpu::graphite::ContextOptions graphiteOptions() {
     skgpu::graphite::ContextOptions options;
-    options.fDisableDriverCorrectnessWorkarounds = false;
+    options.fDisableDriverCorrectnessWorkarounds = true;
     return options;
 }
 
@@ -62,12 +62,8 @@ public:
 
 std::unique_ptr<SkiaGpuContext> SkiaGpuContext::MakeVulkan_Graphite(
         const skgpu::VulkanBackendContext& vulkanBackendContext) {
-    auto context =
-            skgpu::graphite::ContextFactory::MakeVulkan(vulkanBackendContext, graphiteOptions());
-    if (!context) {
-        return nullptr;
-    }
-    return std::make_unique<GraphiteGpuContext>(std::move(context));
+    return std::make_unique<GraphiteGpuContext>(
+            skgpu::graphite::ContextFactory::MakeVulkan(vulkanBackendContext, graphiteOptions()));
 }
 
 GraphiteGpuContext::GraphiteGpuContext(std::unique_ptr<skgpu::graphite::Context> context)
