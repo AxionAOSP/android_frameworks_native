@@ -134,7 +134,7 @@ SkiaRenderEngine::Contexts SkiaVkRenderEngine::createContexts() {
 
     SkiaRenderEngine::Contexts contexts;
     contexts.first = createContext(sVulkanInterface);
-    if (contexts.first && supportsProtectedContentImpl()) {
+    if (supportsProtectedContentImpl()) {
         contexts.second = createContext(sProtectedContentVulkanInterface);
     }
 

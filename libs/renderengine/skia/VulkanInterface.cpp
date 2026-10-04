@@ -181,27 +181,13 @@ void VulkanInterface::onVkDeviceFault(void* callbackContext, const std::string& 
     LOG_ALWAYS_FATAL("%s", crashMsg.str().c_str());
 };
 
-static skgpu::VulkanGetProc sGetProc = [](const char* procName, VkInstance instance,
-                                          VkDevice device) -> PFN_vkVoidFunction {
-    const auto getProc = [instance, device](const char* name) {
-        if (device != VK_NULL_HANDLE) {
-            return vkGetDeviceProcAddr(device, name);
-        }
-        return vkGetInstanceProcAddr(instance, name);
-    };
-
-    if (PFN_vkVoidFunction proc = getProc(procName)) {
-        return proc;
+static skgpu::VulkanGetProc sGetProc = [](const char* proc_name,
+                                          VkInstance instance,
+                                          VkDevice device) {
+    if (device != VK_NULL_HANDLE) {
+        return vkGetDeviceProcAddr(device, proc_name);
     }
-
-    const std::string extensionName = std::string(procName) + "KHR";
-    if (PFN_vkVoidFunction proc = getProc(extensionName.c_str())) {
-        ALOGW("Using Vulkan extension proc %s for %s", extensionName.c_str(), procName);
-        return proc;
-    }
-
-    ALOGE("Vulkan proc %s unavailable", procName);
-    return nullptr;
+    return vkGetInstanceProcAddr(instance, proc_name);
 };
 
 #define BAIL(fmt, ...)                                          \

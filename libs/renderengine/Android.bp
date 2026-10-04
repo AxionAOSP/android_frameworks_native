@@ -58,7 +58,6 @@ cc_defaults {
         "libsurfaceflinger_common",
         "libsurfaceflingerflags",
         "libgui_window_info_static",
-        "ax_graphics",
     ],
     header_libs: [
         "ax_blur_native_headers",
@@ -146,7 +145,6 @@ cc_defaults {
         "libEGL_blobCache",
         "libgui_window_info_static",
         "libskia_renderengine",
-        "ax_graphics",
     ],
     shared_libs: [
         "libbinder",

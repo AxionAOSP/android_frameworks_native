@@ -118,7 +118,6 @@ cc_defaults {
         "libsurfaceflingerflags",
         "libtimestats",
         "libtonemap",
-        "ax_graphics",
     ],
     header_libs: [
         "android.hardware.graphics.composer3-command-buffer",
