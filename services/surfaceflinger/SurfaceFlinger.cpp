@@ -5150,6 +5150,27 @@ void SurfaceFlinger::setTransactionFlags(uint32_t mask, TransactionSchedule sche
     }
 }
 
+void SurfaceFlinger::bindSFThread(bool enable, uint32_t cpuset) {
+    pid_t sfTid = gettid();
+    std::optional<pid_t> reTid = getRenderEngine().getRenderEngineTid();
+
+    cpu_set_t mask;
+    CPU_ZERO(&mask);
+    const uint32_t effectiveMask = (enable && cpuset != 0) ? cpuset : 0xffffffff;
+    for (int i = 0; i < 32; i++) {
+        if ((effectiveMask >> i) & 1) {
+            CPU_SET(i, &mask);
+        }
+    }
+
+    if (sfTid > 0) {
+        sched_setaffinity(sfTid, sizeof(cpu_set_t), &mask);
+    }
+    if (reTid.has_value() && *reTid > 0) {
+        sched_setaffinity(*reTid, sizeof(cpu_set_t), &mask);
+    }
+}
+
 TransactionHandler::TransactionReadiness SurfaceFlinger::transactionReadyTimelineCheck(
         const TransactionHandler::TransactionFlushState& flushState) {
     const auto& transaction = *flushState.transaction;
@@ -7136,7 +7157,7 @@ status_t SurfaceFlinger::CheckTransactCodeCredentials(uint32_t code) {
     }
     // Numbers from 1000 to 1047 are currently used for backdoors. The code
     // in onTransact verifies that the user is root, and has access to use SF.
-    if (code >= 1000 && code <= 1047) {
+    if ((code >= 1000 && code <= 1047) || code == 2007) {
         ALOGV("Accessing SurfaceFlinger through backdoor code: %u", code);
         return OK;
     }
@@ -7430,6 +7451,15 @@ status_t SurfaceFlinger::onTransact(uint32_t code, const Parcel& data, Parcel* r
                         setActiveModeFromBackdoor(display, DisplayModeId{modeId}, minFps, maxFps);
                 mDebugDisplayModeSetByBackdoor = result == NO_ERROR;
                 return result;
+            }
+            case 2007: {
+                int32_t enable = data.readInt32();
+                uint32_t cpuset = 0xff;
+                if (data.dataAvail() > 0) {
+                    cpuset = static_cast<uint32_t>(data.readInt32());
+                }
+                bindSFThread(enable != 0, cpuset);
+                return NO_ERROR;
             }
             // Turn on/off frame rate flexibility mode. When turned on it overrides the display
             // manager frame rate policy a new policy which allows switching between all refresh
