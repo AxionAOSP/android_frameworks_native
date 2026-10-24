@@ -81,6 +81,7 @@
 #include <hidl/ServiceManagement.h>
 #include <layerproto/LayerProtoHeader.h>
 #include <linux/sched/types.h>
+#include <sched.h>
 #include <log/log.h>
 #include <private/android_filesystem_config.h>
 #include <private/gui/SyncFeatures.h>
@@ -5151,23 +5152,68 @@ void SurfaceFlinger::setTransactionFlags(uint32_t mask, TransactionSchedule sche
 }
 
 void SurfaceFlinger::bindSFThread(bool enable, uint32_t cpuset) {
-    pid_t sfTid = gettid();
+    pid_t sfTid = getpid();
     std::optional<pid_t> reTid = getRenderEngine().getRenderEngineTid();
 
-    cpu_set_t mask;
-    CPU_ZERO(&mask);
-    const uint32_t effectiveMask = (enable && cpuset != 0) ? cpuset : 0xffffffff;
-    for (int i = 0; i < 32; i++) {
-        if ((effectiveMask >> i) & 1) {
-            CPU_SET(i, &mask);
-        }
-    }
+    static std::mutex sAffinityLock;
+    static bool sAffinityApplied = false;
+    static cpu_set_t sSavedSfMask;
+    static cpu_set_t sSavedReMask;
+    static bool sHasSavedSfMask = false;
+    static bool sHasSavedReMask = false;
 
-    if (sfTid > 0) {
-        sched_setaffinity(sfTid, sizeof(cpu_set_t), &mask);
-    }
-    if (reTid.has_value() && *reTid > 0) {
-        sched_setaffinity(*reTid, sizeof(cpu_set_t), &mask);
+    std::lock_guard<std::mutex> lock(sAffinityLock);
+
+    if (enable && cpuset != 0) {
+        if (!sAffinityApplied) {
+            if (sfTid > 0 && sched_getaffinity(sfTid, sizeof(cpu_set_t), &sSavedSfMask) == 0) {
+                sHasSavedSfMask = true;
+            }
+            if (reTid.has_value() && *reTid > 0 &&
+                sched_getaffinity(*reTid, sizeof(cpu_set_t), &sSavedReMask) == 0) {
+                sHasSavedReMask = true;
+            }
+        }
+
+        cpu_set_t reqMask;
+        CPU_ZERO(&reqMask);
+        for (int i = 0; i < 32; i++) {
+            if ((cpuset >> i) & 1) {
+                CPU_SET(i, &reqMask);
+            }
+        }
+
+        if (sfTid > 0) {
+            cpu_set_t targetMask;
+            if (sHasSavedSfMask) {
+                CPU_AND(&targetMask, &reqMask, &sSavedSfMask);
+            } else {
+                targetMask = reqMask;
+            }
+            if (CPU_COUNT(&targetMask) > 0) {
+                sched_setaffinity(sfTid, sizeof(cpu_set_t), &targetMask);
+            }
+        }
+        if (reTid.has_value() && *reTid > 0) {
+            cpu_set_t targetMask;
+            if (sHasSavedReMask) {
+                CPU_AND(&targetMask, &reqMask, &sSavedReMask);
+            } else {
+                targetMask = reqMask;
+            }
+            if (CPU_COUNT(&targetMask) > 0) {
+                sched_setaffinity(*reTid, sizeof(cpu_set_t), &targetMask);
+            }
+        }
+        sAffinityApplied = true;
+    } else if (sAffinityApplied) {
+        if (sHasSavedSfMask && sfTid > 0) {
+            sched_setaffinity(sfTid, sizeof(cpu_set_t), &sSavedSfMask);
+        }
+        if (sHasSavedReMask && reTid.has_value() && *reTid > 0) {
+            sched_setaffinity(*reTid, sizeof(cpu_set_t), &sSavedReMask);
+        }
+        sAffinityApplied = false;
     }
 }
 
